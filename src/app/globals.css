@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Projekt Blackbird";
+  src: url("/fonts/Projekt-Blackbird.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Myriadpro Regular";
+  src: url("/fonts/Myriadpro-Regular.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("/fonts/Montserrat-VariableFont_wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("/fonts/Montserrat-Italic-VariableFont_wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ivy Journal";
+  src: url("/font/IvyJournal-Thin.woff2") format("woff2"),
+    url("/font/IvyJournal-Thin.woff") format("woff"),
+    url("/font/IvyJournal-Thin.ttf") format("truetype");
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ivy Journal";
+  src: url("/font/IvyJournal-Light.woff2") format("woff2"),
+    url("/font/IvyJournal-Light.woff") format("woff"),
+    url("/font/IvyJournal-Light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ivy Journal";
+  src: url("/font/IvyJournal-Regular.woff2") format("woff2"),
+    url("/font/IvyJournal-Regular.woff") format("woff"),
+    url("/font/IvyJournal-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ivy Journal";
+  src: url("/font/IvyJournal-SemiBold.woff2") format("woff2"),
+    url("/font/IvyJournal-SemiBold.woff") format("woff"),
+    url("/font/IvyJournal-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ivy Journal";
+  src: url("/font/IvyJournal-Bold.woff2") format("woff2"),
+    url("/font/IvyJournal-Bold.woff") format("woff"),
+    url("/font/IvyJournal-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme inline {
+  --font-projekt: "Projekt Blackbird", sans-serif;
+  --font-montserrat: "Montserrat", sans-serif;
+  --font-myriadpro: "Myriadpro Regular", sans-serif;
+  --font-ivy: "Ivy Journal", serif;
+
+  --color-primary-blue: #092e4a;
+  --color-primary-white: #ffffff;
+  --color-primary-black: #000000;
+  --color-primary-orange: #ef9849;
+  --color-primary-cream-dkr: #fcd6a5;
+  --color-primary-cream: #ffefdb;
+  --color-light-gray: #f1f1f1;
+  --color-warm-cream: #fff5e9;
+
+  --breakpoint-xxs: 375px;
+  --breakpoint-xs: 400px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1200px;
+  --breakpoint-2xl: 1300px;
+  --breakpoint-3xl: 1400px;
+  --breakpoint-4xl: 1500px;
+  --breakpoint-5xl: 1600px;
+  --breakpoint-6xl: 1900px;
+  --breakpoint-7xl: 2560px;
+
+  --shadow-card: 0px 0px 23.0233px rgba(0, 0, 0, 0.25);
+}

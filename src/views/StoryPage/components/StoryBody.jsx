@@ -10,7 +10,13 @@ const StoryBody = ({ stories, pageHeadline, showAuthorPerStory }) => {
       {stories.map((story, index) => {
         const isFirst = index === 0;
         const showTitle = story.title && story.title !== pageHeadline;
-        const paragraphs = (story.content || "").split(/\n+/).filter(Boolean);
+        // Strip stray HTML/XML-like tags (e.g. "<text>") that the backend may
+        // include in the raw content.
+        const cleanContent = (story.content || "").replace(
+          /<\/?[a-z][^>]*>/gi,
+          ""
+        );
+        const paragraphs = cleanContent.split(/\n+/).filter(Boolean);
 
         // Filter out cover-marked images so they don't render inline as well.
         const mediaItems = (story.media || []).filter(

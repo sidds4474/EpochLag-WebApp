@@ -12,6 +12,11 @@ const StoryBody = ({ stories, pageHeadline, showAuthorPerStory }) => {
         const showTitle = story.title && story.title !== pageHeadline;
         const paragraphs = (story.content || "").split(/\n+/).filter(Boolean);
 
+        // Filter out cover-marked images so they don't render inline as well.
+        const mediaItems = (story.media || []).filter(
+          (m) => !(m?.type === "image" && m?.url?.includes("_cover.jpg"))
+        );
+
         return (
           <section
             key={story._id || index}
@@ -47,13 +52,46 @@ const StoryBody = ({ stories, pageHeadline, showAuthorPerStory }) => {
               </div>
             )}
 
-            {story.media?.map((item, i) => (
-              <StoryMedia
-                key={`${story._id || index}-media-${i}`}
-                item={item}
-                storyTitle={story.title}
-              />
-            ))}
+            {(() => {
+              const visualMedia = mediaItems.filter(
+                (m) => m?.type === "image" || m?.type === "video"
+              );
+              const audioMedia = mediaItems.filter((m) => m?.type === "audio");
+              const isSingleVisual = visualMedia.length === 1;
+              const hasMultipleVisuals = visualMedia.length > 1;
+
+              return (
+                <>
+                  {isSingleVisual && (
+                    <div className="my-[24px] mx-auto max-w-[300px] md:max-w-[420px]">
+                      <StoryMedia
+                        item={visualMedia[0]}
+                        storyTitle={story.title}
+                      />
+                    </div>
+                  )}
+                  {hasMultipleVisuals && (
+                    <div className="my-[24px] grid grid-cols-2 gap-[10px] md:gap-[14px]">
+                      {visualMedia.map((item, i) => (
+                        <StoryMedia
+                          key={`${story._id || index}-vmedia-${i}`}
+                          item={item}
+                          storyTitle={story.title}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {audioMedia.map((item, i) => (
+                    <div
+                      key={`${story._id || index}-audio-${i}`}
+                      className="my-[24px]"
+                    >
+                      <StoryMedia item={item} storyTitle={story.title} />
+                    </div>
+                  ))}
+                </>
+              );
+            })()}
 
             <StoryMetadata
               dateOfStory={story.dateOfStory}

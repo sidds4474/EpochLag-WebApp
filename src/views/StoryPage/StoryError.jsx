@@ -14,7 +14,7 @@ const StoryError = () => {
           href="/"
           className="inline-block mt-[28px] bg-primary-orange text-primary-white font-montserrat font-semibold text-[14px] px-[28px] py-[12px] rounded-full hover:opacity-90 transition-opacity"
         >
-          Go to EpochLag
+          Go to Epoch Lag
         </Link>
       </div>
     </main>

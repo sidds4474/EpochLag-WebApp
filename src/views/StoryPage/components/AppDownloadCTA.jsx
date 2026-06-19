@@ -20,7 +20,7 @@ const AppDownloadCTA = ({ platform, publicCode }) => {
     <section className="bg-primary-cream">
       <div className="max-w-[860px] mx-auto px-[16px] md:px-[24px] py-[48px] md:py-[64px] text-center">
         <h2 className="font-ivy font-bold text-primary-blue text-[28px] md:text-[36px] leading-[120%]">
-          Stories like this live in EpochLag
+          Stories like this live in Epoch Lag
         </h2>
         <p className="mt-[12px] font-montserrat text-primary-blue text-[16px] md:text-[18px] leading-[160%] opacity-85 max-w-[520px] mx-auto">
           Start your own. Keep the moments that matter close, with the people

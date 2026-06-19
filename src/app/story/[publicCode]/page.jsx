@@ -25,11 +25,13 @@ export async function generateMetadata({ params }) {
   const headline = prompt?.isTitleAvailable
     ? firstStory?.title
     : prompt?.content;
-  const storyTitle = firstStory?.title || headline || "A story on EpochLag";
+  const storyTitle = firstStory?.title || headline || "A story on Epoch Lag";
   const authorFirstName = prompt?.author?.firstName || "Someone";
   const description = excerpt(firstStory?.content || "", 150);
   const url = `${SITE_URL}/story/${publicCode}`;
-  const ogImage = toOgImage(prompt?.imageUrl);
+  const fallbackCover =
+    firstStory?.media?.find((m) => m?.type === "image")?.url || null;
+  const ogImage = toOgImage(prompt?.imageUrl || fallbackCover);
 
   return {
     title: `${authorFirstName}'s Story — ${storyTitle}`,

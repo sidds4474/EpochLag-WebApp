@@ -9,7 +9,7 @@ const StoryHero = ({ coverUrl, headline, author, datePosted }) => {
           <img
             src={toResponsiveImage(coverUrl, 1200)}
             alt={headline || "Story cover image"}
-            className="w-full aspect-[4/5] md:aspect-[16/9] object-cover"
+            className="w-full h-[280px] md:h-[400px] object-cover"
             fetchPriority="high"
             decoding="async"
           />

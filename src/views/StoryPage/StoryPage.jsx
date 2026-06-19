@@ -1,6 +1,7 @@
 import StoryHero from "./components/StoryHero";
 import StoryBody from "./components/StoryBody";
 import AppDownloadCTA from "./components/AppDownloadCTA";
+import StoryNavBar from "./components/StoryNavBar";
 import StoryViewAnalytics from "./StoryViewAnalytics";
 
 const StoryPage = ({ data, publicCode, platform }) => {
@@ -28,7 +29,8 @@ const StoryPage = ({ data, publicCode, platform }) => {
         threadId={threadId}
         authorId={headerAuthor?._id}
       />
-      <article className="max-w-[860px] mx-auto px-[16px] md:px-[24px] pt-[24px] pb-[40px] md:pb-[60px]">
+      <StoryNavBar publicCode={publicCode} platform={platform} />
+      <article className="max-w-[860px] mx-auto px-[16px] md:px-[24px] pt-[16px] md:pt-[24px] pb-[40px] md:pb-[60px]">
         <StoryHero
           coverUrl={coverUrl}
           headline={headline}

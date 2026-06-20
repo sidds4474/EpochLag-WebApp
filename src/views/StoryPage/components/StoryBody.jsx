@@ -6,32 +6,24 @@ import {
   hasInlineMediaBlocks,
 } from "../../../lib/parseStoryContent";
 
-const TextBlock = ({ text }) => (
-  <p className="whitespace-pre-line">{text}</p>
-);
-
-const MediaBlock = ({ block, storyTitle }) => (
-  <div className="mx-auto max-w-[300px] md:max-w-[420px]">
-    <StoryMedia
-      item={{ type: block.type, url: block.url }}
-      storyTitle={storyTitle}
-    />
-  </div>
-);
-
-const renderTaggedBlocks = (blocks, storyTitle, keyPrefix) => {
+const renderBlocks = (blocks, storyTitle, keyPrefix) => {
+  // Group consecutive text blocks into a single paragraph stack so the
+  // typography rhythm matches the article layout.
   const nodes = [];
   let textBuffer = [];
 
   const flushText = () => {
     if (textBuffer.length === 0) return;
-    const merged = textBuffer.join("\n");
     nodes.push(
       <div
         key={`${keyPrefix}-text-${nodes.length}`}
-        className="font-montserrat text-primary-blue text-[16px] md:text-[18px] leading-[170%]"
+        className="font-montserrat text-primary-blue text-[16px] md:text-[18px] leading-[170%] space-y-[16px]"
       >
-        <TextBlock text={merged} />
+        {textBuffer.map((t, i) => (
+          <p key={i} className="whitespace-pre-line">
+            {t}
+          </p>
+        ))}
       </div>
     );
     textBuffer = [];
@@ -39,16 +31,19 @@ const renderTaggedBlocks = (blocks, storyTitle, keyPrefix) => {
 
   blocks.forEach((b, i) => {
     if (b.type === "text") {
-      textBuffer.push(b.text);
+      if (b.text && b.text.trim()) textBuffer.push(b.text);
       return;
     }
     flushText();
     nodes.push(
       <div
         key={`${keyPrefix}-${b.type}-${i}`}
-        className="my-[24px] md:my-[28px]"
+        className="my-[24px] md:my-[28px] mx-auto max-w-[300px] md:max-w-[420px]"
       >
-        <MediaBlock block={b} storyTitle={storyTitle} />
+        <StoryMedia
+          item={{ type: b.type, url: b.url }}
+          storyTitle={storyTitle}
+        />
       </div>
     );
   });
@@ -57,8 +52,7 @@ const renderTaggedBlocks = (blocks, storyTitle, keyPrefix) => {
   return nodes;
 };
 
-const renderLegacyBody = (story, mediaItems, showTitle) => {
-  const paragraphs = (story.content || "").split(/\n+/).filter(Boolean);
+const renderLegacyMediaGrid = (mediaItems, storyTitle, keyPrefix) => {
   const visualMedia = mediaItems.filter(
     (m) => m?.type === "image" || m?.type === "video"
   );
@@ -68,37 +62,25 @@ const renderLegacyBody = (story, mediaItems, showTitle) => {
 
   return (
     <>
-      {paragraphs.length > 0 && (
-        <div
-          className={`${
-            showTitle ? "mt-[16px]" : ""
-          } font-montserrat text-primary-blue text-[16px] md:text-[18px] leading-[170%] space-y-[16px]`}
-        >
-          {paragraphs.map((p, i) => (
-            <TextBlock key={i} text={p} />
-          ))}
-        </div>
-      )}
-
       {isSingleVisual && (
         <div className="my-[24px] mx-auto max-w-[300px] md:max-w-[420px]">
-          <StoryMedia item={visualMedia[0]} storyTitle={story.title} />
+          <StoryMedia item={visualMedia[0]} storyTitle={storyTitle} />
         </div>
       )}
       {hasMultipleVisuals && (
         <div className="my-[24px] grid grid-cols-2 gap-[10px] md:gap-[14px]">
           {visualMedia.map((item, i) => (
             <StoryMedia
-              key={`legacy-vmedia-${i}`}
+              key={`${keyPrefix}-vmedia-${i}`}
               item={item}
-              storyTitle={story.title}
+              storyTitle={storyTitle}
             />
           ))}
         </div>
       )}
       {audioMedia.map((item, i) => (
-        <div key={`legacy-audio-${i}`} className="my-[24px]">
-          <StoryMedia item={item} storyTitle={story.title} />
+        <div key={`${keyPrefix}-audio-${i}`} className="my-[24px]">
+          <StoryMedia item={item} storyTitle={storyTitle} />
         </div>
       ))}
     </>
@@ -113,15 +95,23 @@ const StoryBody = ({ stories, pageHeadline, showAuthorPerStory }) => {
       {stories.map((story, index) => {
         const isFirst = index === 0;
         const showTitle = story.title && story.title !== pageHeadline;
+        const keyPrefix = `${story._id || index}`;
 
-        // Filter cover-marked images out of media[] so they never duplicate the
-        // hero (legacy path only; tagged content doesn't include the cover).
-        const mediaItems = (story.media || []).filter(
-          (m) => !(m?.type === "image" && m?.url?.includes("_cover.jpg"))
-        );
-
+        // Always parse content. The parser is the only thing that touches the
+        // raw content string, so tags (<text>, <image>, etc.) never leak into
+        // the rendered output.
         const blocks = parseContentToBlocks(story.content || "");
-        const useTagged = hasInlineMediaBlocks(blocks);
+        const contentHasInlineMedia = hasInlineMediaBlocks(blocks);
+
+        // Legacy stories may store inline media in story.media[] without
+        // referencing it in content. Render those as a grid only when the
+        // content didn't already include inline media tags (otherwise we'd
+        // duplicate the media). Also skip cover-marked images.
+        const legacyMediaItems = !contentHasInlineMedia
+          ? (story.media || []).filter(
+              (m) => !(m?.type === "image" && m?.url?.includes("_cover.jpg"))
+            )
+          : [];
 
         return (
           <section
@@ -139,18 +129,15 @@ const StoryBody = ({ stories, pageHeadline, showAuthorPerStory }) => {
             )}
 
             {showTitle && (
-              <h2 className="font-ivy font-semibold text-primary-blue text-[24px] md:text-[28px] leading-[120%] break-words">
+              <h2 className="font-ivy font-semibold text-primary-blue text-[24px] md:text-[28px] leading-[120%] break-words mb-[16px]">
                 {story.title}
               </h2>
             )}
 
-            {useTagged
-              ? renderTaggedBlocks(
-                  blocks,
-                  story.title,
-                  `${story._id || index}`
-                )
-              : renderLegacyBody(story, mediaItems, showTitle)}
+            {renderBlocks(blocks, story.title, keyPrefix)}
+
+            {legacyMediaItems.length > 0 &&
+              renderLegacyMediaGrid(legacyMediaItems, story.title, keyPrefix)}
 
             <StoryMetadata
               dateOfStory={story.dateOfStory}

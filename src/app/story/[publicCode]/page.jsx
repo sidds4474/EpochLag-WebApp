@@ -5,9 +5,23 @@ import StoryError from "../../../views/StoryPage/StoryError";
 import { fetchPublicStory, STORY_FETCH_STATUS } from "../../../lib/storyApi";
 import { toOgImage } from "../../../lib/cloudinary";
 import { detectPlatform } from "../../../lib/platform";
-import { excerpt, fullName } from "../../../lib/formatters";
+import { excerpt } from "../../../lib/formatters";
+import { parseContentToBlocks } from "../../../lib/parseStoryContent";
 
 const SITE_URL = "https://www.epochlag.com";
+
+function extractTextForDescription(content) {
+  if (!content) return "";
+  const blocks = parseContentToBlocks(content);
+  const text = blocks
+    .filter((b) => b.type === "text" && b.text)
+    .map((b) => b.text.trim())
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text;
+}
 
 export async function generateMetadata({ params }) {
   const { publicCode } = await params;
@@ -25,9 +39,17 @@ export async function generateMetadata({ params }) {
   const headline = prompt?.isTitleAvailable
     ? firstStory?.title
     : prompt?.content;
-  const storyTitle = firstStory?.title || headline || "A story on Epoch Lag";
   const authorFirstName = prompt?.author?.firstName || "Someone";
-  const description = excerpt(firstStory?.content || "", 150);
+
+  const cleanText = extractTextForDescription(firstStory?.content);
+  const storyTitle =
+    firstStory?.title?.trim() ||
+    headline?.trim() ||
+    `A memory from ${authorFirstName}`;
+  const description =
+    excerpt(cleanText, 150) ||
+    `A memory shared by ${authorFirstName} on Epoch Lag.`;
+
   const url = `${SITE_URL}/story/${publicCode}`;
   const fallbackCover =
     firstStory?.media?.find((m) => m?.type === "image")?.url || null;

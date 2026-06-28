@@ -112,3 +112,31 @@
 
   --shadow-card: 0px 0px 23.0233px rgba(0, 0, 0, 0.25);
 }
+
+.legal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #092e4a #d9d9d9;
+}
+.legal-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.legal-scroll::-webkit-scrollbar-track {
+  background: #d9d9d9;
+  border-radius: 10px;
+}
+.legal-scroll::-webkit-scrollbar-thumb {
+  background: #092e4a;
+  border-radius: 10px;
+}
+
+/* Style the native date input so it looks like our other pill fields */
+.dob-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+}
+.dob-input::-webkit-datetime-edit {
+  color: #092e4a;
+}
+.dob-input:not(:focus):invalid {
+  color: rgba(0, 0, 0, 0.3);
+}

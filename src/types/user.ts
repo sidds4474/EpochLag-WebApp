@@ -1,0 +1,23 @@
+export type User = {
+  _id: string;
+  id?: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  countryCode?: string | null;
+  phone?: string | null;
+  epochlagID?: string;
+  isVerified?: boolean;
+  isArchived?: boolean;
+  friends?: string[];
+  blockedUsers?: string[];
+  allowContactDiscovery?: boolean;
+  featureUpdatesNotifications?: boolean;
+  warningCount?: number;
+  promptHighlights?: unknown[];
+  moderationWarnings?: unknown[];
+  profileImage?: string | null;
+  backgroundImage?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};

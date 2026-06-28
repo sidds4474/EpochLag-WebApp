@@ -140,3 +140,23 @@
 .dob-input:not(:focus):invalid {
   color: rgba(0, 0, 0, 0.3);
 }
+
+/* Hide scrollbars for horizontal card rails while keeping scroll behaviour */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide the main page scrollbar globally (keep scrolling functional) */
+html,
+body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+}

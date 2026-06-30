@@ -56,6 +56,21 @@ export function formatShortDayTime(input?: string | Date | null): string {
   return `${day} ${time}`;
 }
 
+// "thu 12:45" — lowercase short day + 12-hour time without AM/PM.
+// Used in the Open Story compact header to match the Figma exactly.
+export function formatStoryHeaderDate(input?: string | Date | null): string {
+  if (!input) return "";
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return "";
+  const day = d
+    .toLocaleDateString("en-US", { weekday: "short" })
+    .toLowerCase();
+  const hours = d.getHours();
+  const minutes = d.getMinutes().toString().padStart(2, "0");
+  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+  return `${day} ${hour12}:${minutes}`;
+}
+
 export function excerpt(text: string | null | undefined, maxLength = 150): string {
   if (!text) return "";
   const flat = text.replace(/\s+/g, " ").trim();

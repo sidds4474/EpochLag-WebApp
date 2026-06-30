@@ -121,13 +121,6 @@ export const EMPTY_STATE_CARDS: EmptyStateCard[] = [
       },
       {
         type: "feature",
-        icon: "home",
-        label: "Inspiration:",
-        text:
-          "A weekly feed of inspirational prompts that we serve up to you. These are intended to spark inspiration or be shared with family and friends.",
-      },
-      {
-        type: "feature",
         icon: "interactions",
         label: "Interactions:",
         text:

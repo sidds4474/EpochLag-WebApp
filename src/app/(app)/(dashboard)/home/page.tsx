@@ -491,9 +491,11 @@ function UserCardTile({ card }: { card: UserCard }) {
   const shareCount = card.shareWith?.length ?? 0;
   const author = card.author;
   const { displayText, imageSrc } = getCardDisplay(card);
+  const threadId = (card.storyThread as { _id?: string } | null)?._id;
+  const href = threadId ? `/thread/${threadId}` : undefined;
 
   return (
-    <CardShell height={FORYOU_HEIGHT}>
+    <CardShell height={FORYOU_HEIGHT} href={href}>
       <ImageArea src={imageSrc}>
         <div className="flex items-center gap-[6px]">
           {author && (

@@ -62,7 +62,7 @@ export default function Sidebar({ people }: SidebarProps) {
   const hasFriends = (people?.users.length ?? 0) > 0;
 
   return (
-    <aside className="hidden md:flex w-[220px] lg:w-[240px] shrink-0 flex-col px-[20px] py-[24px] gap-[20px]">
+    <aside className="hidden md:flex w-[220px] lg:w-[240px] shrink-0 flex-col px-[20px] py-[24px] gap-[20px] overflow-y-auto scrollbar-hide">
       <Link href="/home" className="block">
         <img
           src={LogoDark.src}

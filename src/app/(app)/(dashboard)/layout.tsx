@@ -32,11 +32,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }, [status]);
 
   return (
-    <div className="min-h-screen w-full bg-white flex">
+    <div className="h-screen w-full bg-white flex overflow-hidden">
       <Sidebar people={people} />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <Header user={user} unreadCount={unreadCount} />
-        <main className="flex-1 min-w-0">{children}</main>
+        <main className="flex-1 min-w-0 min-h-0 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

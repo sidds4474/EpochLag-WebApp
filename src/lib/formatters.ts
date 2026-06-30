@@ -26,6 +26,36 @@ export function fullName(
   return [firstName, lastName].filter(Boolean).join(" ").trim();
 }
 
+export function formatCardDate(input?: string | Date | null): string {
+  if (!input) return "";
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return "";
+  const datePart = d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  const time = d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${datePart}, ${time}`;
+}
+
+export function formatShortDayTime(input?: string | Date | null): string {
+  if (!input) return "";
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return "";
+  const day = d.toLocaleDateString("en-US", { weekday: "short" });
+  const time = d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${day} ${time}`;
+}
+
 export function excerpt(text: string | null | undefined, maxLength = 150): string {
   if (!text) return "";
   const flat = text.replace(/\s+/g, " ").trim();

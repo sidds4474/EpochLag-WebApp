@@ -19,10 +19,20 @@ type GoogleIdButtonOptions = {
   locale?: string;
 };
 
+type GooglePromptNotification = {
+  isNotDisplayed: () => boolean;
+  isSkippedMoment: () => boolean;
+  isDismissedMoment: () => boolean;
+  getNotDisplayedReason: () => string;
+  getSkippedReason: () => string;
+  getDismissedReason: () => string;
+  getMomentType: () => string;
+};
+
 type GoogleAccountsId = {
   initialize: (options: GoogleIdInitializeOptions) => void;
   renderButton: (parent: HTMLElement, options: GoogleIdButtonOptions) => void;
-  prompt: () => void;
+  prompt: (callback?: (notification: GooglePromptNotification) => void) => void;
   cancel: () => void;
   disableAutoSelect: () => void;
 };

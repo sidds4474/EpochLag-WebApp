@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Script from "next/script";
@@ -27,8 +27,6 @@ function LoginContent() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [googleReady, setGoogleReady] = useState(false);
-  const [googleInitialized, setGoogleInitialized] = useState(false);
-  const hiddenGoogleRef = useRef<HTMLDivElement | null>(null);
 
   const next = searchParams?.get("next") || "/home";
 
@@ -43,11 +41,11 @@ function LoginContent() {
   }, []);
 
   useEffect(() => {
-    if (!googleReady || !hiddenGoogleRef.current || !window.google) return;
-    if (!GOOGLE_CLIENT_ID) return;
+    if (!googleReady || !window.google || !GOOGLE_CLIENT_ID) return;
 
     window.google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
+      use_fedcm_for_prompt: true,
       callback: async (response) => {
         setFormError(null);
         try {
@@ -60,24 +58,22 @@ function LoginContent() {
         }
       },
     });
-
-    hiddenGoogleRef.current.innerHTML = "";
-    window.google.accounts.id.renderButton(hiddenGoogleRef.current, {
-      theme: "outline",
-      size: "large",
-      type: "standard",
-      shape: "rectangular",
-      text: "signin_with",
-      logo_alignment: "left",
-    });
-    setGoogleInitialized(true);
   }, [googleReady, signInWithGoogleCredential, router, next]);
 
   const triggerGoogleSignIn = () => {
-    const hostElement = hiddenGoogleRef.current?.querySelector(
-      'div[role="button"]'
-    ) as HTMLElement | null;
-    hostElement?.click();
+    if (!window.google || !GOOGLE_CLIENT_ID) return;
+    setFormError(null);
+    window.google.accounts.id.prompt((notification) => {
+      if (!notification.isNotDisplayed()) return;
+      const reason = notification.getNotDisplayedReason();
+      if (reason === "opt_out_or_no_session") {
+        setFormError("You're not signed in to a Google account in this browser. Sign in to Google first, then try again.");
+      } else if (reason === "suppressed_by_user") {
+        setFormError("Google sign-in is temporarily blocked after recent dismissals. Try again in a few minutes, or sign in with email.");
+      } else {
+        setFormError(`Google sign-in unavailable (${reason}). Please sign in with email.`);
+      }
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -256,17 +252,12 @@ function LoginContent() {
               <button
                 type="button"
                 onClick={triggerGoogleSignIn}
-                disabled={isSubmitting || !googleInitialized}
+                disabled={isSubmitting || !googleReady || !GOOGLE_CLIENT_ID}
                 className="cursor-pointer mt-[6px] w-full bg-transparent border border-[#797979] text-[#212121] font-montserrat font-medium text-[16px] rounded-full py-[12px] px-[20px] flex items-center justify-center gap-[10px] hover:bg-primary-blue/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <GoogleIcon className="w-5 h-5 shrink-0" />
                 Sign in with Google
               </button>
-              <div
-                ref={hiddenGoogleRef}
-                aria-hidden="true"
-                className="absolute opacity-0 pointer-events-none w-0 h-0 overflow-hidden"
-              />
               {!GOOGLE_CLIENT_ID && (
                 <p className="text-center text-[12px] font-montserrat text-primary-blue/60">
                   Google sign-in unavailable — missing client ID.

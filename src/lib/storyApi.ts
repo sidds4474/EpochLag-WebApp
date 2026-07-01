@@ -19,7 +19,7 @@ export async function fetchPublicStory(
   let res;
   try {
     res = await fetch(`${API_BASE}/api/public/story/${publicCode}`, {
-      next: { revalidate: 300 },
+      next: { revalidate: 30 },
     });
   } catch {
     return { status: STORY_FETCH_STATUS.ERROR };

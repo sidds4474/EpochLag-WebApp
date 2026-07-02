@@ -20,20 +20,12 @@ const NavBar = () => {
             decoding="async"
           />
         </Link>
-        <div className="flex items-center gap-[12px] md:gap-[16px]">
-          <Link
-            href="/login"
-            className="hidden sm:inline-flex cursor-pointer bg-primary-blue text-primary-white font-montserrat font-semibold text-[13px] md:text-[14px] 2xl:text-[16px] px-[20px] md:px-[28px] py-[10px] md:py-[12px] rounded-full hover:opacity-90 transition-opacity"
-          >
-            Sign in
-          </Link>
-          <button
-            onClick={() => setIsContactOpen(true)}
-            className="cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[13px] md:text-[14px] 2xl:text-[16px] px-[20px] md:px-[28px] py-[10px] md:py-[12px] rounded-full hover:opacity-90 transition-opacity"
-          >
-            Contact Us
-          </button>
-        </div>
+        <button
+          onClick={() => setIsContactOpen(true)}
+          className="cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[13px] md:text-[14px] 2xl:text-[16px] px-[20px] md:px-[28px] py-[10px] md:py-[12px] rounded-full hover:opacity-90 transition-opacity"
+        >
+          Contact Us
+        </button>
       </nav>
       <ContactModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} />
     </>

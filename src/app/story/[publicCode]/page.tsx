@@ -11,10 +11,6 @@ import type { StoryMedia } from "../../../types/story";
 
 const SITE_URL = "https://www.epochlag.com";
 
-// Story pages are ISR-cached with a short TTL so that a revoked story flips
-// to "not available" within ~30 seconds without needing a webhook.
-export const revalidate = 30;
-
 type RouteParams = { params: Promise<{ publicCode: string }> };
 
 function extractTextForDescription(content: string | null | undefined) {

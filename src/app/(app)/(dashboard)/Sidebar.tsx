@@ -184,10 +184,7 @@ export default function Sidebar({ people }: SidebarProps) {
 function FriendRow({ person }: { person: PersonSummary }) {
   const initial = (person.firstName || "?").charAt(0).toUpperCase();
   return (
-    <Link
-      href={`/friends/${person._id}`}
-      className="flex items-center gap-[10px] px-[6px] py-[6px] rounded-[10px] hover:bg-black/[0.03] transition-colors"
-    >
+    <div className="flex items-center gap-[10px] px-[6px] py-[6px] rounded-[10px] hover:bg-black/[0.03] transition-colors cursor-default">
       <div className="relative w-[32px] h-[32px] shrink-0">
         {person.profilePicture ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -213,6 +210,6 @@ function FriendRow({ person }: { person: PersonSummary }) {
         height={14}
         className="text-primary-blue/40"
       />
-    </Link>
+    </div>
   );
 }

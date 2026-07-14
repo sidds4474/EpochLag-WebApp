@@ -115,6 +115,8 @@ function LoginContent() {
     }
   };
 
+  if (status !== "unauthenticated") return null;
+
   return (
     <>
       <Script

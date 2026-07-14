@@ -202,6 +202,53 @@ export default function InteractionsPage() {
     }
   }, [tabState.loaded, tabState.loadingMore, loadMore]);
 
+  // Prefetch the inactive tab's first page so switching tabs is instant.
+  useEffect(() => {
+    const inactive: InteractionType =
+      activeTab === "received" ? "sent" : "received";
+    const inactiveState = inactive === "received" ? received : sent;
+    const setInactiveState =
+      inactive === "received" ? setReceived : setSent;
+    if (inactiveState.loaded || inactiveState.loadingMore) return;
+    let cancelled = false;
+    setInactiveState((t) => ({ ...t, loadingMore: true }));
+    fetchInteractionCards(inactive, 1, PAGE_SIZE)
+      .then(({ cards, pagination }) => {
+        if (cancelled) return;
+        const hasMore = pagination
+          ? pagination.pageNumber < pagination.totalPages
+          : cards.length > 0;
+        setInactiveState((t) => ({
+          ...t,
+          cards: dedupeAppend(t.cards, cards),
+          page: 1,
+          hasMore,
+          loadingMore: false,
+          loaded: true,
+        }));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setInactiveState((t) => ({
+          ...t,
+          hasMore: false,
+          loadingMore: false,
+          loaded: true,
+        }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, received, sent]);
+
+  // Auto-select the first card of the active tab when nothing is selected.
+  useEffect(() => {
+    if (selectedCardId) return;
+    if (promptIdParam) return;
+    const first = tabState.cards[0];
+    if (first) setSelectedCardId(first._id);
+  }, [tabState.cards, selectedCardId, promptIdParam]);
+
   // Fetch thread when a card is selected
   useEffect(() => {
     if (!selectedCardId) {

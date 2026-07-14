@@ -4,9 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import LogoDark from "../../../assets/images/logo-dark.webp";
 import ContactModal from "./ContactModal";
+import { useAuth } from "../../../lib/auth/AuthProvider";
 
 const NavBar = () => {
   const [isContactOpen, setIsContactOpen] = useState(false);
+  const { status } = useAuth();
+  const signInHref = status === "authenticated" ? "/home" : "/login";
 
   return (
     <>
@@ -22,7 +25,7 @@ const NavBar = () => {
         </Link>
         <div className="flex items-center gap-[12px] md:gap-[16px]">
           <Link
-            href="/login"
+            href={signInHref}
             className="hidden sm:inline-flex cursor-pointer bg-primary-blue text-primary-white font-montserrat font-semibold text-[13px] md:text-[14px] 2xl:text-[16px] px-[20px] md:px-[28px] py-[10px] md:py-[12px] rounded-full hover:opacity-90 transition-opacity"
           >
             Sign in

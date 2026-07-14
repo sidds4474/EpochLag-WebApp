@@ -1,12 +1,20 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
+import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal";
+import OptionsMenu, {
+  type OptionsMenuItem,
+} from "../../components/OptionsMenu/OptionsMenu";
+import { ApiError } from "../../lib/api/client";
+import { deleteStory } from "../../lib/create/api";
 import {
   formatShortDayTime,
   formatStoryHeaderDate,
 } from "../../lib/formatters";
 import { toggleStoryLike } from "../../lib/interactions/api";
+import { bustUrl } from "../../lib/images";
 import { parseContentToBlocks } from "../../lib/parseStoryContent";
 import type { ContentBlock } from "../../types/story";
 import type {
@@ -18,6 +26,8 @@ import type {
 } from "../../types/home";
 import type { User } from "../../types/user";
 import StoryMedia from "../StoryPage/components/StoryMedia";
+import MusicPill from "./MusicPill";
+import ShareModal from "../../app/(app)/(dashboard)/new-story/ShareModal";
 import {
   ChatIcon,
   ChevronDownIcon,
@@ -27,6 +37,7 @@ import {
   MoreHorizontalIcon,
   SparkleIcon,
 } from "../../app/(app)/(dashboard)/icons";
+import { shareStory } from "../../lib/create/api";
 
 type ThreadViewerProps = {
   data: ThreadResponse;
@@ -35,6 +46,10 @@ type ThreadViewerProps = {
   currentUser: User | null;
   /** Compact title row variant: title left, author avatar+name+date stacked on right. */
   compactAuthorRow?: boolean;
+  /** Parent-managed slide removal. When set, ThreadViewer calls this after a
+   * successful delete so the parent can drop the slide from its stories list
+   * and adjust activeIndex. When absent, ThreadViewer falls back to router.back(). */
+  onStoryDeleted?: (storyId: string) => void;
 };
 
 export default function ThreadViewer({
@@ -43,6 +58,7 @@ export default function ThreadViewer({
   onSelectIndex,
   currentUser,
   compactAuthorRow = false,
+  onStoryDeleted,
 }: ThreadViewerProps) {
   const currentUserId = currentUser?._id ?? "";
   const stories = data.stories ?? [];
@@ -56,6 +72,7 @@ export default function ThreadViewer({
     Record<string, { liked: boolean; count: number }>
   >({});
   const likePendingRef = useRef<Record<string, boolean>>({});
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const storyId = story?._id ?? "";
   const override = storyId ? likeOverrides[storyId] : undefined;
@@ -87,8 +104,113 @@ export default function ThreadViewer({
     }
   }, [storyId, isLiked, likeCount]);
 
+  const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+
   const prompt = data.thread.prompt;
   const participants: ThreadParticipant[] = data.thread.participants ?? [];
+  const threadId = data.thread._id;
+  const isPrivateThread = !!data.thread.isPrivate;
+  const promptId = prompt?._id ?? null;
+  const isSent = !!(
+    story?.author?._id && currentUserId && story.author._id === currentUserId
+  );
+  const canShare = isSent || !isPrivateThread;
+
+  function handleAddStory() {
+    if (!promptId) {
+      toast.error("Missing prompt");
+      return;
+    }
+    router.push(`/reply/${promptId}?thread=${threadId}`);
+  }
+
+  function handleEdit() {
+    if (!storyId) return;
+    router.push(`/edit/${storyId}?thread=${threadId}`);
+  }
+
+  async function handleDeleteConfirmed() {
+    if (!storyId) return;
+    try {
+      await deleteStory(storyId);
+      toast.success(isSent ? "Story deleted" : "Removed from your feed");
+      setDeleteConfirmOpen(false);
+      // Recipient removing themselves loses thread access → always navigate
+      // back. Author on a multi-story thread: hand off to parent to drop the
+      // slide and reindex. Fallback (no callback): navigate back.
+      if (!isSent || total <= 1 || !onStoryDeleted) {
+        router.back();
+        return;
+      }
+      onStoryDeleted(storyId);
+    } catch (err) {
+      const msg =
+        err instanceof ApiError ? err.message : "Couldn't delete. Try again.";
+      toast.error(msg);
+    }
+  }
+
+  async function handleShareSend(
+    userIds: string[],
+    sendSeparately: boolean,
+    _note: string,
+    _isPrivate: boolean,
+    groupIds: string[]
+  ) {
+    if (!storyId) return;
+    try {
+      await shareStory(storyId, { userIds, groupIds, sendSeparately });
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Could not send. Please try again.";
+      throw new Error(message);
+    }
+  }
+
+  // ShareModal cardData — memoize-equivalent inline (participants list is
+  // stable per render). We shape prompt + participants so the modal excludes
+  // them from the picker + shows them in "Currently on this share".
+  const shareCardData = prompt
+    ? {
+        _id: prompt._id,
+        author: prompt.author ? { _id: prompt.author._id } : null,
+        note: prompt.note ?? null,
+      }
+    : null;
+  const existingMembers = participants
+    .filter((p) => p._id && p._id !== currentUserId)
+    .map((p) => ({
+      _id: p._id!,
+      firstName: p.firstName ?? "",
+      lastName: p.lastName ?? "",
+      profilePicture: p.profilePicture ?? null,
+    }));
+
+  const menuItems: OptionsMenuItem[] = [];
+  if (isSent && storyId) {
+    menuItems.push({ label: "Edit", onClick: handleEdit });
+  }
+  if (canShare) {
+    menuItems.push({ label: "Share", onClick: () => setShareOpen(true) });
+  }
+  if (isSent && storyId) {
+    menuItems.push({
+      label: "Delete",
+      onClick: () => setDeleteConfirmOpen(true),
+      destructive: true,
+    });
+  } else if (!isSent && storyId) {
+    menuItems.push({
+      label: "Delete for Me",
+      onClick: () => setDeleteConfirmOpen(true),
+      destructive: true,
+    });
+  }
 
   const hasPrompt =
     !!(prompt?.content || prompt?.imageUrl) && !prompt?.isTitleAvailable;
@@ -179,22 +301,61 @@ export default function ThreadViewer({
         </button>
       )}
 
-      <div className="flex-1 min-w-0 overflow-y-auto scrollbar-hide px-[40px] pt-[16px]">
+      <div
+        className="flex-1 min-w-0 overflow-y-auto scrollbar-hide px-[40px] pt-[16px]"
+        onTouchStart={(e) => {
+          if (total <= 1) return;
+          touchStartRef.current = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY,
+          };
+        }}
+        onTouchEnd={(e) => {
+          if (total <= 1) return;
+          const start = touchStartRef.current;
+          touchStartRef.current = null;
+          if (!start) return;
+          const t = e.changedTouches[0];
+          const dx = t.clientX - start.x;
+          const dy = t.clientY - start.y;
+          // Require the gesture to be primarily horizontal + past a
+          // reasonable threshold so vertical scrolls don't page.
+          if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return;
+          if (dx < 0 && canNext) onSelectIndex(safeIndex + 1);
+          else if (dx > 0 && canPrev) onSelectIndex(safeIndex - 1);
+        }}
+      >
         <div className="flex items-center justify-between gap-[16px] mb-[12px]">
           <button
             type="button"
-            className="cursor-pointer bg-[#ededed] border border-white rounded-full px-[14px] py-[7px] flex items-center gap-[8px] font-montserrat font-medium text-primary-blue text-[14px] hover:opacity-90"
+            onClick={handleAddStory}
+            disabled={!promptId}
+            className="cursor-pointer bg-[#ededed] border border-white rounded-full px-[14px] py-[7px] flex items-center gap-[8px] font-montserrat font-medium text-primary-blue text-[14px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
           >
             Add Story
             <span className="text-[16px] leading-none">+</span>
           </button>
-          <button
-            type="button"
-            aria-label="More options"
-            className="cursor-pointer bg-[#f1f1f1] rounded-full w-[36px] h-[36px] flex items-center justify-center text-primary-blue hover:opacity-90"
-          >
-            <MoreHorizontalIcon width={20} height={20} />
-          </button>
+          <div className="flex-1 min-w-0 flex justify-center">
+            {story?.music?.trackName && <MusicPill music={story.music} />}
+          </div>
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              aria-label="More options"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((v) => !v)}
+              disabled={menuItems.length === 0}
+              className="cursor-pointer bg-[#f1f1f1] rounded-full w-[36px] h-[36px] flex items-center justify-center text-primary-blue hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <MoreHorizontalIcon width={20} height={20} />
+            </button>
+            <OptionsMenu
+              open={menuOpen}
+              onClose={() => setMenuOpen(false)}
+              items={menuItems}
+            />
+          </div>
         </div>
 
         {hasPrompt && prompt && (
@@ -222,7 +383,7 @@ export default function ThreadViewer({
                 aria-label={`Go to story ${i + 1}`}
                 onClick={() => onSelectIndex(i)}
                 className={`h-[3px] flex-1 rounded-full transition-colors ${
-                  i === safeIndex
+                  i <= safeIndex
                     ? "bg-primary-blue"
                     : "bg-[#dbdbdb] hover:bg-primary-blue/30"
                 }`}
@@ -275,7 +436,12 @@ export default function ThreadViewer({
                   {resolvedAuthor.profilePicture ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={resolvedAuthor.profilePicture}
+                      src={bustUrl(
+                        resolvedAuthor.profilePicture,
+                        resolvedAuthor._id === currentUser?._id
+                          ? currentUser?.updatedAt
+                          : undefined
+                      )}
                       alt=""
                       className="w-full h-full object-cover"
                     />
@@ -332,6 +498,31 @@ export default function ThreadViewer({
           </button>
         </div>
       </div>
+
+      <ConfirmationModal
+        open={deleteConfirmOpen}
+        title={isSent ? "Delete this story?" : "Remove from your feed?"}
+        body={
+          isSent
+            ? "This story will be permanently removed for everyone on this thread."
+            : "You'll no longer see this story. Others on the thread will still see it."
+        }
+        confirmLabel={isSent ? "Delete" : "Remove"}
+        destructive
+        onCancel={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteConfirmed}
+      />
+
+      <ShareModal
+        open={shareOpen}
+        title="Send story to"
+        shareContext="story"
+        showMessageInput={false}
+        cardData={shareCardData}
+        existingMembers={existingMembers}
+        onClose={() => setShareOpen(false)}
+        onSend={handleShareSend}
+      />
     </>
   );
 }
@@ -552,7 +743,7 @@ function ViewerStack({ viewers }: { viewers: ThreadParticipant[] }) {
             {p.profilePicture ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={p.profilePicture}
+                src={bustUrl(p.profilePicture, undefined)}
                 alt=""
                 className="w-full h-full object-cover"
               />

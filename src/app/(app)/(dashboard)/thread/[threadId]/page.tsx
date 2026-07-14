@@ -92,6 +92,34 @@ export default function ThreadPage() {
             onSelectIndex={setActiveStoryIndex}
             currentUser={user}
             compactAuthorRow
+            onStoryDeleted={(deletedStoryId) => {
+              if (state.kind !== "ready") return;
+              const remaining = state.data.stories.filter(
+                (s) => s._id !== deletedStoryId
+              );
+              if (remaining.length === 0) {
+                // Empty thread — bounce back to where the user came from.
+                if (
+                  typeof window !== "undefined" &&
+                  window.history.length > 1
+                ) {
+                  router.back();
+                } else {
+                  router.push("/home");
+                }
+                return;
+              }
+              // Clamp the active index so we don't fall off the end.
+              const nextIndex = Math.min(
+                activeStoryIndex,
+                remaining.length - 1
+              );
+              setState({
+                kind: "ready",
+                data: { ...state.data, stories: remaining },
+              });
+              setActiveStoryIndex(nextIndex);
+            }}
           />
         )}
       </div>

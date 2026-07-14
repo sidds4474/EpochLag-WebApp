@@ -1,11 +1,14 @@
 "use client";
 
+import { APIProvider } from "@vis.gl/react-google-maps";
 import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "../../../lib/auth/AuthProvider";
 import { fetchHomePeople, fetchNotifications } from "../../../lib/home/api";
 import type { HomePeople } from "../../../types/home";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, status } = useAuth();
@@ -32,12 +35,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }, [status]);
 
   return (
-    <div className="h-screen w-full bg-white flex overflow-hidden">
-      <Sidebar people={people} />
-      <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        <Header user={user} unreadCount={unreadCount} />
-        <main className="flex-1 min-w-0 min-h-0 overflow-y-auto">{children}</main>
+    <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+      <div className="h-screen w-full bg-white flex overflow-hidden">
+        <Sidebar people={people} />
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
+          <Header user={user} unreadCount={unreadCount} />
+          <main className="flex-1 min-w-0 min-h-0 overflow-y-auto">{children}</main>
+        </div>
       </div>
-    </div>
+    </APIProvider>
   );
 }

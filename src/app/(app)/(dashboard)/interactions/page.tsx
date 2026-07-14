@@ -74,6 +74,14 @@ const initialTabState: TabState = {
   loaded: false,
 };
 
+// Module-scoped cache of the last-good tab state, so re-entering
+// /interactions renders cards synchronously instead of refetching from
+// scratch. A background refresh still runs on mount to keep it fresh.
+const tabCache: { received: TabState | null; sent: TabState | null } = {
+  received: null,
+  sent: null,
+};
+
 type ThreadState =
   | { kind: "idle" }
   | { kind: "loading" }
@@ -87,8 +95,12 @@ export default function InteractionsPage() {
   const searchParams = useSearchParams();
   const promptIdParam = searchParams.get("promptId");
   const [activeTab, setActiveTab] = useState<InteractionType>("received");
-  const [received, setReceived] = useState<TabState>(initialTabState);
-  const [sent, setSent] = useState<TabState>(initialTabState);
+  const [received, setReceived] = useState<TabState>(
+    () => tabCache.received ?? initialTabState
+  );
+  const [sent, setSent] = useState<TabState>(
+    () => tabCache.sent ?? initialTabState
+  );
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [threadState, setThreadState] = useState<ThreadState>({ kind: "idle" });
   const [activeStoryIndex, setActiveStoryIndex] = useState(0);
@@ -195,51 +207,51 @@ export default function InteractionsPage() {
     }
   }, [activeTab, setTabState]);
 
-  // Auto-load first page when switching tabs (only if not yet loaded)
+  // On mount, refresh both tabs' first page in parallel. If a tab was
+  // hydrated from module cache, the refresh runs silently in the
+  // background (cards already visible). If not, this doubles as the
+  // initial fetch. Merge-refresh preserves any tail beyond page 1.
   useEffect(() => {
-    if (!tabState.loaded && !tabState.loadingMore) {
-      loadMore();
-    }
-  }, [tabState.loaded, tabState.loadingMore, loadMore]);
-
-  // Prefetch the inactive tab's first page so switching tabs is instant.
-  useEffect(() => {
-    const inactive: InteractionType =
-      activeTab === "received" ? "sent" : "received";
-    const inactiveState = inactive === "received" ? received : sent;
-    const setInactiveState =
-      inactive === "received" ? setReceived : setSent;
-    if (inactiveState.loaded || inactiveState.loadingMore) return;
-    let cancelled = false;
-    setInactiveState((t) => ({ ...t, loadingMore: true }));
-    fetchInteractionCards(inactive, 1, PAGE_SIZE)
-      .then(({ cards, pagination }) => {
-        if (cancelled) return;
-        const hasMore = pagination
-          ? pagination.pageNumber < pagination.totalPages
-          : cards.length > 0;
-        setInactiveState((t) => ({
-          ...t,
-          cards: dedupeAppend(t.cards, cards),
-          page: 1,
-          hasMore,
-          loadingMore: false,
-          loaded: true,
-        }));
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setInactiveState((t) => ({
-          ...t,
-          hasMore: false,
-          loadingMore: false,
-          loaded: true,
-        }));
-      });
-    return () => {
-      cancelled = true;
+    const refresh = (
+      tab: InteractionType,
+      setter: typeof setReceived
+    ) => {
+      setter((t) => (t.loaded || t.loadingMore ? t : { ...t, loadingMore: true }));
+      fetchInteractionCards(tab, 1, PAGE_SIZE)
+        .then(({ cards, pagination }) => {
+          const hasMore = pagination
+            ? pagination.pageNumber < pagination.totalPages
+            : cards.length > 0;
+          setter((t) => ({
+            ...t,
+            cards: dedupeAppend([], cards.concat(t.cards.slice(cards.length))),
+            page: Math.max(t.page, 1),
+            hasMore,
+            loadingMore: false,
+            loaded: true,
+          }));
+        })
+        .catch(() => {
+          setter((t) => ({
+            ...t,
+            loadingMore: false,
+            loaded: true,
+          }));
+        });
     };
-  }, [activeTab, received, sent]);
+    refresh("received", setReceived);
+    refresh("sent", setSent);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist tab state to module cache so re-entering /interactions
+  // renders cards synchronously.
+  useEffect(() => {
+    if (received.loaded) tabCache.received = received;
+  }, [received]);
+  useEffect(() => {
+    if (sent.loaded) tabCache.sent = sent;
+  }, [sent]);
 
   // Auto-select the first card of the active tab when nothing is selected.
   useEffect(() => {

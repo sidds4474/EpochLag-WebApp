@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
+import CommentsModal from "../../components/CommentsModal/CommentsModal";
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal";
 import OptionsMenu, {
   type OptionsMenuItem,
@@ -115,6 +116,22 @@ export default function ThreadViewer({
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  // Definitive count reported by CommentsModal once known — trumps
+  // story.commentsCount from the thread response (which can be stale).
+  // Falls back to a delta bump if BE doesn't ship pagination.totalItems.
+  const [commentTotalOverride, setCommentTotalOverride] = useState<
+    number | null
+  >(null);
+  const [commentCountDelta, setCommentCountDelta] = useState(0);
+
+  // Swiping to a new slide resets modal + counter overrides so state from
+  // story A doesn't leak into story B.
+  useEffect(() => {
+    setCommentTotalOverride(null);
+    setCommentCountDelta(0);
+    setCommentsOpen(false);
+  }, [storyId]);
 
   const prompt = data.thread.prompt;
   const participants: ThreadParticipant[] = data.thread.participants ?? [];
@@ -490,16 +507,27 @@ export default function ThreadViewer({
       <div className="shrink-0 px-[40px] py-[14px] border-t border-black/[0.06] bg-white flex items-center justify-between text-primary-blue/80 font-montserrat">
         <ViewerStack viewers={viewerSource} />
         <div className="flex items-center gap-[18px]">
-          <button
-            type="button"
-            aria-label="Comments"
-            className="cursor-pointer flex items-center gap-[6px] text-primary-blue hover:opacity-80 transition-opacity"
-          >
-            <ChatIcon width={20} height={20} />
-            <span className="text-[14px] font-medium">
-              {story?.commentsCount ?? 0}
-            </span>
-          </button>
+          {(() => {
+            const commentCount =
+              commentTotalOverride ??
+              Math.max(0, (story?.commentsCount ?? 0) + commentCountDelta);
+            return (
+              <button
+                type="button"
+                aria-label="Comments"
+                onClick={() => setCommentsOpen(true)}
+                disabled={!storyId || preview}
+                className="cursor-pointer flex items-center gap-[6px] text-primary-blue hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChatIcon width={20} height={20} />
+                {commentCount > 0 && (
+                  <span className="text-[14px] font-medium">
+                    {commentCount}
+                  </span>
+                )}
+              </button>
+            );
+          })()}
           <button
             type="button"
             onClick={handleLikeToggle}
@@ -509,7 +537,9 @@ export default function ThreadViewer({
             }`}
           >
             <HeartIcon width={20} height={20} filled={isLiked} />
-            <span className="text-[14px] font-medium">{likeCount}</span>
+            {likeCount > 0 && (
+              <span className="text-[14px] font-medium">{likeCount}</span>
+            )}
           </button>
         </div>
       </div>
@@ -537,6 +567,16 @@ export default function ThreadViewer({
         existingMembers={existingMembers}
         onClose={() => setShareOpen(false)}
         onSend={handleShareSend}
+      />
+
+      <CommentsModal
+        open={commentsOpen}
+        storyId={storyId || null}
+        currentUser={currentUser}
+        onClose={() => setCommentsOpen(false)}
+        onCommentAdded={() => setCommentCountDelta((d) => d + 1)}
+        onCommentDeleted={() => setCommentCountDelta((d) => d - 1)}
+        onTotalKnown={(total) => setCommentTotalOverride(total)}
       />
     </>
   );

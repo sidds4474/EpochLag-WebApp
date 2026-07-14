@@ -12,7 +12,11 @@ import {
   uploadToCloudinaryWithProgress,
 } from "../../../../lib/create/api";
 import { serializeBlocksToContent } from "../../../../lib/create/content";
+import { useAuth } from "../../../../lib/auth/AuthProvider";
+import { buildPreviewThread } from "../../../../lib/create/preview";
 import { fetchUserCard } from "../../../../lib/home/api";
+import type { ThreadResponse } from "../../../../types/home";
+import PreviewOverlay from "../../../../views/Thread/PreviewOverlay";
 import { compressImage } from "../../../../lib/images";
 import type { UserCard } from "../../../../types/home";
 import AudioRecorder from "../new-story/AudioRecorder";
@@ -56,7 +60,9 @@ export default function ReplyEditor({
   onBack,
   appendToThreadId = null,
 }: Props) {
+  const { user } = useAuth();
   const [prompt, setPrompt] = useState<UserCard | null>(null);
+  const [previewData, setPreviewData] = useState<ThreadResponse | null>(null);
   const [promptError, setPromptError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
@@ -293,6 +299,25 @@ export default function ReplyEditor({
     pendingUploads.length === 0 &&
     erroredUploads.length === 0;
 
+  function openPreview() {
+    if (!user) return;
+    setPreviewData(
+      buildPreviewThread({
+        currentUser: user,
+        title,
+        text,
+        media,
+        dateOfStory,
+        location,
+        music,
+        // Reply flow may have a real prompt (Answer-a-Prompt) — pass through
+        // so the pill renders; Tell-mode prompts have isTitleAvailable=true
+        // and the helper falls back to hiding the pill.
+        prompt,
+      })
+    );
+  }
+
   async function handlePublish() {
     if (!canSubmit) {
       if (!hasContent) toast("Add some content before saving");
@@ -377,12 +402,21 @@ export default function ReplyEditor({
         </div>
         <button
           type="button"
-          aria-label="Visibility"
-          className="cursor-pointer w-[32px] h-[32px] rounded-full text-primary-blue hover:bg-black/[0.04] flex items-center justify-center transition-colors shrink-0"
+          onClick={openPreview}
+          disabled={!user}
+          aria-label="Preview story"
+          className="cursor-pointer w-[32px] h-[32px] rounded-full text-primary-blue hover:bg-black/[0.04] flex items-center justify-center transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <EyeIcon width={18} height={18} />
         </button>
       </div>
+
+      <PreviewOverlay
+        open={previewData !== null}
+        data={previewData}
+        currentUser={user}
+        onClose={() => setPreviewData(null)}
+      />
 
       {/* Prompt pill */}
       {/* Tell-a-Story prompts have no meaningful question content — the pill

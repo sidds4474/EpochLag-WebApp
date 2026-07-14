@@ -10,8 +10,12 @@ import {
   uploadToCloudinaryWithProgress,
 } from "../../../../../lib/create/api";
 import { serializeBlocksToContent } from "../../../../../lib/create/content";
+import { buildPreviewThread } from "../../../../../lib/create/preview";
+import { useAuth } from "../../../../../lib/auth/AuthProvider";
 import { compressImage } from "../../../../../lib/images";
+import type { ThreadResponse } from "../../../../../types/home";
 import type { ContentBlock } from "../../../../../types/story";
+import PreviewOverlay from "../../../../../views/Thread/PreviewOverlay";
 import AudioRecorder from "../../new-story/AudioRecorder";
 import {
   DateChip,
@@ -124,6 +128,26 @@ export default function EditComposer({
   const [allowShare, setAllowShare] = useState(!threadIsPrivate);
   const [submitting, setSubmitting] = useState(false);
   const [addingKind, setAddingKind] = useState<"image" | "video" | null>(null);
+  const [previewData, setPreviewData] = useState<ThreadResponse | null>(null);
+  const { user } = useAuth();
+
+  function openPreview() {
+    if (!user) return;
+    setPreviewData(
+      buildPreviewThread({
+        currentUser: user,
+        title,
+        text,
+        media,
+        dateOfStory,
+        location,
+        music,
+        // Edit mode doesn't have direct access to the prompt UserCard, so
+        // fall back to a Tell-style placeholder. Good enough for preview.
+        prompt: null,
+      })
+    );
+  }
 
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
@@ -339,12 +363,21 @@ export default function EditComposer({
         </div>
         <button
           type="button"
-          aria-label="Visibility"
-          className="cursor-pointer w-[32px] h-[32px] rounded-full text-primary-blue hover:bg-black/[0.04] flex items-center justify-center transition-colors shrink-0"
+          onClick={openPreview}
+          disabled={!user}
+          aria-label="Preview story"
+          className="cursor-pointer w-[32px] h-[32px] rounded-full text-primary-blue hover:bg-black/[0.04] flex items-center justify-center transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <EyeIcon width={18} height={18} />
         </button>
       </div>
+
+      <PreviewOverlay
+        open={previewData !== null}
+        data={previewData}
+        currentUser={user}
+        onClose={() => setPreviewData(null)}
+      />
 
       {/* Title */}
       <div className="mb-[14px]">

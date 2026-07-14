@@ -50,6 +50,11 @@ type ThreadViewerProps = {
    * successful delete so the parent can drop the slide from its stories list
    * and adjust activeIndex. When absent, ThreadViewer falls back to router.back(). */
   onStoryDeleted?: (storyId: string) => void;
+  /** Preview mode — renders the same layout with no BE side effects. Hides
+   * the Add Story chip + 3-dot menu, and no-ops likes/deletes/shares. Used
+   * by the composer's Eye button to show authors what their draft will look
+   * like when published. */
+  preview?: boolean;
 };
 
 export default function ThreadViewer({
@@ -59,6 +64,7 @@ export default function ThreadViewer({
   currentUser,
   compactAuthorRow = false,
   onStoryDeleted,
+  preview = false,
 }: ThreadViewerProps) {
   const currentUserId = currentUser?._id ?? "";
   const stories = data.stories ?? [];
@@ -80,6 +86,7 @@ export default function ThreadViewer({
   const likeCount = override?.count ?? story?.likesCount ?? 0;
 
   const handleLikeToggle = useCallback(async () => {
+    if (preview) return;
     if (!storyId) return;
     if (likePendingRef.current[storyId]) return;
     likePendingRef.current[storyId] = true;
@@ -102,7 +109,7 @@ export default function ThreadViewer({
     } finally {
       likePendingRef.current[storyId] = false;
     }
-  }, [storyId, isLiked, likeCount]);
+  }, [storyId, isLiked, likeCount, preview]);
 
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -326,36 +333,44 @@ export default function ThreadViewer({
         }}
       >
         <div className="flex items-center justify-between gap-[16px] mb-[12px]">
-          <button
-            type="button"
-            onClick={handleAddStory}
-            disabled={!promptId}
-            className="cursor-pointer bg-[#ededed] border border-white rounded-full px-[14px] py-[7px] flex items-center gap-[8px] font-montserrat font-medium text-primary-blue text-[14px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-          >
-            Add Story
-            <span className="text-[16px] leading-none">+</span>
-          </button>
+          {preview ? (
+            <span className="shrink-0 w-[1px]" aria-hidden />
+          ) : (
+            <button
+              type="button"
+              onClick={handleAddStory}
+              disabled={!promptId}
+              className="cursor-pointer bg-[#ededed] border border-white rounded-full px-[14px] py-[7px] flex items-center gap-[8px] font-montserrat font-medium text-primary-blue text-[14px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            >
+              Add Story
+              <span className="text-[16px] leading-none">+</span>
+            </button>
+          )}
           <div className="flex-1 min-w-0 flex justify-center">
             {story?.music?.trackName && <MusicPill music={story.music} />}
           </div>
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              aria-label="More options"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((v) => !v)}
-              disabled={menuItems.length === 0}
-              className="cursor-pointer bg-[#f1f1f1] rounded-full w-[36px] h-[36px] flex items-center justify-center text-primary-blue hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <MoreHorizontalIcon width={20} height={20} />
-            </button>
-            <OptionsMenu
-              open={menuOpen}
-              onClose={() => setMenuOpen(false)}
-              items={menuItems}
-            />
-          </div>
+          {preview ? (
+            <span className="shrink-0 w-[1px]" aria-hidden />
+          ) : (
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                aria-label="More options"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((v) => !v)}
+                disabled={menuItems.length === 0}
+                className="cursor-pointer bg-[#f1f1f1] rounded-full w-[36px] h-[36px] flex items-center justify-center text-primary-blue hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <MoreHorizontalIcon width={20} height={20} />
+              </button>
+              <OptionsMenu
+                open={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                items={menuItems}
+              />
+            </div>
+          )}
         </div>
 
         {hasPrompt && prompt && (

@@ -16,6 +16,10 @@ import {
   uploadToCloudinaryWithProgress,
 } from "../../../../lib/create/api";
 import { serializeBlocksToContent } from "../../../../lib/create/content";
+import { buildPreviewThread } from "../../../../lib/create/preview";
+import { useAuth } from "../../../../lib/auth/AuthProvider";
+import PreviewOverlay from "../../../../views/Thread/PreviewOverlay";
+import type { ThreadResponse } from "../../../../types/home";
 import {
   fetchInspirationFeed,
   toggleCardBookmark,
@@ -261,9 +265,11 @@ function ModeCard({
 function PanelHeader({
   title,
   onBack,
+  onPreview,
 }: {
   title: string;
   onBack?: () => void;
+  onPreview?: () => void;
 }) {
   return (
     <div className="flex items-center justify-between gap-[16px] mb-[16px]">
@@ -292,8 +298,10 @@ function PanelHeader({
         </button>
         <button
           type="button"
-          aria-label="Visibility"
-          className="cursor-pointer w-[32px] h-[32px] rounded-full text-primary-blue hover:bg-black/[0.04] flex items-center justify-center transition-colors"
+          onClick={onPreview}
+          disabled={!onPreview}
+          aria-label="Preview story"
+          className="cursor-pointer w-[32px] h-[32px] rounded-full text-primary-blue hover:bg-black/[0.04] flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <EyeIcon width={18} height={18} />
         </button>
@@ -336,9 +344,28 @@ function TellStep1({
   onChange: React.Dispatch<React.SetStateAction<TellDraft>>;
   onNext: () => void;
 }) {
+  const { user } = useAuth();
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
   const [addingKind, setAddingKind] = useState<"image" | "video" | null>(null);
+  const [previewData, setPreviewData] = useState<ThreadResponse | null>(null);
+
+  function openPreview() {
+    if (!user) return;
+    setPreviewData(
+      buildPreviewThread({
+        currentUser: user,
+        title: draft.title,
+        text: draft.text,
+        media: draft.media,
+        dateOfStory: draft.dateOfStory,
+        location: draft.location,
+        music: draft.music,
+        coverPreview: draft.coverPreview,
+        prompt: null,
+      })
+    );
+  }
 
   // Refs survive re-renders and avoid stale-closure bugs during async work.
   const abortHandlesRef = useRef<Map<string, () => void>>(new Map());
@@ -536,7 +563,13 @@ function TellStep1({
 
   return (
     <div className="flex-1 min-w-0 flex flex-col px-[40px] pt-[16px] pb-[16px] min-h-0 overflow-y-auto scrollbar-hide">
-      <PanelHeader title="New Story" />
+      <PanelHeader title="New Story" onPreview={openPreview} />
+      <PreviewOverlay
+        open={previewData !== null}
+        data={previewData}
+        currentUser={user}
+        onClose={() => setPreviewData(null)}
+      />
 
       <div className="mb-[14px]">
         <TitlePill
@@ -676,11 +709,30 @@ function TellStep2({
   onBack: () => void;
 }) {
   const router = useRouter();
+  const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [createdStory, setCreatedStory] = useState<{
     storyId: string;
     threadId: string | null;
   } | null>(null);
+  const [previewData, setPreviewData] = useState<ThreadResponse | null>(null);
+
+  function openPreview() {
+    if (!user) return;
+    setPreviewData(
+      buildPreviewThread({
+        currentUser: user,
+        title: draft.title,
+        text: draft.text,
+        media: draft.media,
+        dateOfStory: draft.dateOfStory,
+        location: draft.location,
+        music: draft.music,
+        coverPreview: draft.coverPreview,
+        prompt: null,
+      })
+    );
+  }
 
   const pendingUploads = draft.media.filter((m) => m.uploadState === "uploading");
   const erroredUploads = draft.media.filter((m) => m.uploadState === "error");
@@ -795,7 +847,13 @@ function TellStep2({
           }}
         />
       )}
-      <PanelHeader title="New Story" onBack={onBack} />
+      <PanelHeader title="New Story" onBack={onBack} onPreview={openPreview} />
+      <PreviewOverlay
+        open={previewData !== null}
+        data={previewData}
+        currentUser={user}
+        onClose={() => setPreviewData(null)}
+      />
 
       <div className="mb-[14px]">
         <TitlePill

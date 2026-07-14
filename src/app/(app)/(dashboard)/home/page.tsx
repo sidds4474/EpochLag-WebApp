@@ -9,12 +9,15 @@ import {
   useState,
 } from "react";
 import { toast } from "react-hot-toast";
+import { ApiError } from "../../../../lib/api/client";
 import { useAuth } from "../../../../lib/auth/AuthProvider";
+import { shareUserCard } from "../../../../lib/create/api";
 import {
   fetchInspirationFeed,
   fetchReceivedCards,
   toggleCardBookmark,
 } from "../../../../lib/home/api";
+import { bustUrl } from "../../../../lib/images";
 import type { UserCard } from "../../../../types/home";
 import {
   EMPTY_STATE_CARDS,
@@ -23,6 +26,7 @@ import {
   type EmptyStateCard,
 } from "../../../../data/emptyStateCards";
 import { BookmarkIcon, PersonIcon, SendIcon } from "../icons";
+import ShareModal from "../new-story/ShareModal";
 
 type ForYouItem =
   | (UserCard & { kind: "api" })
@@ -95,6 +99,33 @@ export default function HomePage() {
 
   // Empty-state dismissals (per-user, localStorage)
   const [dismissedEmptyState, setDismissedEmptyState] = useState<string[]>([]);
+
+  // Share modal state — which inspo card is being shared, or null
+  const [shareCard, setShareCard] = useState<UserCard | null>(null);
+
+  async function handleShareSend(
+    userIds: string[],
+    sendSeparately: boolean,
+    note: string,
+    _isPrivate: boolean,
+    groupIds: string[]
+  ) {
+    if (!shareCard) return;
+    try {
+      await shareUserCard(shareCard._id, {
+        shareWith: userIds,
+        groupIds,
+        sendSeparately,
+        note,
+      });
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Could not share. Please try again.";
+      throw new Error(message);
+    }
+  }
 
   useEffect(() => {
     if (!userId) return;
@@ -282,7 +313,11 @@ export default function HomePage() {
         ) : (
           <Rail scrollRef={inspoScrollRef}>
             {inspoListData.map((card, idx) => (
-              <InspoCardTile key={inspoKey(card, idx)} card={card} />
+              <InspoCardTile
+                key={inspoKey(card, idx)}
+                card={card}
+                onShare={() => setShareCard(card)}
+              />
             ))}
             {hasMoreInspo && (
               <Sentinel
@@ -294,6 +329,16 @@ export default function HomePage() {
           </Rail>
         )}
       </Section>
+
+      <ShareModal
+        open={shareCard !== null}
+        title="Send this prompt"
+        shareContext="prompt"
+        showMessageInput
+        cardData={shareCard}
+        onClose={() => setShareCard(null)}
+        onSend={handleShareSend}
+      />
     </div>
   );
 }
@@ -492,7 +537,7 @@ function UserCardTile({ card }: { card: UserCard }) {
   const author = card.author;
   const { displayText, imageSrc } = getCardDisplay(card);
   const threadId = (card.storyThread as { _id?: string } | null)?._id;
-  const href = threadId ? `/thread/${threadId}` : undefined;
+  const href = threadId ? `/thread/${threadId}` : `/reply/${card._id}`;
 
   return (
     <CardShell height={FORYOU_HEIGHT} href={href}>
@@ -503,7 +548,7 @@ function UserCardTile({ card }: { card: UserCard }) {
               {author.profilePicture ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={author.profilePicture}
+                  src={bustUrl(author.profilePicture, undefined)}
                   alt=""
                   className="w-full h-full object-cover"
                 />
@@ -526,7 +571,11 @@ function UserCardTile({ card }: { card: UserCard }) {
 
         <CircleButton
           ariaLabel={bookmarked ? "Remove bookmark" : "Bookmark"}
-          onClick={toggle}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggle();
+          }}
         >
           <BookmarkIcon width={13} height={15} filled={bookmarked} />
         </CircleButton>
@@ -573,13 +622,19 @@ function EmptyStateCardTile({
   );
 }
 
-function InspoCardTile({ card }: { card: UserCard }) {
+function InspoCardTile({
+  card,
+  onShare,
+}: {
+  card: UserCard;
+  onShare: () => void;
+}) {
   const { bookmarked, toggle } = useBookmarkToggle(card._id, card.isBookmarked);
   const tag = card.tags?.[0];
   const { displayText, imageSrc } = getCardDisplay(card);
 
   return (
-    <CardShell height={INSPO_HEIGHT}>
+    <CardShell height={INSPO_HEIGHT} href={`/reply/${card._id}`}>
       <ImageArea src={imageSrc}>
         {tag ? (
           <div className="bg-white border border-white rounded-full px-[10px] py-[4px]">
@@ -594,11 +649,22 @@ function InspoCardTile({ card }: { card: UserCard }) {
         <div className="flex flex-col gap-[10px]">
           <CircleButton
             ariaLabel={bookmarked ? "Remove bookmark" : "Bookmark"}
-            onClick={toggle}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggle();
+            }}
           >
             <BookmarkIcon width={13} height={15} filled={bookmarked} />
           </CircleButton>
-          <CircleButton ariaLabel="Send">
+          <CircleButton
+            ariaLabel="Send"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onShare();
+            }}
+          >
             <SendIcon width={16} height={16} />
           </CircleButton>
         </div>

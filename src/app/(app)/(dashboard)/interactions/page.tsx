@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../../../../lib/auth/AuthProvider";
@@ -9,10 +10,15 @@ import {
   fetchThread,
   type InteractionType,
 } from "../../../../lib/interactions/api";
+import { shareUserCard } from "../../../../lib/create/api";
+import { ApiError } from "../../../../lib/api/client";
 import { toggleCardBookmark } from "../../../../lib/home/api";
+import { bustUrl } from "../../../../lib/images";
 import { formatShortDayTime } from "../../../../lib/formatters";
 import type { ThreadResponse, UserCard } from "../../../../types/home";
 import ThreadViewer from "../../../../views/Thread/ThreadViewer";
+import ReplyEditor from "./ReplyEditor";
+import ShareModal from "../new-story/ShareModal";
 import { BookmarkIcon, PersonIcon, SendIcon } from "../icons";
 
 const PAGE_SIZE = 20;
@@ -78,13 +84,50 @@ type ThreadState =
 export default function InteractionsPage() {
   const { user } = useAuth();
   const currentUserId = user?._id ?? "";
+  const searchParams = useSearchParams();
+  const promptIdParam = searchParams.get("promptId");
   const [activeTab, setActiveTab] = useState<InteractionType>("received");
   const [received, setReceived] = useState<TabState>(initialTabState);
   const [sent, setSent] = useState<TabState>(initialTabState);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [threadState, setThreadState] = useState<ThreadState>({ kind: "idle" });
   const [activeStoryIndex, setActiveStoryIndex] = useState(0);
+  const [shareCard, setShareCard] = useState<UserCard | null>(null);
   const threadLogFiredRef = useRef(false);
+
+  // Deep-link entry: /interactions?promptId=xxx opens the reply editor for
+  // that prompt regardless of whether it's in received/sent (e.g. from an
+  // Inspiration card tap). Fires once on mount for that param.
+  useEffect(() => {
+    if (!promptIdParam) return;
+    setSelectedCardId(promptIdParam);
+    setThreadState({ kind: "no-thread" });
+    setActiveStoryIndex(0);
+  }, [promptIdParam]);
+
+  async function handleShareSend(
+    userIds: string[],
+    sendSeparately: boolean,
+    note: string,
+    _isPrivate: boolean,
+    groupIds: string[]
+  ) {
+    if (!shareCard) return;
+    try {
+      await shareUserCard(shareCard._id, {
+        shareWith: userIds,
+        groupIds,
+        sendSeparately,
+        note,
+      });
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Could not share. Please try again.";
+      throw new Error(message);
+    }
+  }
 
   const tabState = activeTab === "received" ? received : sent;
   const setTabState =
@@ -125,6 +168,32 @@ export default function InteractionsPage() {
       }));
     }
   }, [activeTab, tabState.loadingMore, tabState.hasMore, tabState.page, setTabState]);
+
+  // After the user publishes a reply, refetch the current tab's first page.
+  // The refetched card carries the populated storyThread._id, which the
+  // thread-fetch effect below will pick up and swap the right panel to the
+  // ThreadViewer automatically.
+  const handlePublished = useCallback(async () => {
+    try {
+      const { cards, pagination } = await fetchInteractionCards(
+        activeTab,
+        1,
+        PAGE_SIZE
+      );
+      const hasMore = pagination
+        ? pagination.pageNumber < pagination.totalPages
+        : cards.length > 0;
+      setTabState((t) => ({
+        ...t,
+        cards: dedupeAppend([], cards.concat(t.cards.slice(cards.length))),
+        page: Math.max(t.page, 1),
+        hasMore,
+        loaded: true,
+      }));
+    } catch {
+      // Non-fatal — the story still published, just the list didn't refresh.
+    }
+  }, [activeTab, setTabState]);
 
   // Auto-load first page when switching tabs (only if not yet loaded)
   useEffect(() => {
@@ -268,6 +337,7 @@ export default function InteractionsPage() {
                             }));
                           }
                         }}
+                        onShare={() => setShareCard(card)}
                         hideAuthor={
                           activeTab === "sent" &&
                           card.author?._id === currentUserId
@@ -298,7 +368,14 @@ export default function InteractionsPage() {
         ) : threadState.kind === "loading" ? (
           <RightPanelLoading />
         ) : threadState.kind === "no-thread" ? (
-          <NewStoryStub />
+          selectedCardId ? (
+            <ReplyEditor
+              promptId={selectedCardId}
+              onPublished={handlePublished}
+            />
+          ) : (
+            <RightPanelEmpty />
+          )
         ) : threadState.kind === "error" ? (
           <RightPanelError message={threadState.message} />
         ) : (
@@ -310,6 +387,16 @@ export default function InteractionsPage() {
           />
         )}
       </div>
+
+      <ShareModal
+        open={shareCard !== null}
+        title="Send this prompt"
+        shareContext="prompt"
+        showMessageInput
+        cardData={shareCard}
+        onClose={() => setShareCard(null)}
+        onSend={handleShareSend}
+      />
     </div>
   );
 }
@@ -342,26 +429,17 @@ function RightPanelError({ message }: { message: string }) {
   );
 }
 
-function NewStoryStub() {
-  return (
-    <div className="flex-1 flex items-center justify-center px-[24px] py-[24px]">
-      <p className="font-montserrat text-primary-blue/50 text-[14px] text-center max-w-[360px]">
-        No story yet — the response form goes here.
-      </p>
-    </div>
-  );
-}
-
-
 function InteractionCard({
   card,
   selected,
   onSelect,
+  onShare,
   hideAuthor = false,
 }: {
   card: UserCard;
   selected: boolean;
   onSelect: () => void;
+  onShare: () => void;
   hideAuthor?: boolean;
 }) {
   const { bookmarked, toggle } = useBookmarkToggle(
@@ -407,7 +485,7 @@ function InteractionCard({
                 {author.profilePicture ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={author.profilePicture}
+                    src={bustUrl(author.profilePicture, undefined)}
                     alt=""
                     className="w-full h-full object-cover"
                   />
@@ -432,6 +510,7 @@ function InteractionCard({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                onShare();
               }}
               aria-label="Share"
               className="cursor-pointer text-primary-blue hover:opacity-80 transition-opacity"

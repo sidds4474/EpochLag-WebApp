@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import LogoDark from "../../../assets/images/logo-dark.webp";
+import { bustUrl } from "../../../lib/images";
 import type { HomePeople, PersonSummary } from "../../../types/home";
 import {
   BookmarksIcon,
@@ -62,7 +63,7 @@ export default function Sidebar({ people }: SidebarProps) {
   const hasFriends = (people?.users.length ?? 0) > 0;
 
   return (
-    <aside className="hidden md:flex w-[220px] lg:w-[240px] shrink-0 flex-col px-[20px] py-[24px] gap-[20px] overflow-y-auto scrollbar-hide">
+    <aside className="hidden md:flex w-[17.0625rem] shrink-0 flex-col px-[20px] py-[24px] gap-[20px] overflow-y-auto scrollbar-hide">
       <Link href="/home" className="block">
         <img
           src={LogoDark.src}
@@ -73,10 +74,24 @@ export default function Sidebar({ people }: SidebarProps) {
 
       <Link
         href="/new-story"
-        className="cursor-pointer w-full bg-primary-orange text-primary-white font-montserrat font-semibold text-[14px] rounded-full py-[12px] flex items-center justify-center gap-[8px] hover:opacity-90 transition-opacity"
+        className="cursor-pointer w-full bg-white rounded-full py-[8px] pl-[8px] pr-[16px] flex items-center gap-[10px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.1)] transition-shadow"
       >
-        <PlusIcon width={16} height={16} />
-        New Story
+        <div className="relative w-[36px] h-[36px] flex items-center justify-center shrink-0">
+          <img
+            src="/logo.svg"
+            alt=""
+            className="absolute inset-0 w-full h-full"
+          />
+          <PlusIcon
+            width={16}
+            height={16}
+            strokeWidth={2}
+            className="relative text-white"
+          />
+        </div>
+        <span className="font-montserrat font-semibold text-primary-blue text-[15px]">
+          Create
+        </span>
       </Link>
 
       <nav className="flex flex-col gap-[2px]">
@@ -106,7 +121,7 @@ export default function Sidebar({ people }: SidebarProps) {
         })}
       </nav>
 
-      <div className="h-px bg-black/[0.08] my-[4px]" />
+      <div className="h-[1px] shrink-0 bg-[#C9C9C9]" />
 
       <div className="flex flex-col gap-[10px]">
         <div className="flex items-center justify-between px-[2px]">
@@ -169,7 +184,7 @@ function FriendRow({ person }: { person: PersonSummary }) {
         {person.profilePicture ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={person.profilePicture}
+            src={bustUrl(person.profilePicture, undefined)}
             alt=""
             className="w-full h-full rounded-full object-cover"
           />

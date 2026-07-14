@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "../../../../../lib/auth/AuthProvider";
+import { bustUrl } from "../../../../../lib/images";
 
 export default function FeatureProfileAvatar() {
   const { user } = useAuth();
@@ -11,7 +12,7 @@ export default function FeatureProfileAvatar() {
       {user?.profilePicture ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={user.profilePicture}
+          src={bustUrl(user.profilePicture, user.updatedAt)}
           alt=""
           className="w-full h-full object-cover"
         />

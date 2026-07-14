@@ -1,4 +1,5 @@
 import { fullName, getInitials } from "../../../lib/formatters";
+import { bustUrl } from "../../../lib/images";
 import type { StoryAuthor } from "../../../types/story";
 
 type AuthorBadgeProps = {
@@ -27,7 +28,7 @@ const AuthorBadge = ({ author, datePosted, size = "md" }: AuthorBadgeProps) => {
     <div className="flex items-center gap-[12px]">
       {author.profilePicture ? (
         <img
-          src={author.profilePicture}
+          src={bustUrl(author.profilePicture, undefined)}
           alt={`${name}'s profile picture`}
           className={`${dimensions} rounded-full object-cover bg-primary-cream`}
           loading="lazy"

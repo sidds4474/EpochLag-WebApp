@@ -343,6 +343,134 @@ export function HeartIcon({
   );
 }
 
+export function PencilIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
+    </svg>
+  );
+}
+
+export function HelpIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
+export function EyeIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+export function MicIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M5 10v2a7 7 0 0014 0v-2" />
+      <line x1="12" y1="19" x2="12" y2="23" />
+      <line x1="8" y1="23" x2="16" y2="23" />
+    </svg>
+  );
+}
+
+export function VideoPlayIcon(props: IconProps) {
+  return (
+    <svg
+      width={20}
+      height={20}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path d="M23 7l-7 5 7 5V7z" />
+      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+    </svg>
+  );
+}
+
+export function ImageIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <polyline points="21 15 16 10 5 21" />
+    </svg>
+  );
+}
+
+export function ArrowRightIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <line x1="5" y1="12" x2="19" y2="12" />
+      <polyline points="12 5 19 12 12 19" />
+    </svg>
+  );
+}
+
+export function CameraIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
+}
+
+export function MapPinIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+export function CakeIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M20 21v-8a2 2 0 00-2-2H6a2 2 0 00-2 2v8" />
+      <path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1" />
+      <path d="M2 21h20" />
+      <path d="M7 8v3" />
+      <path d="M12 8v3" />
+      <path d="M17 8v3" />
+      <path d="M7 4h.01" />
+      <path d="M12 4h.01" />
+      <path d="M17 4h.01" />
+    </svg>
+  );
+}
+
+export function CalendarIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+
+export function CloseIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 export function MoreHorizontalIcon(props: IconProps) {
   return (
     <svg
@@ -356,6 +484,161 @@ export function MoreHorizontalIcon(props: IconProps) {
       <circle cx="5" cy="12" r="1.6" />
       <circle cx="12" cy="12" r="1.6" />
       <circle cx="19" cy="12" r="1.6" />
+    </svg>
+  );
+}
+
+export function UploadIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+export function PauseIcon(props: IconProps) {
+  return (
+    <svg
+      width={20}
+      height={20}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <rect x="6" y="5" width="4" height="14" rx="1" />
+      <rect x="14" y="5" width="4" height="14" rx="1" />
+    </svg>
+  );
+}
+
+export function PlayIcon(props: IconProps) {
+  return (
+    <svg
+      width={20}
+      height={20}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path d="M8 5v14l11-7z" />
+    </svg>
+  );
+}
+
+export function MusicNoteIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M9 18V5l12-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="18" cy="16" r="3" />
+    </svg>
+  );
+}
+
+export function MicrophoneIcon(props: IconProps) {
+  return (
+    <svg
+      width={20}
+      height={20}
+      viewBox="0 0 32 32"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M9.22729 10.545C9.22729 6.90495 12.1781 3.9541 15.8182 3.9541C19.4583 3.9541 22.4091 6.90495 22.4091 10.545V14.4996C22.4091 18.1396 19.4583 21.0905 15.8182 21.0905C12.1781 21.0905 9.22729 18.1396 9.22729 14.4996V10.545Z"
+        stroke="currentColor"
+        strokeWidth="1.97727"
+      />
+      <path
+        d="M17.1364 10.5459L22.4091 10.5459"
+        stroke="currentColor"
+        strokeWidth="1.97727"
+        strokeLinecap="round"
+      />
+      <path
+        d="M17.1364 14.5L22.4091 14.5"
+        stroke="currentColor"
+        strokeWidth="1.97727"
+        strokeLinecap="round"
+      />
+      <path
+        d="M26.3636 13.1816V14.4998C26.3636 20.3239 21.6423 25.0453 15.8182 25.0453C9.99407 25.0453 5.27271 20.3239 5.27271 14.4998V13.1816"
+        stroke="currentColor"
+        strokeWidth="1.97727"
+        strokeLinecap="round"
+      />
+      <path
+        d="M15.8182 25.0459V29.0004"
+        stroke="currentColor"
+        strokeWidth="1.97727"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function VideoCameraAddIcon(props: IconProps) {
+  return (
+    <svg
+      width={20}
+      height={20}
+      viewBox="0 0 36 36"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M25.5 14.2503L26.4875 13.7565C29.4064 12.2971 30.8658 11.5674 31.9329 12.2269C33 12.8864 33 14.5181 33 17.7814V18.2191C33 21.4825 33 23.1142 31.9329 23.7737C30.8658 24.4332 29.4064 23.7035 26.4875 22.2441L25.5 21.7503V14.2503Z"
+        stroke="currentColor"
+        strokeWidth="1.99998"
+      />
+      <path
+        d="M3 17.25C3 12.3188 3 9.85317 4.36194 8.19364C4.61126 7.88984 4.88984 7.61126 5.19364 7.36194C6.85317 6 9.31878 6 14.25 6C19.1812 6 21.6468 6 23.3064 7.36194C23.6102 7.61126 23.8887 7.88984 24.1381 8.19364C25.5 9.85317 25.5 12.3188 25.5 17.25V18.75C25.5 23.6812 25.5 26.1468 24.1381 27.8064C23.8887 28.1102 23.6102 28.3887 23.3064 28.6381C21.6468 30 19.1812 30 14.25 30C9.31878 30 6.85317 30 5.19364 28.6381C4.88984 28.3887 4.61126 28.1102 4.36194 27.8064C3 26.1468 3 23.6812 3 18.75V17.25Z"
+        stroke="currentColor"
+        strokeWidth="1.99998"
+      />
+      <path
+        d="M10.9773 23.1963L10.9773 12.8037L19.9773 18L10.9773 23.1963Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+export function GalleryIcon(props: IconProps) {
+  return (
+    <svg
+      width={20}
+      height={20}
+      viewBox="0 0 32 32"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M2.63708 15.8176C2.63708 9.60359 2.63708 6.49661 4.56752 4.56617C6.49795 2.63574 9.60493 2.63574 15.8189 2.63574C22.0329 2.63574 25.1399 2.63574 27.0703 4.56617C29.0007 6.49661 29.0007 9.60359 29.0007 15.8176C29.0007 22.0315 29.0007 25.1385 27.0703 27.0689C25.1399 28.9994 22.0329 28.9994 15.8189 28.9994C9.60493 28.9994 6.49795 28.9994 4.56752 27.0689C2.63708 25.1385 2.63708 22.0315 2.63708 15.8176Z"
+        stroke="currentColor"
+        strokeWidth="1.97727"
+      />
+      <circle
+        cx="21.0917"
+        cy="10.5455"
+        r="2.63636"
+        stroke="currentColor"
+        strokeWidth="1.97727"
+      />
+      <path
+        d="M2.63708 16.4775L4.94599 14.4572C6.14721 13.4061 7.95763 13.4664 9.08627 14.595L14.7409 20.2497C15.6468 21.1556 17.0728 21.2791 18.121 20.5425L18.5141 20.2662C20.0224 19.2062 22.063 19.329 23.4333 20.5623L27.6825 24.3865"
+        stroke="currentColor"
+        strokeWidth="1.97727"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

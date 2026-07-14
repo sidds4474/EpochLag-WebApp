@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { User } from "../../../types/user";
 import { useAuth } from "../../../lib/auth/AuthProvider";
+import { bustUrl } from "../../../lib/images";
 import { BellIcon, PersonIcon, SearchIcon } from "./icons";
 
 type HeaderProps = {
@@ -94,7 +95,7 @@ export default function Header({ user, unreadCount }: HeaderProps) {
           {user?.profilePicture ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={user.profilePicture}
+              src={bustUrl(user.profilePicture, user.updatedAt)}
               alt=""
               className="w-full h-full object-cover"
             />
@@ -112,6 +113,14 @@ export default function Header({ user, unreadCount }: HeaderProps) {
             role="menu"
             className="absolute right-0 top-[48px] min-w-[160px] bg-white rounded-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] border border-black/[0.06] py-[6px] z-10"
           >
+            <Link
+              href="/profile"
+              role="menuitem"
+              onClick={() => setMenuOpen(false)}
+              className="block w-full text-left px-[14px] py-[10px] font-montserrat font-medium text-primary-blue text-[14px] hover:bg-black/[0.04] transition-colors"
+            >
+              Profile
+            </Link>
             <button
               type="button"
               role="menuitem"

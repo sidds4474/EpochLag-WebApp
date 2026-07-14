@@ -74,6 +74,14 @@ export default function Sidebar({ people }: SidebarProps) {
 
       <Link
         href="/new-story"
+        onClick={() => {
+          // Signals the New Story page to reset to the landing view. Fires
+          // on every Create click — harmless when the page hasn't mounted
+          // yet, resets composer state when it has (same-route click).
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("new-story:reset"));
+          }
+        }}
         className="cursor-pointer w-full bg-white rounded-full py-[8px] pl-[8px] pr-[16px] flex items-center gap-[10px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.1)] transition-shadow"
       >
         <div className="relative w-[36px] h-[36px] flex items-center justify-center shrink-0">

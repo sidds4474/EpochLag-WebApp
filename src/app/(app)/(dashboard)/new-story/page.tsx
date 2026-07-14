@@ -135,17 +135,51 @@ const EMPTY_ASK: AskDraft = {
 
 export default function NewStoryPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("tell");
+  const [mode, setMode] = useState<Mode | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
   const [tell, setTell] = useState<TellDraft>(EMPTY_TELL);
   const [ask, setAsk] = useState<AskDraft>(EMPTY_ASK);
   const [inspireReplyId, setInspireReplyId] = useState<string | null>(null);
+
+  // Listen for the Sidebar Create button dispatching a reset — Next's App
+  // Router doesn't remount on same-route link clicks, so we can't rely on
+  // mount to reset state. On event: bail out of any composer + drafts.
+  useEffect(() => {
+    function onReset() {
+      setMode(null);
+      setStep(1);
+      setInspireReplyId(null);
+      setTell(EMPTY_TELL);
+      setAsk(EMPTY_ASK);
+    }
+    window.addEventListener("new-story:reset", onReset);
+    return () => window.removeEventListener("new-story:reset", onReset);
+  }, []);
 
   function selectMode(next: Mode) {
     if (next === mode) return;
     setMode(next);
     setStep(1);
     setInspireReplyId(null);
+  }
+
+  if (mode === null) {
+    return (
+      <div className="h-full flex flex-col px-[40px] pt-[16px] pb-[24px] min-h-0 overflow-y-auto scrollbar-hide">
+        <h1 className="font-montserrat font-bold text-primary-blue text-[24px] md:text-[28px] leading-tight mb-[20px]">
+          Create
+        </h1>
+        <div className="flex flex-wrap gap-[20px]">
+          {MODE_CARDS.map((card) => (
+            <LandingModeCard
+              key={card.id}
+              card={card}
+              onClick={() => selectMode(card.id)}
+            />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -257,6 +291,47 @@ function ModeCard({
         <div className="flex justify-end text-primary-blue/60">
           <ArrowRightIcon width={16} height={16} />
         </div>
+      </div>
+    </button>
+  );
+}
+
+// Larger vertical variant used on the Create landing view — cover on top,
+// text below, arrow bottom-right. Same content as ModeCard.
+function LandingModeCard({
+  card,
+  onClick,
+}: {
+  card: (typeof MODE_CARDS)[number];
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-[280px] shrink-0 text-left cursor-pointer bg-white rounded-[20px] shadow-[0_0_12.5px_rgba(0,0,0,0.15)] p-[6px] pb-[14px] flex flex-col hover:shadow-[0_2px_16px_rgba(0,0,0,0.18)] transition-shadow"
+    >
+      <div className="relative aspect-[4/3] rounded-t-[14px] overflow-hidden bg-primary-blue/10">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={card.cover}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
+        />
+      </div>
+      <div className="mt-[12px] px-[8px] flex flex-col gap-[4px]">
+        <p className="font-montserrat font-bold text-primary-blue text-[15px] leading-[19px]">
+          {card.title}
+        </p>
+        <p className="font-montserrat text-primary-blue/70 text-[12px] leading-[16px]">
+          {card.description}
+        </p>
+      </div>
+      <div className="mt-auto pt-[12px] px-[8px] flex justify-end">
+        <span className="w-[28px] h-[28px] rounded-full bg-[#ededed] text-primary-blue flex items-center justify-center">
+          <ArrowRightIcon width={14} height={14} />
+        </span>
       </div>
     </button>
   );

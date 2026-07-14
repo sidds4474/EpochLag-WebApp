@@ -105,6 +105,12 @@ export type Story = {
   music?: {
     trackName?: string;
     artistName?: string;
+    // Present when the story was authored via the composer's iTunes picker.
+    // Older stories may not have these — pill falls back to a static icon
+    // and disables playback when previewUrl is missing.
+    previewUrl?: string;
+    artworkUrl?: string;
+    durationMs?: number;
   } | null;
 };
 

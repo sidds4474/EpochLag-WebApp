@@ -45,6 +45,11 @@ export async function fetchHomePeople(): Promise<HomePeople> {
   return res.data;
 }
 
+export async function fetchUserCard(promptId: string): Promise<UserCard> {
+  const res = await api.get<Envelope<UserCard>>(`/api/user-card/${promptId}`);
+  return res.data;
+}
+
 export async function fetchNotifications(): Promise<{
   items: Notification[];
   unreadCount: number;

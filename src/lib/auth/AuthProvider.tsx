@@ -67,6 +67,7 @@ type AuthContextValue = {
     isPasswordReset?: boolean
   ) => Promise<void>;
   signOut: () => void;
+  updateUser: (user: User) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -159,6 +160,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const updateUser = useCallback((next: User) => {
+    setUser(next);
+    const token = getStoredToken();
+    if (token) setStoredAuth(token, next);
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -169,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         verifyOtpAndSignIn,
         signOut,
+        updateUser,
       }}
     >
       {children}

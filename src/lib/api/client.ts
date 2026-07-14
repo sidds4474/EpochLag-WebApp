@@ -1,6 +1,13 @@
 import { getStoredToken, clearStoredAuth } from "../auth/storage";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://dev.epochlag.com";
+// In the browser we hit same-origin /api/* and let Next.js `rewrites` proxy
+// to the upstream — avoids CORS in dev and works transparently in prod.
+// On the server (SSR / build) we go direct to the upstream since there is
+// no Next.js rewrite layer in that context.
+const API_BASE =
+  typeof window === "undefined"
+    ? process.env.NEXT_PUBLIC_API_URL || "https://dev.epochlag.com"
+    : "";
 
 export class ApiError extends Error {
   status: number;

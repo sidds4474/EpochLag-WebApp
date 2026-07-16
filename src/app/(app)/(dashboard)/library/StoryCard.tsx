@@ -102,30 +102,32 @@ export default function StoryCard({
           />
         ) : null}
 
-        <div className="absolute top-[10px] left-[10px] flex items-center gap-[6px]">
-          <div className="w-[36px] h-[36px] rounded-full overflow-hidden bg-primary-blue/15 border-[2px] border-white shrink-0">
-            {avatar ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={bustUrl(avatar, undefined)}
-                alt=""
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center font-montserrat font-semibold text-primary-blue text-[12px]">
-                {initial}
+        {typeof daysRemaining !== "number" && (
+          <div className="absolute top-[10px] left-[10px] flex items-center gap-[6px]">
+            <div className="w-[36px] h-[36px] rounded-full overflow-hidden bg-primary-blue/15 border-[2px] border-white shrink-0">
+              {avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={bustUrl(avatar, undefined)}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center font-montserrat font-semibold text-primary-blue text-[12px]">
+                  {initial}
+                </div>
+              )}
+            </div>
+            {participantCount > 0 && (
+              <div className="bg-white border border-white rounded-full px-[8px] py-[4px] flex items-center gap-[4px]">
+                <PersonIcon width={12} height={12} />
+                <span className="font-montserrat font-medium text-primary-blue text-[12px] leading-[16px]">
+                  {participantCount}
+                </span>
               </div>
             )}
           </div>
-          {participantCount > 0 && (
-            <div className="bg-white border border-white rounded-full px-[8px] py-[4px] flex items-center gap-[4px]">
-              <PersonIcon width={12} height={12} />
-              <span className="font-montserrat font-medium text-primary-blue text-[12px] leading-[16px]">
-                {participantCount}
-              </span>
-            </div>
-          )}
-        </div>
+        )}
 
         {isSelecting && (
           <span

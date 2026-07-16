@@ -31,6 +31,8 @@ export type LibraryThread = {
     title?: string | null;
     content?: string | null;
     media?: LibraryStoryMedia[];
+    hiddenAt?: string | null;
+    daysRemaining?: number | null;
   } | null;
   people?: LibraryPerson[];
   totalPeople?: number;
@@ -366,6 +368,125 @@ export async function fetchThreadPromptTitle(
   } catch {
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Filters: People + Media Type pills
+// ---------------------------------------------------------------------------
+
+export type FilterPerson = {
+  _id: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  profilePicture?: string | null;
+  epochlagID?: string | null;
+  threadCount?: number;
+};
+
+export function personStoryCount(p: FilterPerson): number {
+  return p.threadCount ?? 0;
+}
+
+export type FilterMediaType = {
+  type: "image" | "video" | "audio" | string;
+  count?: number;
+};
+
+export type StoriesFilters = {
+  people: FilterPerson[];
+  mediaTypes: FilterMediaType[];
+};
+
+export async function fetchStoriesFilters(): Promise<StoriesFilters> {
+  const res = await api.get<Envelope<StoriesFilters>>(`/api/stories/filters`);
+  return {
+    people: res.data?.people ?? [],
+    mediaTypes: res.data?.mediaTypes ?? [],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Media Type gallery
+// ---------------------------------------------------------------------------
+
+export type MediaBucketType = "image" | "video" | "audio";
+
+export type MediaTileAuthor = {
+  _id?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  profilePicture?: string | null;
+};
+
+export type MediaTile = {
+  mediaId: string;
+  media: {
+    _id?: string;
+    type: MediaBucketType;
+    url: string;
+    uri?: string | null;
+    thumbnailUrl?: string | null;
+    playback_url?: string | null;
+    duration?: number | null;
+  };
+  story: {
+    _id: string;
+    title?: string | null;
+    content?: string | null;
+    createdAt?: string | null;
+    author?: MediaTileAuthor | null;
+  };
+  threadId?: string | null;
+};
+
+export function mediaTileThreadId(tile: MediaTile): string | null {
+  return tile.threadId ?? null;
+}
+
+export type MediaGalleryOverview = {
+  images: MediaTile[];
+  videos: MediaTile[];
+  audios: MediaTile[];
+};
+
+export type MediaGalleryPage = {
+  tiles: MediaTile[];
+  pagination: Pagination | null;
+};
+
+export async function fetchMediaGalleryOverview(
+  limit = 10
+): Promise<MediaGalleryOverview> {
+  const res = await api.get<Envelope<MediaGalleryOverview>>(
+    `/api/stories/media-gallery?limit=${limit}`
+  );
+  return {
+    images: res.data?.images ?? [],
+    videos: res.data?.videos ?? [],
+    audios: res.data?.audios ?? [],
+  };
+}
+
+export async function fetchMediaGalleryByType(
+  type: MediaBucketType,
+  page = 1,
+  limit = 20
+): Promise<MediaGalleryPage> {
+  const qs = new URLSearchParams({
+    type,
+    page: String(page),
+    limit: String(limit),
+  });
+  const res = await api.get<
+    Envelope<
+      Record<string, MediaTile[] | Pagination | undefined>
+    >
+  >(`/api/stories/media-gallery?${qs.toString()}`);
+  const data = res.data ?? {};
+  const key = type === "image" ? "images" : type === "video" ? "videos" : "audios";
+  const tiles = (data[key] as MediaTile[] | undefined) ?? [];
+  const pagination = (data.pagination as Pagination | undefined) ?? null;
+  return { tiles, pagination };
 }
 
 export const STORY_TAGS = [

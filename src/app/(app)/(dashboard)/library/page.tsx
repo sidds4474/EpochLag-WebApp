@@ -14,6 +14,8 @@ import {
 import ConfirmationModal from "../../../../components/ConfirmationModal/ConfirmationModal";
 import StoryCard from "./StoryCard";
 import StoryCardSkeleton from "./StoryCardSkeleton";
+import PeoplePanel from "./PeoplePanel";
+import MediaTypePanel from "./MediaTypePanel";
 import { useSelectMode } from "./selectMode";
 
 type PillId =
@@ -46,8 +48,11 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DELETED_RETENTION_DAYS = 30;
 
 function daysRemainingFor(thread: LibraryThread): number | null {
-  if (!thread.hiddenAt) return null;
-  const parsed = Date.parse(thread.hiddenAt);
+  const beValue = thread.latestStory?.daysRemaining;
+  if (typeof beValue === "number") return beValue;
+  const hiddenAt = thread.latestStory?.hiddenAt ?? thread.hiddenAt;
+  if (!hiddenAt) return null;
+  const parsed = Date.parse(hiddenAt);
   if (Number.isNaN(parsed)) return null;
   const elapsed = Math.floor((Date.now() - parsed) / MS_PER_DAY);
   return Math.max(0, DELETED_RETENTION_DAYS - elapsed);
@@ -144,9 +149,18 @@ export default function LibraryStoriesPage() {
     setError(null);
   }, [activePill, activeTags]);
 
+  const requestGenRef = useRef(0);
+
+  // Bump the generation on pill/tag change so any in-flight fetches from
+  // the previous filter are ignored when they land.
+  useEffect(() => {
+    requestGenRef.current += 1;
+  }, [activePill, activeTags]);
+
   const loadPage = useCallback(
     async (nextPage: number) => {
       if (!activeDef.mode) return;
+      const gen = requestGenRef.current;
       setLoading(true);
       try {
         const { threads: fresh, pagination } = await fetchStories({
@@ -155,6 +169,7 @@ export default function LibraryStoriesPage() {
           limit: PAGE_SIZE,
           tags: activePill === "categories" ? activeTags : undefined,
         });
+        if (gen !== requestGenRef.current) return;
         setThreads((prev) => {
           const seen = new Set(prev.map((t) => t._id));
           return [...prev, ...fresh.filter((t) => !seen.has(t._id))];
@@ -168,10 +183,11 @@ export default function LibraryStoriesPage() {
           : fresh.length === PAGE_SIZE;
         setHasMore(more);
       } catch (err) {
+        if (gen !== requestGenRef.current) return;
         setError(err instanceof Error ? err.message : "Couldn't load stories");
         setHasMore(false);
       } finally {
-        setLoading(false);
+        if (gen === requestGenRef.current) setLoading(false);
       }
     },
     [activeDef.mode, activePill, activeTags]
@@ -311,15 +327,20 @@ export default function LibraryStoriesPage() {
         </div>
       )}
 
+      {activePill === "people" ? (
+        <PeoplePanel />
+      ) : activePill === "media" ? (
+        <div className="flex-1 min-h-0 overflow-y-auto pt-[8px] pb-[28px] scrollbar-hide">
+          <MediaTypePanel />
+        </div>
+      ) : (
       <div
         ref={scrollRef}
         className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[24px] pt-[28px] pb-[28px] scrollbar-hide"
       >
         {isPlaceholder ? (
           <p className="font-montserrat text-primary-blue/60 text-[14px] mt-[8px]">
-            {activePill === "people"
-              ? "People filter coming next."
-              : "Media Type filter coming next."}
+            Nothing to show here.
           </p>
         ) : error ? (
           <p className="font-montserrat text-primary-orange text-[14px] mt-[8px]">
@@ -358,6 +379,7 @@ export default function LibraryStoriesPage() {
           </div>
         )}
       </div>
+      )}
 
       {isSelecting && selectedCount > 0 && (
         <div className="fixed left-1/2 -translate-x-1/2 bottom-[24px] z-40 flex items-center gap-[12px] bg-primary-blue text-white rounded-full pl-[20px] pr-[8px] py-[8px] shadow-[0_6px_24px_rgba(0,0,0,0.25)]">

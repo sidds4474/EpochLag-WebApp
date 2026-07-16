@@ -1,7 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { attachAlbumThreads } from "../../../../lib/library/api";
 import { toast } from "react-hot-toast";
 import { ApiError } from "../../../../lib/api/client";
 import {
@@ -135,7 +136,16 @@ const EMPTY_ASK: AskDraft = {
 
 export default function NewStoryPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode | null>(null);
+  const searchParams = useSearchParams();
+  // Album-context entry point: /new-story?mode=tell&albumId=<id> comes from
+  // "Album → Create new story". When albumId is present, skip the landing +
+  // sidebar mode picker and drop straight into the Tell flow; on publish,
+  // attach the new thread to the album and land back inside it.
+  const albumId = searchParams.get("albumId");
+  const paramMode = searchParams.get("mode");
+  const initialMode: Mode | null = paramMode === "tell" ? "tell" : null;
+
+  const [mode, setMode] = useState<Mode | null>(initialMode);
   const [step, setStep] = useState<1 | 2>(1);
   const [tell, setTell] = useState<TellDraft>(EMPTY_TELL);
   const [ask, setAsk] = useState<AskDraft>(EMPTY_ASK);
@@ -163,7 +173,7 @@ export default function NewStoryPage() {
     setInspireReplyId(null);
   }
 
-  if (mode === null) {
+  if (mode === null && !albumId) {
     return (
       <div className="h-full flex flex-col px-[40px] pt-[16px] pb-[24px] min-h-0 overflow-y-auto scrollbar-hide">
         <h1 className="font-montserrat font-bold text-primary-blue text-[24px] md:text-[28px] leading-tight mb-[20px]">
@@ -184,24 +194,26 @@ export default function NewStoryPage() {
 
   return (
     <div className="h-full flex min-h-0">
-      <section className="w-[360px] shrink-0 flex flex-col px-[24px] pt-[16px] min-h-0">
-        <h1 className="font-montserrat font-bold text-primary-blue text-[24px] md:text-[28px] leading-tight mb-[16px]">
-          Create
-        </h1>
-        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide -mx-[20px] px-[20px] pt-[6px] pb-[24px]">
-          <ul className="flex flex-col gap-[12px]">
-            {MODE_CARDS.map((card) => (
-              <li key={card.id}>
-                <ModeCard
-                  card={card}
-                  active={mode === card.id}
-                  onClick={() => selectMode(card.id)}
-                />
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      {!albumId && (
+        <section className="w-[360px] shrink-0 flex flex-col px-[24px] pt-[16px] min-h-0">
+          <h1 className="font-montserrat font-bold text-primary-blue text-[24px] md:text-[28px] leading-tight mb-[16px]">
+            Create
+          </h1>
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide -mx-[20px] px-[20px] pt-[6px] pb-[24px]">
+            <ul className="flex flex-col gap-[12px]">
+              {MODE_CARDS.map((card) => (
+                <li key={card.id}>
+                  <ModeCard
+                    card={card}
+                    active={mode === card.id}
+                    onClick={() => selectMode(card.id)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
 
       <div className="flex-1 min-w-0 flex flex-col">
         {mode === "tell" && step === 1 && (
@@ -216,6 +228,7 @@ export default function NewStoryPage() {
             draft={tell}
             onChange={setTell}
             onBack={() => setStep(1)}
+            albumId={albumId}
           />
         )}
         {mode === "ask" && step === 1 && (
@@ -778,10 +791,12 @@ function TellStep2({
   draft,
   onChange,
   onBack,
+  albumId,
 }: {
   draft: TellDraft;
   onChange: React.Dispatch<React.SetStateAction<TellDraft>>;
   onBack: () => void;
+  albumId?: string | null;
 }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -895,6 +910,16 @@ function TellStep2({
           // non-fatal — story is published; user can change privacy later
         }
       }
+      // Album context: mirror mobile's post-publish attach so the new
+      // thread shows up inside the album. Best-effort — a failure here
+      // shouldn't undo the successful publish.
+      if (albumId && threadId) {
+        try {
+          await attachAlbumThreads(albumId, [threadId]);
+        } catch {
+          toast.error("Story published but couldn't add it to the album");
+        }
+      }
       setCreatedStory({ storyId: draft.storyId!, threadId: threadId ?? null });
     } catch (err) {
       const message =
@@ -913,6 +938,10 @@ function TellStep2({
         <StoryCreatedOverlay
           storyId={createdStory.storyId}
           onDone={() => {
+            if (albumId) {
+              router.push(`/library/albums/${albumId}`);
+              return;
+            }
             if (createdStory.threadId) {
               router.push(`/thread/${createdStory.threadId}`);
             } else {

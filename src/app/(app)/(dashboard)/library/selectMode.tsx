@@ -16,6 +16,8 @@ type SelectModeValue = {
   start: () => void;
   exit: () => void;
   toggle: () => void;
+  headerRight: ReactNode | null;
+  setHeaderRight: (node: ReactNode | null) => void;
 };
 
 const SelectModeContext = createContext<SelectModeValue | null>(null);
@@ -23,14 +25,24 @@ const SelectModeContext = createContext<SelectModeValue | null>(null);
 export function SelectModeProvider({ children }: { children: ReactNode }) {
   const [isSelecting, setIsSelecting] = useState(false);
   const [canSelect, setCanSelect] = useState(false);
+  const [headerRight, setHeaderRight] = useState<ReactNode | null>(null);
 
   const start = useCallback(() => setIsSelecting(true), []);
   const exit = useCallback(() => setIsSelecting(false), []);
   const toggle = useCallback(() => setIsSelecting((v) => !v), []);
 
   const value = useMemo(
-    () => ({ isSelecting, canSelect, setCanSelect, start, exit, toggle }),
-    [isSelecting, canSelect, start, exit, toggle]
+    () => ({
+      isSelecting,
+      canSelect,
+      setCanSelect,
+      start,
+      exit,
+      toggle,
+      headerRight,
+      setHeaderRight,
+    }),
+    [isSelecting, canSelect, start, exit, toggle, headerRight]
   );
 
   return (
@@ -43,8 +55,6 @@ export function SelectModeProvider({ children }: { children: ReactNode }) {
 export function useSelectMode(): SelectModeValue {
   const ctx = useContext(SelectModeContext);
   if (!ctx) {
-    // Safe no-op fallback so components outside the provider don't crash
-    // (e.g. LibraryTabs while other library sub-routes mount).
     return {
       isSelecting: false,
       canSelect: false,
@@ -52,6 +62,8 @@ export function useSelectMode(): SelectModeValue {
       start: () => {},
       exit: () => {},
       toggle: () => {},
+      headerRight: null,
+      setHeaderRight: () => {},
     };
   }
   return ctx;

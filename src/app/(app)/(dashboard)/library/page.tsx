@@ -13,6 +13,7 @@ import {
 } from "../../../../lib/library/api";
 import ConfirmationModal from "../../../../components/ConfirmationModal/ConfirmationModal";
 import StoryCard from "./StoryCard";
+import StoryCardSkeleton from "./StoryCardSkeleton";
 import { useSelectMode } from "./selectMode";
 
 type PillId =
@@ -71,7 +72,14 @@ export default function LibraryStoriesPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const { isSelecting, setCanSelect, exit: exitSelect } = useSelectMode();
+  const {
+    isSelecting,
+    canSelect,
+    setCanSelect,
+    toggle: toggleSelectMode,
+    exit: exitSelect,
+    setHeaderRight,
+  } = useSelectMode();
 
   const activeDef = useMemo(
     () => PILLS.find((p) => p.id === activePill)!,
@@ -83,6 +91,24 @@ export default function LibraryStoriesPage() {
   useEffect(() => {
     setCanSelect(activePill !== "people" && activePill !== "media");
   }, [activePill, setCanSelect]);
+
+  // Register the Stories tab's Select/Done button in the shared header slot.
+  useEffect(() => {
+    if (!canSelect) {
+      setHeaderRight(null);
+      return;
+    }
+    setHeaderRight(
+      <button
+        type="button"
+        onClick={toggleSelectMode}
+        className="cursor-pointer font-montserrat text-black text-[14px] hover:opacity-80 transition-opacity"
+      >
+        {isSelecting ? "Done" : "Select"}
+      </button>
+    );
+    return () => setHeaderRight(null);
+  }, [canSelect, isSelecting, toggleSelectMode, setHeaderRight]);
 
   // Exiting select mode (or switching pills) clears the current picks.
   useEffect(() => {
@@ -299,6 +325,12 @@ export default function LibraryStoriesPage() {
           <p className="font-montserrat text-primary-orange text-[14px] mt-[8px]">
             {error}
           </p>
+        ) : threads.length === 0 && loading ? (
+          <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-[24px] gap-y-[40px]">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <StoryCardSkeleton key={i} />
+            ))}
+          </div>
         ) : threads.length === 0 && !loading ? (
           <p className="font-montserrat text-primary-blue/60 text-[14px] mt-[8px]">
             No stories to show.
@@ -320,10 +352,10 @@ export default function LibraryStoriesPage() {
           </div>
         )}
         <div ref={sentinelRef} className="h-[1px]" />
-        {loading && (
-          <p className="font-montserrat text-primary-blue/50 text-[13px] mt-[16px] text-center">
-            Loading…
-          </p>
+        {loading && threads.length > 0 && (
+          <div className="flex justify-center mt-[16px]">
+            <div className="w-[20px] h-[20px] border-[2px] border-primary-blue/20 border-t-primary-blue rounded-full animate-spin" />
+          </div>
         )}
       </div>
 

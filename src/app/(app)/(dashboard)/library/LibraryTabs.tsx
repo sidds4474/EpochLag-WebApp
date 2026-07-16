@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "motion/react";
 import { useSelectMode } from "./selectMode";
 
 const TABS: Array<{ href: string; label: string; match: (p: string) => boolean }> = [
@@ -20,7 +21,10 @@ const TABS: Array<{ href: string; label: string; match: (p: string) => boolean }
 
 export default function LibraryTabs() {
   const pathname = usePathname() ?? "";
-  const isStories = pathname === "/library";
+  const { headerRight } = useSelectMode();
+  // Album detail is a distinct context — hide the top-level Library tabs
+  // and let the detail page render its own breadcrumb-style header.
+  if (/^\/library\/albums\/[^/]+/.test(pathname)) return null;
   return (
     <div className="flex items-center justify-between gap-[16px]">
       <div className="flex items-center gap-[4px] bg-[#ededed] rounded-full p-[4px]">
@@ -30,32 +34,23 @@ export default function LibraryTabs() {
             <Link
               key={tab.href}
               href={tab.href}
-              className={`cursor-pointer px-[18px] py-[6px] rounded-full font-montserrat font-medium text-[14px] transition-colors ${
-                active
-                  ? "bg-primary-blue text-white"
-                  : "text-primary-blue hover:bg-black/[0.04]"
+              className={`relative cursor-pointer px-[18px] py-[6px] rounded-full font-montserrat font-medium text-[14px] ${
+                active ? "text-white" : "text-primary-blue"
               }`}
             >
-              {tab.label}
+              {active && (
+                <motion.span
+                  layoutId="library-tab-pill"
+                  className="absolute inset-0 bg-primary-blue rounded-full"
+                  transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+                />
+              )}
+              <span className="relative">{tab.label}</span>
             </Link>
           );
         })}
       </div>
-      {isStories && <SelectHeaderButton />}
+      {headerRight}
     </div>
-  );
-}
-
-function SelectHeaderButton() {
-  const { isSelecting, canSelect, toggle } = useSelectMode();
-  if (!canSelect) return null;
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      className="cursor-pointer font-montserrat text-primary-blue/70 text-[14px] hover:text-primary-blue"
-    >
-      {isSelecting ? "Done" : "Select"}
-    </button>
   );
 }

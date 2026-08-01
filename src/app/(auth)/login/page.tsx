@@ -35,13 +35,14 @@ function LoginContent() {
   }, [status, router, next]);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.google) {
+    if (typeof window !== "undefined" && window.google?.accounts?.id) {
       setGoogleReady(true);
     }
   }, []);
 
   useEffect(() => {
-    if (!googleReady || !googleButtonRef.current || !window.google) return;
+    if (!googleReady || !googleButtonRef.current) return;
+    if (!window.google?.accounts?.id) return;
     if (!GOOGLE_CLIENT_ID) return;
 
     window.google.accounts.id.initialize({

@@ -4,6 +4,8 @@ import { useMapsLibrary } from "@vis.gl/react-google-maps";
 import { useEffect, useRef, useState } from "react";
 import {
   CalendarIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CloseIcon,
   MapPinIcon,
   MusicNoteIcon,
@@ -33,41 +35,69 @@ function ChipShell({
   onClear,
   icon,
   label,
+  variant = "rail",
 }: {
   active: boolean;
   onClick: () => void;
   onClear?: () => void;
   icon: React.ReactNode;
   label: string;
+  /** "rail" = full-width grey pill with leading icon (desktop right rail).
+   *  "compact" = auto-width white pill with trailing icon (mobile chip row). */
+  variant?: "rail" | "compact";
 }) {
+  if (variant === "compact") {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`cursor-pointer shrink-0 rounded-full bg-white px-[16px] h-[36px] inline-flex items-center gap-[8px] font-montserrat font-medium text-[14px] shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
+          active ? "text-primary-blue" : "text-primary-blue"
+        } hover:brightness-95 transition-[filter]`}
+      >
+        <span className="whitespace-nowrap">{label}</span>
+        <span className="shrink-0 text-primary-blue">{icon}</span>
+        {active && onClear && (
+          <span
+            role="button"
+            aria-label="Clear"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClear();
+            }}
+            className="cursor-pointer -mr-[4px] shrink-0 w-[18px] h-[18px] rounded-full text-primary-blue/60 hover:bg-black/[0.06] flex items-center justify-center transition-colors"
+          >
+            <CloseIcon width={10} height={10} />
+          </span>
+        )}
+      </button>
+    );
+  }
   return (
     <div
-      className={`inline-flex items-center gap-[6px] rounded-full pl-[10px] pr-[6px] py-[6px] shadow-[0_0_8px_rgba(0,0,0,0.08)] hover:shadow-[0_2px_10px_rgba(0,0,0,0.12)] transition-shadow font-montserrat font-medium text-[13px] ${
-        active
-          ? "bg-primary-orange/10 text-primary-blue"
-          : "bg-white text-primary-blue"
+      className={`w-full rounded-full bg-[#ededed] px-[26px] py-[14px] flex items-center gap-[12px] font-montserrat font-medium text-[15px] ${
+        active ? "text-primary-blue" : "text-[#848484]"
       }`}
     >
       <button
         type="button"
         onClick={onClick}
-        className="cursor-pointer flex items-center gap-[6px] pr-[6px]"
+        className="cursor-pointer flex-1 min-w-0 flex items-center gap-[10px] text-left"
       >
-        <span className="shrink-0 text-primary-blue">{icon}</span>
-        <span className="max-w-[180px] truncate">{label}</span>
+        <span className={`shrink-0 ${active ? "text-primary-blue" : "text-[#848484]"}`}>
+          {icon}
+        </span>
+        <span className="min-w-0 truncate">{label}</span>
       </button>
       {active && onClear && (
         <button
           type="button"
           onClick={onClear}
           aria-label="Clear"
-          className="cursor-pointer shrink-0 w-[18px] h-[18px] rounded-full text-primary-blue/60 hover:bg-black/[0.08] flex items-center justify-center transition-colors"
+          className="cursor-pointer shrink-0 w-[22px] h-[22px] rounded-full text-primary-blue/60 hover:bg-black/[0.08] flex items-center justify-center transition-colors"
         >
-          <CloseIcon width={10} height={10} />
+          <CloseIcon width={12} height={12} />
         </button>
-      )}
-      {!active && (
-        <span className="w-[6px]" aria-hidden="true" />
       )}
     </div>
   );
@@ -88,51 +118,11 @@ function formatDateForLabel(iso: string): string {
 export function DateChip({
   value,
   onChange,
+  variant,
 }: {
   value: string | null;
   onChange: (next: string | null) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-
-  function openPicker() {
-    const el = inputRef.current;
-    if (!el) return;
-    if (typeof (el as HTMLInputElement & { showPicker?: () => void }).showPicker === "function") {
-      (el as HTMLInputElement & { showPicker: () => void }).showPicker();
-    } else {
-      el.click();
-    }
-  }
-
-  return (
-    <>
-      <ChipShell
-        active={value !== null}
-        onClick={openPicker}
-        onClear={() => onChange(null)}
-        icon={<CalendarIcon width={14} height={14} />}
-        label={value ? formatDateForLabel(value) : "Add Date"}
-      />
-      <input
-        ref={inputRef}
-        type="date"
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value || null)}
-        className="sr-only absolute pointer-events-none"
-        tabIndex={-1}
-      />
-    </>
-  );
-}
-
-// ============ Location chip ============
-
-export function LocationChip({
-  value,
-  onChange,
-}: {
-  value: LocationValue | null;
-  onChange: (next: LocationValue | null) => void;
+  variant?: "rail" | "compact";
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -141,8 +131,177 @@ export function LocationChip({
         active={value !== null}
         onClick={() => setOpen(true)}
         onClear={() => onChange(null)}
-        icon={<MapPinIcon width={14} height={14} />}
-        label={value ? value.city || value.formattedAddress : "Add Location"}
+        icon={<CalendarIcon width={16} height={16} />}
+        label={value ? formatDateForLabel(value) : variant === "compact" ? "Date" : "Add Date"}
+        variant={variant}
+      />
+      {open && (
+        <DateModal
+          initial={value}
+          onClose={() => setOpen(false)}
+          onSubmit={(iso) => {
+            onChange(iso);
+            setOpen(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function toIsoDate(y: number, m: number, d: number): string {
+  const mm = String(m + 1).padStart(2, "0");
+  const dd = String(d).padStart(2, "0");
+  return `${y}-${mm}-${dd}`;
+}
+
+function DateModal({
+  initial,
+  onClose,
+  onSubmit,
+}: {
+  initial: string | null;
+  onClose: () => void;
+  onSubmit: (iso: string) => void;
+}) {
+  const today = new Date();
+  const parsed = initial ? new Date(`${initial}T00:00:00`) : null;
+  const seed = parsed && !Number.isNaN(parsed.getTime()) ? parsed : today;
+
+  const [viewYear, setViewYear] = useState(seed.getFullYear());
+  const [viewMonth, setViewMonth] = useState(seed.getMonth());
+  const [picked, setPicked] = useState<string | null>(initial);
+
+  const firstDayOffset = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString(
+    "en-US",
+    { month: "long", year: "numeric" }
+  );
+
+  function shiftMonth(delta: number) {
+    const next = new Date(viewYear, viewMonth + delta, 1);
+    setViewYear(next.getFullYear());
+    setViewMonth(next.getMonth());
+  }
+
+  const todayIso = toIsoDate(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  );
+
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDayOffset; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <ModalShell title="Add Date" onClose={onClose}>
+      <div className="flex items-center justify-between mb-[12px]">
+        <button
+          type="button"
+          onClick={() => shiftMonth(-1)}
+          aria-label="Previous month"
+          className="cursor-pointer w-[32px] h-[32px] rounded-full text-primary-blue hover:bg-black/[0.04] flex items-center justify-center transition-colors"
+        >
+          <ChevronLeftIcon width={16} height={16} />
+        </button>
+        <p className="font-montserrat font-semibold text-primary-blue text-[15px]">
+          {monthLabel}
+        </p>
+        <button
+          type="button"
+          onClick={() => shiftMonth(1)}
+          aria-label="Next month"
+          className="cursor-pointer w-[32px] h-[32px] rounded-full text-primary-blue hover:bg-black/[0.04] flex items-center justify-center transition-colors"
+        >
+          <ChevronRightIcon width={16} height={16} />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-[4px] mb-[6px]">
+        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+          <div
+            key={i}
+            className="text-center font-montserrat text-primary-blue/50 text-[12px] py-[4px]"
+          >
+            {d}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-[4px]">
+        {cells.map((d, i) => {
+          if (d === null) return <div key={i} />;
+          const iso = toIsoDate(viewYear, viewMonth, d);
+          const isPicked = picked === iso;
+          const isToday = todayIso === iso;
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setPicked(iso)}
+              className={`cursor-pointer h-[40px] rounded-full font-montserrat text-[14px] flex items-center justify-center transition-colors ${
+                isPicked
+                  ? "bg-primary-orange text-white font-semibold"
+                  : isToday
+                  ? "bg-primary-blue/[0.08] text-primary-blue font-semibold"
+                  : "text-primary-blue hover:bg-black/[0.04]"
+              }`}
+            >
+              {d}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-[16px] flex items-center justify-between gap-[12px]">
+        <button
+          type="button"
+          onClick={() => {
+            setPicked(todayIso);
+            setViewYear(today.getFullYear());
+            setViewMonth(today.getMonth());
+          }}
+          className="cursor-pointer font-montserrat font-medium text-primary-blue text-[14px] hover:underline"
+        >
+          Today
+        </button>
+        <button
+          type="button"
+          onClick={() => picked && onSubmit(picked)}
+          disabled={!picked}
+          className="cursor-pointer bg-primary-orange text-white rounded-full h-[40px] px-[24px] font-montserrat font-medium text-[14px] hover:brightness-95 transition-[filter] disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Select
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+// ============ Location chip ============
+
+export function LocationChip({
+  value,
+  onChange,
+  variant,
+}: {
+  value: LocationValue | null;
+  onChange: (next: LocationValue | null) => void;
+  variant?: "rail" | "compact";
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <ChipShell
+        active={value !== null}
+        onClick={() => setOpen(true)}
+        onClear={() => onChange(null)}
+        icon={<MapPinIcon width={16} height={16} />}
+        label={value ? value.city || value.formattedAddress : variant === "compact" ? "Location" : "Add Location"}
+        variant={variant}
       />
       {open && (
         <LocationModal
@@ -343,9 +502,11 @@ type ItunesResult = {
 export function MusicChip({
   value,
   onChange,
+  variant,
 }: {
   value: MusicValue | null;
   onChange: (next: MusicValue | null) => void;
+  variant?: "rail" | "compact";
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -354,12 +515,15 @@ export function MusicChip({
         active={value !== null}
         onClick={() => setOpen(true)}
         onClear={() => onChange(null)}
-        icon={<MusicNoteIcon width={14} height={14} />}
+        icon={<MusicNoteIcon width={16} height={16} />}
         label={
           value
             ? `${value.trackName} — ${value.artistName}`
+            : variant === "compact"
+            ? "Music"
             : "Add Music"
         }
+        variant={variant}
       />
       {open && (
         <MusicPickerModal

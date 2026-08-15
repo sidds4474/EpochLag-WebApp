@@ -143,13 +143,27 @@ export default function NewStoryPage() {
   // attach the new thread to the album and land back inside it.
   const albumId = searchParams.get("albumId");
   const paramMode = searchParams.get("mode");
-  const initialMode: Mode | null = paramMode === "tell" ? "tell" : null;
+  // Deep-link entry from /inspiration → "Answer yourself". Drops the user
+  // straight into ReplyEditor without the mode picker or landing view.
+  const replyTo = searchParams.get("replyTo");
+  const initialMode: Mode | null = replyTo ? "inspire" : null;
 
   const [mode, setMode] = useState<Mode | null>(initialMode);
+
+  // Legacy deep link `?mode=tell&albumId=…` (from Album → Create new story) —
+  // route to the new dedicated /new-lag page.
+  useEffect(() => {
+    if (paramMode === "tell") {
+      const qs = albumId ? `?albumId=${albumId}` : "";
+      router.replace(`/new-lag${qs}`);
+    }
+  }, [paramMode, albumId, router]);
   const [step, setStep] = useState<1 | 2>(1);
   const [tell, setTell] = useState<TellDraft>(EMPTY_TELL);
   const [ask, setAsk] = useState<AskDraft>(EMPTY_ASK);
-  const [inspireReplyId, setInspireReplyId] = useState<string | null>(null);
+  const [inspireReplyId, setInspireReplyId] = useState<string | null>(
+    replyTo || null
+  );
 
   // Listen for the Sidebar Create button dispatching a reset — Next's App
   // Router doesn't remount on same-route link clicks, so we can't rely on
@@ -167,6 +181,18 @@ export default function NewStoryPage() {
   }, []);
 
   function selectMode(next: Mode) {
+    if (next === "inspire") {
+      router.push("/inspiration");
+      return;
+    }
+    if (next === "tell") {
+      router.push("/new-lag");
+      return;
+    }
+    if (next === "ask") {
+      router.push("/new-ask");
+      return;
+    }
     if (next === mode) return;
     setMode(next);
     setStep(1);
@@ -175,13 +201,28 @@ export default function NewStoryPage() {
 
   if (mode === null && !albumId) {
     return (
-      <div className="h-full flex flex-col px-[40px] pt-[16px] pb-[24px] min-h-0 overflow-y-auto scrollbar-hide">
+      <div className="h-full flex flex-col px-[16px] md:px-[24px] lg:px-[40px] pt-[16px] pb-[24px] min-h-0 overflow-y-auto scrollbar-hide">
         <h1 className="font-montserrat font-bold text-primary-blue text-[24px] md:text-[28px] leading-tight mb-[20px]">
           Create
         </h1>
-        <div className="flex flex-wrap gap-[20px]">
+
+        {/* Tablet + desktop (md+): 3 vertical cards in a row, image on top.
+            Cards flex to share available width — no persistent sidebar until
+            lg, so tablet has enough room for the same three-up layout. */}
+        <div className="hidden md:flex gap-[16px] lg:gap-[20px]">
           {MODE_CARDS.map((card) => (
             <LandingModeCard
+              key={card.id}
+              card={card}
+              onClick={() => selectMode(card.id)}
+            />
+          ))}
+        </div>
+
+        {/* Mobile (< md): stacked horizontal cards, image on left. */}
+        <div className="flex md:hidden flex-col gap-[8px] w-full max-w-[560px] mx-auto">
+          {MODE_CARDS.map((card) => (
+            <HorizontalModeCard
               key={card.id}
               card={card}
               onClick={() => selectMode(card.id)}
@@ -216,21 +257,6 @@ export default function NewStoryPage() {
       )}
 
       <div className="flex-1 min-w-0 flex flex-col">
-        {mode === "tell" && step === 1 && (
-          <TellStep1
-            draft={tell}
-            onChange={setTell}
-            onNext={() => setStep(2)}
-          />
-        )}
-        {mode === "tell" && step === 2 && (
-          <TellStep2
-            draft={tell}
-            onChange={setTell}
-            onBack={() => setStep(1)}
-            albumId={albumId}
-          />
-        )}
         {mode === "ask" && step === 1 && (
           <AskStep1
             draft={ask}
@@ -322,7 +348,7 @@ function LandingModeCard({
     <button
       type="button"
       onClick={onClick}
-      className="w-[280px] shrink-0 text-left cursor-pointer bg-white rounded-[20px] shadow-[0_0_12.5px_rgba(0,0,0,0.15)] p-[6px] pb-[14px] flex flex-col hover:shadow-[0_2px_16px_rgba(0,0,0,0.18)] transition-shadow"
+      className="flex-1 min-w-0 lg:max-w-[320px] text-left cursor-pointer bg-white rounded-[20px] shadow-[0_0_12.5px_rgba(0,0,0,0.15)] p-[6px] pb-[14px] flex flex-col hover:shadow-[0_2px_16px_rgba(0,0,0,0.18)] transition-shadow"
     >
       <div className="relative aspect-[4/3] rounded-t-[14px] overflow-hidden bg-primary-blue/10">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -345,6 +371,50 @@ function LandingModeCard({
         <span className="w-[28px] h-[28px] rounded-full bg-[#ededed] text-primary-blue flex items-center justify-center">
           <ArrowRightIcon width={14} height={14} />
         </span>
+      </div>
+    </button>
+  );
+}
+
+// Tablet + mobile variant. Mirrors the mobile Figma spec: 140-square image on
+// the left (rounded on the leading edge only), title + description stacked on
+// the right, and a circular arrow pinned to the bottom-right of the text area.
+// The card width flexes to the container; the parent caps it on tablet so it
+// doesn't stretch across a wide screen.
+function HorizontalModeCard({
+  card,
+  onClick,
+}: {
+  card: (typeof MODE_CARDS)[number];
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full text-left cursor-pointer bg-white rounded-[16px] shadow-[0_0_12.5px_rgba(0,0,0,0.15)] p-[6px] flex gap-[16px] hover:shadow-[0_2px_16px_rgba(0,0,0,0.18)] transition-shadow"
+    >
+      <div className="relative w-[120px] h-[120px] sm:w-[140px] sm:h-[140px] rounded-l-[12px] overflow-hidden bg-primary-blue/10 shrink-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={card.cover}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
+        />
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col justify-center py-[6px] pr-[8px]">
+        <p className="font-montserrat font-medium text-primary-blue text-[16px] leading-[20px]">
+          {card.title}
+        </p>
+        <p className="mt-[4px] font-montserrat font-medium text-primary-blue/50 text-[14px] leading-[16px]">
+          {card.description}
+        </p>
+        <div className="mt-auto pt-[8px] flex justify-end">
+          <span className="w-[24px] h-[24px] rounded-full bg-[#ededed] text-primary-blue flex items-center justify-center">
+            <ArrowRightIcon width={12} height={12} />
+          </span>
+        </div>
       </div>
     </button>
   );

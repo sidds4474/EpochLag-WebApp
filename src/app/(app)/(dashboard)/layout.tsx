@@ -3,31 +3,32 @@
 import { APIProvider } from "@vis.gl/react-google-maps";
 import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "../../../lib/auth/AuthProvider";
-import { fetchHomePeople, fetchNotifications } from "../../../lib/home/api";
+import { fetchHomePeople } from "../../../lib/home/api";
 import type { HomePeople } from "../../../types/home";
+import AppDownloadBanner from "./AppDownloadBanner";
+import BottomTabBar from "./BottomTabBar";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import TabletDrawer from "./TabletDrawer";
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, status } = useAuth();
   const [people, setPeople] = useState<HomePeople | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     if (status !== "authenticated") return;
     let cancelled = false;
 
-    Promise.allSettled([fetchHomePeople(), fetchNotifications()]).then(
-      ([peopleRes, notifRes]) => {
-        if (cancelled) return;
-        if (peopleRes.status === "fulfilled") setPeople(peopleRes.value);
-        else setPeople({ users: [], groups: [] });
-        if (notifRes.status === "fulfilled")
-          setUnreadCount(notifRes.value.unreadCount);
-      }
-    );
+    fetchHomePeople()
+      .then((res) => {
+        if (!cancelled) setPeople(res);
+      })
+      .catch(() => {
+        if (!cancelled) setPeople({ users: [], groups: [] });
+      });
 
     return () => {
       cancelled = true;
@@ -39,9 +40,21 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <div className="h-screen w-full bg-white flex overflow-hidden">
         <Sidebar people={people} />
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          <Header user={user} unreadCount={unreadCount} />
-          <main className="flex-1 min-w-0 min-h-0 overflow-y-auto">{children}</main>
+          <AppDownloadBanner />
+          <Header
+            user={user}
+            onOpenDrawer={() => setDrawerOpen(true)}
+          />
+          <main className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden pb-[80px] md:pb-0">
+            {children}
+          </main>
         </div>
+        <BottomTabBar user={user} />
+        <TabletDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          user={user}
+        />
       </div>
     </APIProvider>
   );

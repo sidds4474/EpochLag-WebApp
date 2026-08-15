@@ -4,15 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import LogoDark from "../../../assets/images/logo-dark.webp";
-import { bustUrl } from "../../../lib/images";
-import type { HomePeople, PersonSummary } from "../../../types/home";
+import type { HomePeople } from "../../../types/home";
+import { PersonRow } from "../../../components/ui";
 import {
-  BookmarksIcon,
   ChevronRightIcon,
-  DraftsIcon,
   HomeIcon,
-  InteractionsIcon,
   LibraryIcon,
+  InteractionsIcon,
   PlusIcon,
 } from "./icons";
 
@@ -20,6 +18,8 @@ type SidebarProps = {
   people: HomePeople | null;
 };
 
+// Three primary destinations only. Old routes (interactions, bookmarks, drafts)
+// still exist and are reachable elsewhere; they're just gone from top-level nav.
 const NAV_ITEMS: Array<{
   href: string;
   label: string;
@@ -29,187 +29,149 @@ const NAV_ITEMS: Array<{
   {
     href: "/home",
     label: "Home",
-    icon: <HomeIcon width={18} height={18} />,
+    icon: <HomeIcon width={20} height={20} />,
     match: (p) => p === "/home",
   },
   {
-    href: "/interactions",
-    label: "Interactions",
-    icon: <InteractionsIcon width={18} height={18} />,
-    match: (p) => p.startsWith("/interactions"),
+    href: "/moments",
+    label: "Moments",
+    icon: <InteractionsIcon width={20} height={20} />,
+    match: (p) => p.startsWith("/moments"),
   },
   {
-    href: "/library",
-    label: "Library",
-    icon: <LibraryIcon width={18} height={18} />,
-    match: (p) => p.startsWith("/library"),
-  },
-  {
-    href: "/bookmarks",
-    label: "Bookmarks",
-    icon: <BookmarksIcon width={18} height={18} />,
-    match: (p) => p.startsWith("/bookmarks"),
-  },
-  {
-    href: "/drafts",
-    label: "Drafts",
-    icon: <DraftsIcon width={18} height={18} />,
-    match: (p) => p.startsWith("/drafts"),
+    href: "/lags",
+    label: "Lags",
+    icon: <LibraryIcon width={20} height={20} />,
+    match: (p) => p.startsWith("/lags") || p.startsWith("/library"),
   },
 ];
+
+function fireCreate() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("new-story:reset"));
+  }
+}
 
 export default function Sidebar({ people }: SidebarProps) {
   const pathname = usePathname() ?? "";
   const hasFriends = (people?.users.length ?? 0) > 0;
+  const topFive = people?.users.slice(0, 5) ?? [];
 
   return (
-    <aside className="hidden md:flex w-[17.0625rem] shrink-0 flex-col px-[20px] py-[24px] gap-[20px] overflow-y-auto scrollbar-hide">
-      <Link href="/home" className="block">
-        <img
-          src={LogoDark.src}
-          alt="Epoch Lag"
-          className="w-[130px] h-auto object-contain"
-        />
-      </Link>
+    <>
+      {/* Tablet (md → lg): no persistent rail — a hamburger in the header
+          opens a slide-out drawer instead. See TabletDrawer.tsx. */}
 
-      <Link
-        href="/new-story"
-        onClick={() => {
-          // Signals the New Story page to reset to the landing view. Fires
-          // on every Create click — harmless when the page hasn't mounted
-          // yet, resets composer state when it has (same-route click).
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(new CustomEvent("new-story:reset"));
-          }
-        }}
-        className="cursor-pointer w-full bg-white rounded-full py-[8px] pl-[8px] pr-[16px] flex items-center gap-[10px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.1)] transition-shadow"
-      >
-        <div className="relative w-[36px] h-[36px] flex items-center justify-center shrink-0">
+      {/* Desktop: full sidebar (lg+) */}
+      <aside className="hidden lg:flex w-[17.0625rem] shrink-0 flex-col px-[20px] py-[24px] gap-[20px] overflow-y-auto scrollbar-hide">
+        <Link href="/home" className="block">
           <img
-            src="/logo.svg"
-            alt=""
-            className="absolute inset-0 w-full h-full"
+            src={LogoDark.src}
+            alt="Epoch Lag"
+            className="w-[130px] h-auto object-contain"
           />
-          <PlusIcon
-            width={16}
-            height={16}
-            strokeWidth={2}
-            className="relative text-white"
-          />
-        </div>
-        <span className="font-montserrat font-semibold text-primary-blue text-[15px]">
-          Create
-        </span>
-      </Link>
+        </Link>
 
-      <nav className="flex flex-col gap-[2px]">
-        {NAV_ITEMS.map((item) => {
-          const active = item.match(pathname);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-[12px] px-[12px] py-[10px] rounded-[10px] font-montserrat text-[14px] transition-colors ${
-                active
-                  ? "bg-black/[0.06] text-primary-blue font-semibold"
-                  : "text-primary-blue/85 font-medium hover:bg-black/[0.03]"
-              }`}
-            >
-              <span className="shrink-0">{item.icon}</span>
-              <span className="flex-1">{item.label}</span>
-              {active && (
-                <ChevronRightIcon
-                  width={14}
-                  height={14}
-                  className="text-primary-blue/60"
+        <Link
+          href="/new-story"
+          onClick={fireCreate}
+          className="cursor-pointer w-full bg-white rounded-full py-[8px] pl-[8px] pr-[16px] flex items-center gap-[10px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.1)] transition-shadow"
+        >
+          <div className="relative w-[36px] h-[36px] flex items-center justify-center shrink-0">
+            <img src="/logo.svg" alt="" className="absolute inset-0 w-full h-full" />
+            <PlusIcon
+              width={16}
+              height={16}
+              strokeWidth={2}
+              className="relative text-white"
+            />
+          </div>
+          <span className="font-montserrat font-semibold text-primary-blue text-[15px]">
+            Create
+          </span>
+        </Link>
+
+        <nav className="flex flex-col gap-[2px]">
+          {NAV_ITEMS.map((item) => {
+            const active = item.match(pathname);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-[12px] px-[12px] py-[12px] rounded-[12px] font-montserrat text-[15px] transition-colors ${
+                  active
+                    ? "bg-[#EDEDED] text-primary-blue font-semibold"
+                    : "text-primary-blue/85 font-medium hover:bg-black/[0.03]"
+                }`}
+              >
+                <span className="shrink-0">{item.icon}</span>
+                <span className="flex-1">{item.label}</span>
+                {active && (
+                  <ChevronRightIcon
+                    width={14}
+                    height={14}
+                    className="text-primary-blue/60"
+                  />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="h-[1px] shrink-0 bg-[color:var(--color-border-divider)]" />
+
+        <div className="flex flex-col gap-[10px]">
+          <div className="flex items-center justify-between px-[2px]">
+            <h3 className="font-montserrat font-bold text-primary-blue text-[14px]">
+              Friends &amp; Family
+            </h3>
+            {hasFriends && (
+              <Link
+                href="/friends"
+                className="font-montserrat text-primary-blue/60 text-[12px] hover:text-primary-blue"
+              >
+                View All
+              </Link>
+            )}
+          </div>
+
+          {people === null ? (
+            <div className="flex flex-col gap-[6px]">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="h-[44px] rounded-[12px] bg-black/[0.04] animate-pulse"
                 />
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="h-[1px] shrink-0 bg-[#C9C9C9]" />
-
-      <div className="flex flex-col gap-[10px]">
-        <div className="flex items-center justify-between px-[2px]">
-          <h3 className="font-montserrat font-bold text-primary-blue text-[14px]">
-            Friends &amp; Family
-          </h3>
-          {hasFriends && (
+              ))}
+            </div>
+          ) : hasFriends ? (
+            <ul className="flex flex-col gap-[2px]">
+              {topFive.map((person) => (
+                <li key={person._id}>
+                  <PersonRow
+                    person={person}
+                    href={`/profile/${person._id}`}
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : (
             <Link
               href="/friends"
-              className="font-montserrat text-primary-blue/60 text-[12px] hover:text-primary-blue"
+              className="cursor-pointer flex items-center justify-center gap-[8px] border border-black/[0.15] rounded-full py-[10px] font-montserrat font-medium text-[13px] text-primary-blue/80 hover:bg-black/[0.03] transition-colors"
             >
-              View All
+              <PlusIcon width={14} height={14} />
+              Add friends
             </Link>
           )}
         </div>
 
-        {people === null ? (
-          <div className="flex flex-col gap-[6px]">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="h-[36px] rounded-[10px] bg-black/[0.04] animate-pulse"
-              />
-            ))}
-          </div>
-        ) : hasFriends ? (
-          <ul className="flex flex-col gap-[2px]">
-            {people.users.slice(0, 6).map((person) => (
-              <FriendRow key={person._id} person={person} />
-            ))}
-          </ul>
-        ) : (
-          <Link
-            href="/friends"
-            className="cursor-pointer flex items-center justify-center gap-[8px] border border-black/[0.15] rounded-full py-[10px] font-montserrat font-medium text-[13px] text-primary-blue/80 hover:bg-black/[0.03] transition-colors"
-          >
-            <PlusIcon width={14} height={14} />
-            Add friends
-          </Link>
-        )}
-      </div>
+        <div className="flex-1" />
 
-      <div className="flex-1" />
-
-      <p className="font-montserrat text-primary-blue/40 text-[11px]">
-        © {new Date().getFullYear()} Epoch Lag. All rights reserved.
-      </p>
-    </aside>
-  );
-}
-
-function FriendRow({ person }: { person: PersonSummary }) {
-  const initial = (person.firstName || "?").charAt(0).toUpperCase();
-  return (
-    <div className="flex items-center gap-[10px] px-[6px] py-[6px] rounded-[10px] hover:bg-black/[0.03] transition-colors cursor-default">
-      <div className="relative w-[32px] h-[32px] shrink-0">
-        {person.profilePicture ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={bustUrl(person.profilePicture, undefined)}
-            alt=""
-            className="w-full h-full rounded-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full rounded-full bg-primary-blue/15 text-primary-blue flex items-center justify-center font-montserrat font-semibold text-[13px]">
-            {initial}
-          </div>
-        )}
-        {person.newStory && (
-          <span className="absolute -top-[1px] -right-[1px] w-[8px] h-[8px] rounded-full bg-primary-orange ring-2 ring-white" />
-        )}
-      </div>
-      <span className="flex-1 font-montserrat font-medium text-primary-blue text-[14px] truncate">
-        {person.firstName}
-      </span>
-      <ChevronRightIcon
-        width={14}
-        height={14}
-        className="text-primary-blue/40"
-      />
-    </div>
+        <p className="font-montserrat text-primary-blue/40 text-[11px]">
+          © {new Date().getFullYear()} Epoch Lag. All rights reserved.
+        </p>
+      </aside>
+    </>
   );
 }

@@ -19,6 +19,10 @@ export type PreviewInput = {
   title: string;
   text: string;
   media: StoryMedia[];
+  /** Phase-2 override: when set, `text` and `media` are ignored and the
+   * synthetic thread's content is built directly from this ordered list.
+   * Preserves inline block ordering (text → image → text → audio, etc). */
+  blocks?: StoryBlock[];
   dateOfStory: string | null;
   location: LocationValue | null;
   music: MusicValue | null;
@@ -40,6 +44,7 @@ export function buildPreviewThread(input: PreviewInput): ThreadResponse {
     title,
     text,
     media,
+    blocks,
     dateOfStory,
     location,
     music,
@@ -68,10 +73,9 @@ export function buildPreviewThread(input: PreviewInput): ThreadResponse {
     })
     .filter((b): b is StoryBlock => b !== null);
 
-  const content = serializeBlocksToContent([
-    { type: "text", text },
-    ...mediaBlocks,
-  ]);
+  const content = blocks
+    ? serializeBlocksToContent(blocks)
+    : serializeBlocksToContent([{ type: "text", text }, ...mediaBlocks]);
 
   const now = new Date();
   const createdAt = dateOfStory

@@ -238,6 +238,27 @@ export async function updateUserCard(
   return res.data;
 }
 
+// Curated gradient cover thumbnails for the Choose Cover picker. Same
+// endpoint is reused for the Moments-cover picker per product spec. Falls
+// through to empty on failure so the modal still renders the Upload slot.
+export type GradientCover = {
+  _id: string;
+  url?: string | null;
+  imageUrl?: string | null;
+  type?: string;
+};
+
+export async function fetchCardGradients(): Promise<GradientCover[]> {
+  try {
+    const res = await api.get<Envelope<GradientCover[]>>(
+      "/api/cards/gradients"
+    );
+    return res.data ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function updateStory(
   storyId: string,
   input: {

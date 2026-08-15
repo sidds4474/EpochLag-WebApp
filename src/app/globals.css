@@ -94,8 +94,19 @@
   --color-primary-orange: #ef9849;
   --color-primary-cream-dkr: #fcd6a5;
   --color-primary-cream: #ffefdb;
+  --color-tertiary-cream: #ffefdc;
+  --color-surface-muted: #ededed;
+  --color-border-divider: #c9c9c9;
+  --color-text-disabled: #848484;
   --color-light-gray: #f1f1f1;
   --color-warm-cream: #fff5e9;
+
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-pill: 48px;
 
   --breakpoint-xxs: 375px;
   --breakpoint-xs: 400px;
@@ -111,6 +122,17 @@
   --breakpoint-7xl: 2560px;
 
   --shadow-card: 0px 0px 23.0233px rgba(0, 0, 0, 0.25);
+  --shadow-tile: 0px 0px 13.4px rgba(0, 0, 0, 0.12);
+  --shadow-elevated: 0px 4px 20px rgba(0, 0, 0, 0.10);
+  --shadow-fab: 0px 6px 16px rgba(239, 152, 73, 0.35);
+
+  --gradient-hero: linear-gradient(
+    120deg,
+    #f2a45c 0%,
+    #e18248 40%,
+    #b8563a 80%,
+    #4a2a2f 100%
+  );
 }
 
 .legal-scroll {
@@ -159,4 +181,18 @@ body {
 html::-webkit-scrollbar,
 body::-webkit-scrollbar {
   display: none;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes skeleton-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
 }

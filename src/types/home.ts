@@ -153,17 +153,77 @@ export type ThreadResponse = {
   isBookmarked: boolean;
 };
 
+export type NotificationDockingCardType =
+  | "challenge"
+  | "prompt"
+  | "moment"
+  | "other"
+  | string;
+
+export type NotificationNavigation = {
+  tab?: string;
+  screen?: string;
+  requestId?: string;
+  dockingDetails?: {
+    cardId?: string;
+    cardType?: NotificationDockingCardType;
+    imageUrl?: string | null;
+    title?: string | null;
+    [k: string]: unknown;
+  };
+  momentDetails?: {
+    _id?: string;
+    title?: string | null;
+    [k: string]: unknown;
+  };
+  promptDetails?: {
+    prompt?: {
+      _id?: string;
+      content?: string | null;
+      title?: string | null;
+      imageUrl?: string | null;
+    };
+  };
+  threadId?: string;
+  storyId?: string;
+  albumId?: string;
+  groupId?: string;
+  [k: string]: unknown;
+};
+
+export type NotificationProfileDetails = {
+  user?: Partial<PersonSummary> & { _id?: string };
+  requestId?: string;
+  isConnection?: boolean;
+  groupName?: string;
+  groupId?: string;
+  albumTitle?: string;
+  albumId?: string;
+  threadTitle?: string;
+  threadId?: string;
+  momentTitle?: string;
+  momentDetails?: { _id?: string; title?: string | null };
+  newMemberName?: string;
+  addedByName?: string;
+  fullName?: string;
+  subjectSnippet?: string;
+  [k: string]: unknown;
+};
+
+// Discriminator lives in `type`. See spec — 20+ known types plus unknown.
+// We keep the type field as `string` so BE can ship new ones without a client
+// release; the row renderer skips unknowns silently.
 export type Notification = {
   _id: string;
-  userId: string;
+  userId?: string;
   type: string;
+  createdAt?: string;
   timeStamp: string;
   seen: boolean;
   sectionTitle?: string;
-  navigation?: { tab: string; screen: string };
-  profileDetails?: {
-    user: PersonSummary;
-    requestId?: string;
-    isConnection?: boolean;
-  };
+  title?: string;
+  content?: string;
+  relatedId?: string;
+  navigation?: NotificationNavigation;
+  profileDetails?: NotificationProfileDetails;
 };

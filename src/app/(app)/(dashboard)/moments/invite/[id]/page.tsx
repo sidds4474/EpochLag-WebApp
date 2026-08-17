@@ -5,8 +5,8 @@ import { use, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { ApiError } from "../../../../../../lib/api/client";
 import { markNotificationSeen } from "../../../../../../lib/notifications/api";
+import { fetchMomentById } from "../../../../../../lib/moments/api";
 import {
-  hydrate,
   respondToInviteAction,
   useMomentsState,
 } from "../../../../../../lib/moments/cache";
@@ -51,22 +51,70 @@ export default function InvitationPage({
 
   const { byFilter, countdown } = useMomentsState();
   const [busy, setBusy] = useState(false);
-  const [hydrating, setHydrating] = useState(false);
+  const [seeded, setSeeded] = useState<Moment | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
-  const moment = useMemo<Moment | null>(() => {
-    const pools = [byFilter.upcoming, byFilter.past, byFilter.all, countdown];
+  // If we already have this moment in our upcoming/past/all cache, we've
+  // already accepted this invite. Bounce straight to the detail page.
+  const alreadyAccepted = useMemo<boolean>(() => {
+    const pools = [byFilter.upcoming, byFilter.past, byFilter.all];
     for (const src of pools) {
       if (!src) continue;
-      for (const m of src) if (m._id === id) return m;
+      for (const m of src) if (m._id === id) return true;
     }
-    return null;
-  }, [byFilter, countdown, id]);
+    return false;
+  }, [byFilter, id]);
 
   useEffect(() => {
-    if (moment || hydrating) return;
-    setHydrating(true);
-    hydrate(true).finally(() => setHydrating(false));
-  }, [moment, hydrating]);
+    if (alreadyAccepted) router.replace(`/moments/${id}`);
+  }, [alreadyAccepted, id, router]);
+
+  const countdownMoment = useMemo<Moment | null>(() => {
+    if (!countdown) return null;
+    return countdown.find((m) => m._id === id) ?? null;
+  }, [countdown, id]);
+
+  const moment = seeded ?? countdownMoment;
+
+  // Seed synchronously from the notification-stashed payload, then fetch as
+  // fallback for direct URL hits (invitee can't GET the moment until accept,
+  // so a 404 or 403 both mean "no longer available to you").
+  useEffect(() => {
+    if (alreadyAccepted || seeded || notFound) return;
+    if (typeof window !== "undefined") {
+      try {
+        const raw = window.sessionStorage.getItem(`momentInvite:${id}`);
+        if (raw) {
+          const parsed = JSON.parse(raw) as {
+            moment?: Record<string, unknown> | null;
+          };
+          const m = parsed?.moment;
+          if (m && typeof m === "object") {
+            const asMoment = { ...m, _id: id } as unknown as Moment;
+            setSeeded(asMoment);
+            return;
+          }
+        }
+      } catch {
+        /* ignore malformed stash */
+      }
+    }
+    let cancelled = false;
+    fetchMomentById(id)
+      .then((m) => {
+        if (!cancelled) setSeeded(m);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        const err = e instanceof ApiError ? e : null;
+        if (err && (err.status === 404 || err.status === 403)) {
+          setNotFound(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, alreadyAccepted, seeded, notFound]);
 
   const finish = async (response: "accepted" | "declined") => {
     if (busy) return;
@@ -77,10 +125,13 @@ export default function InvitationPage({
         // Fire and forget — don't block navigation on notif mark-seen.
         void markNotificationSeen(notifId).catch(() => {});
       }
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem(`momentInvite:${id}`);
+      }
       toast.success(
         response === "accepted" ? "Added to your calendar" : "Invite declined"
       );
-      router.replace("/moments");
+      router.push("/moments");
     } catch (e) {
       const err = e instanceof ApiError ? e : null;
       const code =
@@ -98,12 +149,31 @@ export default function InvitationPage({
     }
   };
 
+  if (notFound) {
+    return (
+      <div className="fixed inset-0 flex flex-col items-center justify-center gap-[16px] bg-white px-[24px] lg:relative lg:min-h-[60vh] lg:bg-transparent">
+        <p className="font-montserrat font-medium text-primary-blue text-[16px] text-center">
+          This invite is no longer available.
+        </p>
+        <button
+          type="button"
+          onClick={() => router.replace("/moments")}
+          className="cursor-pointer h-[42px] px-[22px] rounded-full bg-primary-orange text-white font-montserrat font-medium text-[14px]"
+        >
+          Back to Moments
+        </button>
+      </div>
+    );
+  }
+
   if (!moment) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-white lg:relative lg:min-h-[60vh] lg:bg-transparent">
-        <p className="font-montserrat text-primary-blue/60 text-[14px]">
-          Loading…
-        </p>
+        <span
+          aria-label="Loading"
+          role="status"
+          className="w-[36px] h-[36px] rounded-full border-[3px] border-primary-orange/25 border-t-primary-orange animate-spin"
+        />
       </div>
     );
   }
@@ -234,7 +304,7 @@ export default function InvitationPage({
       </div>
 
       {/* Desktop */}
-      <div className="hidden lg:block">
+      <div className="hidden lg:block pr-[64px]">
         <div className="mb-[16px]">
           <h2 className="font-montserrat font-semibold text-primary-blue text-[24px]">
             Shared Moment

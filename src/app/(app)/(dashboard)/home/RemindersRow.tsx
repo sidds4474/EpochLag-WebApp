@@ -117,7 +117,11 @@ function DockingTile({ item }: { item: DockingItem }) {
   const onOpen = async () => {
     if (disabled) return;
     if (item.type === "card_of_the_day") {
-      router.push(`/prompt/${item._id}`);
+      // Route straight into the composer's Answer-a-Prompt mode. The
+      // composer fetches the full UserCard on mount to hydrate the prompt
+      // strip — DockingItem doesn't carry enough fields to seed the cache
+      // safely (missing author, createdAt, cardType, etc).
+      router.push(`/new-lag?promptId=${encodeURIComponent(item._id)}`);
       return;
     }
     if (isMomentLike) {

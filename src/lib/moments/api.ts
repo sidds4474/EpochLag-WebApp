@@ -61,6 +61,11 @@ export async function fetchMoments(
   return res.data;
 }
 
+export async function fetchMomentById(id: string): Promise<Moment> {
+  const res = await api.get<Envelope<Moment>>(`/api/moments/${id}`);
+  return res.data;
+}
+
 export async function fetchCountdown(): Promise<Moment[]> {
   const res = await api.get<Envelope<Moment[]>>("/api/moments/countdown");
   return res.data;

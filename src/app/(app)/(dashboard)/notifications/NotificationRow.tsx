@@ -419,6 +419,51 @@ function renderInlineActions(
   return null;
 }
 
+// BE has shipped moment invite payloads under several keys — read each.
+function extractMomentId(n: Notification): string | null {
+  const nav = n.navigation as Record<string, unknown> | undefined;
+  const prof = n.profileDetails as Record<string, unknown> | undefined;
+  const top = n as unknown as Record<string, unknown>;
+  const asId = (v: unknown): string | null =>
+    typeof v === "string" && v ? v : null;
+  const fromDetails = (v: unknown): string | null => {
+    if (v && typeof v === "object") {
+      const o = v as Record<string, unknown>;
+      // BE uses momentId as the primary key on the details object; older
+      // payloads may still carry _id or id.
+      return asId(o.momentId) || asId(o._id) || asId(o.id);
+    }
+    return null;
+  };
+  return (
+    fromDetails(nav?.momentDetails) ||
+    fromDetails(prof?.momentDetails) ||
+    asId(nav?.momentId) ||
+    asId(prof?.momentId) ||
+    asId(top.momentId) ||
+    null
+  );
+}
+
+// Stash notification payload so /moments/invite/:id can render synchronously
+// without an extra network round trip. Invitees can't GET /api/moments/:id
+// until they've accepted, so the notification body is our source of truth.
+type InviteStash = {
+  moment: Record<string, unknown> | null;
+  sender: Record<string, unknown> | null;
+};
+export function stashInvitePayload(momentId: string, payload: InviteStash) {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(
+      `momentInvite:${momentId}`,
+      JSON.stringify(payload)
+    );
+  } catch {
+    /* storage full — ignore */
+  }
+}
+
 // Route resolvers. Prompt-typed notifications need a lookup before we know
 // whether the tap opens an existing story thread or the composer.
 async function resolveRoute(n: Notification): Promise<string | null> {
@@ -464,12 +509,25 @@ async function resolveRoute(n: Notification): Promise<string | null> {
         n.navigation?.albumId || n.profileDetails?.albumId || null;
       return albumId ? `/library/albums/${albumId}` : null;
     }
-    case "moment_invite":
-    case "moment_invite_accepted": {
-      const momentId =
-        n.navigation?.momentDetails?._id ||
-        n.profileDetails?.momentDetails?._id ||
+    case "moment_invite": {
+      const momentId = extractMomentId(n);
+      if (!momentId) return null;
+      const rawMoment =
+        (n.navigation?.momentDetails as Record<string, unknown> | undefined) ||
+        (n.profileDetails?.momentDetails as
+          | Record<string, unknown>
+          | undefined) ||
         null;
+      const sender = (n.profileDetails?.user as Record<string, unknown> | undefined) || null;
+      stashInvitePayload(momentId, { moment: rawMoment, sender });
+      const senderFirst = (sender?.firstName as string | undefined) || "";
+      const params = new URLSearchParams();
+      params.set("from", n._id);
+      if (senderFirst) params.set("sender", senderFirst);
+      return `/moments/invite/${momentId}?${params.toString()}`;
+    }
+    case "moment_invite_accepted": {
+      const momentId = extractMomentId(n);
       return momentId ? `/moments/${momentId}` : null;
     }
     case "weekly_prompts":

@@ -27,3 +27,4 @@ tsconfig.tsbuildinfo
 *.sln
 *.sw?
 .vercel
+scripts/epochlag-web-sync.sh

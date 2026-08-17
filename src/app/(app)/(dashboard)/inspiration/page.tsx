@@ -96,7 +96,7 @@ export default function InspirationPage() {
   };
 
   const handleWriteOwn = () => {
-    router.push("/new-story?mode=tell");
+    router.push("/new-ask");
   };
 
   const handleShareSend = async (

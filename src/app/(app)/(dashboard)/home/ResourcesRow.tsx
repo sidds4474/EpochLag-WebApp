@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import { toast } from "react-hot-toast";
 import { CircleArrowButton, SectionHeader } from "../../../../components/ui";
 
 type Resource = {
-  href: string;
   kicker: string;
   title: string;
   cover: string;
@@ -14,13 +13,11 @@ type Resource = {
 // track them — avoids HMR breakage when either file is added or replaced.
 const RESOURCES: Resource[] = [
   {
-    href: "/why-epoch-lag",
     kicker: "START HERE",
     title: "Why Epoch Lag?",
     cover: "/gradients/9.jpg",
   },
   {
-    href: "/how-to-use",
     kicker: "START HERE",
     title: "How to use Epoch Lag",
     cover: "/gradients/8.jpg",
@@ -35,7 +32,7 @@ export default function ResourcesRow() {
           Stories). Desktop: 2-column grid capped at 840px. */}
       <div className="flex gap-[16px] overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-[12px] px-[12px] md:mx-0 md:px-0 md:grid md:grid-cols-2 md:max-w-[854px] md:overflow-visible md:pl-[14px]">
         {RESOURCES.map((r) => (
-          <ResourceTile key={r.href} resource={r} />
+          <ResourceTile key={r.title} resource={r} />
         ))}
       </div>
     </section>
@@ -43,10 +40,14 @@ export default function ResourcesRow() {
 }
 
 function ResourceTile({ resource }: { resource: Resource }) {
+  // Destination pages don't exist yet — tapping shows a "Coming soon"
+  // toast instead of dropping the user on a 404. Swap back to a Link
+  // when the content routes ship.
   return (
-    <Link
-      href={resource.href}
-      className="snap-start shrink-0 w-[85%] md:w-auto relative bg-[color:var(--color-tertiary-cream)] rounded-[20px] p-[8px] flex items-stretch gap-[14px] hover:shadow-[0_2px_20px_rgba(0,0,0,0.10)] transition-shadow overflow-hidden"
+    <button
+      type="button"
+      onClick={() => toast("Coming soon")}
+      className="cursor-pointer text-left snap-start shrink-0 w-[85%] md:w-auto relative bg-[color:var(--color-tertiary-cream)] rounded-[20px] p-[8px] flex items-stretch gap-[14px] hover:shadow-[0_2px_20px_rgba(0,0,0,0.10)] transition-shadow overflow-hidden"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -71,6 +72,6 @@ function ResourceTile({ resource }: { resource: Resource }) {
           variant="cream"
         />
       </div>
-    </Link>
+    </button>
   );
 }

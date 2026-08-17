@@ -225,9 +225,9 @@ export default function MomentsPage() {
             </div>
           ) : list && list.length > 0 ? (
             <div className="flex flex-col gap-[12px]">
-              {list.map((m) => (
+              {list.map((m, i) => (
                 <MomentRow
-                  key={m._id}
+                  key={m._id || m.id || `row:${i}`}
                   moment={m}
                   selected={selectedId === m._id}
                   onClick={() => handleRowClick(m)}

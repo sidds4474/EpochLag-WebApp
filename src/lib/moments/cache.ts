@@ -175,11 +175,14 @@ export async function refreshCountdown(): Promise<void> {
 // ---- optimistic mutations ------------------------------------------------
 
 export function addMomentLocal(m: Moment) {
+  // BE sometimes returns id without _id; normalize so the React key that
+  // reads m._id is always populated.
+  const normalized: Moment = m._id ? m : { ...m, _id: idOf(m) };
   setState({
     byFilter: {
-      upcoming: prependToList(state.byFilter.upcoming, m),
+      upcoming: prependToList(state.byFilter.upcoming, normalized),
       past: state.byFilter.past,
-      all: prependToList(state.byFilter.all, m),
+      all: prependToList(state.byFilter.all, normalized),
     },
   });
 }

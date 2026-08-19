@@ -1,13 +1,14 @@
 "use client";
 
 import type { Moment } from "../../../../types/moment";
+import { formatCalendarDay, parseCalendarDay } from "../../../../lib/moments/date";
 import { fallbackGradient, momentTypeIcon } from "./momentTypeIcon";
 
 function splitDate(iso: string): { day: string; month: string } {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return { day: "--", month: "" };
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = d.toLocaleDateString(undefined, { month: "short" });
+  const parts = parseCalendarDay(iso);
+  if (!parts) return { day: "--", month: "" };
+  const day = String(parts.d).padStart(2, "0");
+  const month = formatCalendarDay(iso, { month: "short" });
   return { day, month };
 }
 

@@ -13,6 +13,7 @@ import MomentDetailCard from "./MomentDetailCard";
 import PeopleTaggedPanel from "./PeopleTaggedPanel";
 import DeleteMomentModal from "./DeleteMomentModal";
 import { isoDay } from "../../../../lib/moments/recurrence";
+import { isoDayFromCalendar } from "../../../../lib/moments/date";
 import { momentTypeIcon } from "./momentTypeIcon";
 
 export default function MomentsPage() {
@@ -114,7 +115,7 @@ export default function MomentsPage() {
   const momentsOnSelectedDay = useMemo(() => {
     if (!selectedDay) return [];
     return allMoments.filter((m) => {
-      const iso = isoDay(new Date(m.nextOccurrence || m.date));
+      const iso = isoDayFromCalendar(m.nextOccurrence || m.date);
       return iso === selectedDay;
     });
   }, [allMoments, selectedDay]);

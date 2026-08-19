@@ -3,12 +3,11 @@
 import { useRef, useState } from "react";
 import type { Moment } from "../../../../types/moment";
 import { countdownLabel } from "../../../../lib/moments/recurrence";
+import { formatCalendarDay } from "../../../../lib/moments/date";
 import { fallbackGradient, momentTypeIcon } from "./momentTypeIcon";
 
 function formatMonthDay(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString(undefined, { month: "long", day: "numeric" });
+  return formatCalendarDay(iso, { month: "long", day: "numeric" });
 }
 
 export default function CountdownCarousel({

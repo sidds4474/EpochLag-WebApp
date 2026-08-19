@@ -1,5 +1,7 @@
 import type { Moment, MomentFrequency } from "../../types/moment";
 
+// Local-anchored — used by the calendar grids that build cells from
+// (year, monthIdx, dayNum) tuples in local time.
 export function isoDay(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -7,11 +9,19 @@ export function isoDay(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+// UTC-anchored — for stepping recurrence off BE's UTC-midnight base dates.
+function isoDayUTC(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 const STEPPERS: Record<MomentFrequency, (d: Date) => void> = {
-  yearly: (d) => d.setFullYear(d.getFullYear() + 1),
-  monthly: (d) => d.setMonth(d.getMonth() + 1),
-  weekly: (d) => d.setDate(d.getDate() + 7),
-  daily: (d) => d.setDate(d.getDate() + 1),
+  yearly: (d) => d.setUTCFullYear(d.getUTCFullYear() + 1),
+  monthly: (d) => d.setUTCMonth(d.getUTCMonth() + 1),
+  weekly: (d) => d.setUTCDate(d.getUTCDate() + 7),
+  daily: (d) => d.setUTCDate(d.getUTCDate() + 1),
 };
 
 // Expand a moment's occurrences into local-YYYY-MM-DD strings that fall inside
@@ -27,7 +37,7 @@ export function expandRecurringOccurrences(
   if (Number.isNaN(base.getTime())) return [];
 
   if (!moment.isRecurring || !moment.frequency) {
-    if (base >= rangeStart && base <= rangeEnd) return [isoDay(base)];
+    if (base >= rangeStart && base <= rangeEnd) return [isoDayUTC(base)];
     return [];
   }
 
@@ -49,7 +59,7 @@ export function expandRecurringOccurrences(
 
   // Walk forward from base until we exit the window.
   while (d <= rangeEnd) {
-    if (d >= rangeStart) out.push(isoDay(d));
+    if (d >= rangeStart) out.push(isoDayUTC(d));
     step(d);
     // Guard against pathological frequencies producing infinite loops.
     if (out.length > 400) break;

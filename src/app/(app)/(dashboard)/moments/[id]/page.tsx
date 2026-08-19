@@ -11,26 +11,21 @@ import {
   togglePin,
   useMomentsState,
 } from "../../../../../lib/moments/cache";
+import {
+  formatCalendarDay,
+  ordinalSuffix,
+  parseCalendarDay,
+} from "../../../../../lib/moments/date";
 import type { Moment } from "../../../../../types/moment";
 import { ChevronLeftIcon, PersonIcon } from "../../icons";
 import DeleteMomentModal from "../DeleteMomentModal";
 import { fallbackGradient, momentTypeIcon } from "../momentTypeIcon";
 
 function formatFullDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const day = d.getDate();
-  const suffix =
-    day % 10 === 1 && day !== 11
-      ? "st"
-      : day % 10 === 2 && day !== 12
-        ? "nd"
-        : day % 10 === 3 && day !== 13
-          ? "rd"
-          : "th";
-  const month = d.toLocaleDateString(undefined, { month: "long" });
-  const year = d.getFullYear();
-  return `${month} ${day}${suffix}, ${year}`;
+  const parts = parseCalendarDay(iso);
+  if (!parts) return "";
+  const month = formatCalendarDay(iso, { month: "long" });
+  return `${month} ${parts.d}${ordinalSuffix(parts.d)}, ${parts.y}`;
 }
 
 function EllipsisIcon({ width = 20 }: { width?: number }) {

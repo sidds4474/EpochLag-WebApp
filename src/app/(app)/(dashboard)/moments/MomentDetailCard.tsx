@@ -5,14 +5,13 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 import { ApiError } from "../../../../lib/api/client";
 import { isPinned, togglePin } from "../../../../lib/moments/cache";
+import { formatCalendarDay } from "../../../../lib/moments/date";
 import type { Moment } from "../../../../types/moment";
 import { PersonIcon } from "../icons";
 import { fallbackGradient, momentTypeIcon } from "./momentTypeIcon";
 
 function formatFullDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString(undefined, {
+  return formatCalendarDay(iso, {
     month: "long",
     day: "numeric",
     year: "numeric",

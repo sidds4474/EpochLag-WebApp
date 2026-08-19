@@ -7,6 +7,11 @@ import { ApiError } from "../../../../../../lib/api/client";
 import { markNotificationSeen } from "../../../../../../lib/notifications/api";
 import { fetchMomentById } from "../../../../../../lib/moments/api";
 import {
+  formatCalendarDay,
+  ordinalSuffix,
+  parseCalendarDay,
+} from "../../../../../../lib/moments/date";
+import {
   respondToInviteAction,
   useMomentsState,
 } from "../../../../../../lib/moments/cache";
@@ -15,27 +20,18 @@ import { ChevronLeftIcon, PersonIcon } from "../../../icons";
 import { fallbackGradient, momentTypeIcon } from "../../momentTypeIcon";
 
 function splitDate(iso: string): { day: string; month: string } {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return { day: "--", month: "" };
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = d.toLocaleDateString(undefined, { month: "short" });
+  const parts = parseCalendarDay(iso);
+  if (!parts) return { day: "--", month: "" };
+  const day = String(parts.d).padStart(2, "0");
+  const month = formatCalendarDay(iso, { month: "short" });
   return { day, month };
 }
 
 function formatFullDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const day = d.getDate();
-  const suffix =
-    day % 10 === 1 && day !== 11
-      ? "st"
-      : day % 10 === 2 && day !== 12
-        ? "nd"
-        : day % 10 === 3 && day !== 13
-          ? "rd"
-          : "th";
-  const month = d.toLocaleDateString(undefined, { month: "long" });
-  return `${month} ${day}${suffix}, ${d.getFullYear()}`;
+  const parts = parseCalendarDay(iso);
+  if (!parts) return "";
+  const month = formatCalendarDay(iso, { month: "long" });
+  return `${month} ${parts.d}${ordinalSuffix(parts.d)}, ${parts.y}`;
 }
 
 export default function InvitationPage({

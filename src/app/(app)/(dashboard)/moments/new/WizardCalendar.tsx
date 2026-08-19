@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { isoDay } from "../../../../../lib/moments/recurrence";
+import { isoDayFromCalendar, parseCalendarDay } from "../../../../../lib/moments/date";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "../../icons";
 
 const MONTHS = [
@@ -28,9 +29,12 @@ export default function WizardCalendar({
   onChange: (iso: string) => void;
 }) {
   const today = new Date();
-  const initial = value ? new Date(value) : today;
-  const [year, setYear] = useState(initial.getFullYear());
-  const [monthIdx, setMonthIdx] = useState(initial.getMonth());
+  // value may be either a bare "YYYY-MM-DD" (from a prior tap) or a full
+  // UTC-midnight ISO (from BE when editing). Read UTC components so the
+  // month/year opens on the day the author actually picked.
+  const initialParts = value ? parseCalendarDay(value) : null;
+  const [year, setYear] = useState(initialParts?.y ?? today.getFullYear());
+  const [monthIdx, setMonthIdx] = useState(initialParts?.m ?? today.getMonth());
   const [yearPickerOpen, setYearPickerOpen] = useState(false);
 
   const total = daysInMonth(year, monthIdx);
@@ -158,9 +162,12 @@ export default function WizardCalendar({
         ))}
       </div>
 
+      {/* value may be either bare YYYY-MM-DD (fresh tap) or a full BE ISO
+          (initial edit seed) — normalize both sides for the match. */}
       <div className="grid grid-cols-7 gap-y-[8px]">
         {cells.map((c) => {
-          const isSelected = value === c.iso;
+          const normalizedValue = value ? isoDayFromCalendar(value) || value.slice(0, 10) : null;
+          const isSelected = normalizedValue === c.iso;
           return (
             <button
               key={c.iso}

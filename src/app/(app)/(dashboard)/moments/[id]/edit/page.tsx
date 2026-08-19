@@ -25,6 +25,7 @@ import type {
   Moment,
   MomentParticipant,
 } from "../../../../../../types/moment";
+import { isoDayFromCalendar } from "../../../../../../lib/moments/date";
 import { ChevronLeftIcon, ImageIcon } from "../../../icons";
 import ChooseCoverModal from "../../../new-story/ChooseCoverModal";
 import WizardCalendar from "../../new/WizardCalendar";
@@ -55,7 +56,7 @@ type FormState = {
 function seedForm(moment: Moment, pinnedNow: boolean): FormState {
   return {
     title: moment.title || "",
-    dateISO: moment.date || null,
+    dateISO: moment.date ? isoDayFromCalendar(moment.date) || null : null,
     coverImageUrl: moment.coverImageUrl || null,
     coverLocalUri: null,
     coverFile: null,
@@ -226,7 +227,10 @@ export default function EditMomentPage({
       if (trimmedTitle && trimmedTitle !== (moment.title || "")) {
         changes.title = trimmedTitle;
       }
-      if (form.dateISO && form.dateISO !== (moment.date || null)) {
+      if (
+        form.dateISO &&
+        form.dateISO !== (moment.date ? isoDayFromCalendar(moment.date) : null)
+      ) {
         changes.date = form.dateISO;
       }
       if (form.isRecurring !== !!moment.isRecurring) {

@@ -3,6 +3,7 @@ import AppDownloadCTA from "../StoryPage/components/AppDownloadCTA";
 import MomentViewAnalytics from "./MomentViewAnalytics";
 import { toResponsiveImage } from "../../lib/cloudinary";
 import { formatCalendarDay, parseCalendarDay, ordinalSuffix } from "../../lib/moments/date";
+import { getMomentIconPath } from "../../lib/moments/icons";
 import type { Platform } from "../../types/story";
 import type { PublicMomentData } from "../../types/moment";
 
@@ -33,23 +34,6 @@ function capitalize(s: string | null | undefined) {
   if (!s) return "";
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
-
-const CalendarGlyph = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-    className="w-[22px] h-[22px]"
-  >
-    <rect x="3" y="4.5" width="18" height="16" rx="2.5" />
-    <path d="M3 9.5h18" />
-    <path d="M8 3v3M16 3v3" />
-  </svg>
-);
 
 const PersonGlyph = () => (
   <svg
@@ -141,22 +125,12 @@ const MomentPage = ({ data, publicCode, platform }: Props) => {
               </div>
             ) : (
               <div className="w-full aspect-[1/1] bg-primary-cream flex items-center justify-center">
-                <div className="text-primary-blue opacity-30">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                    className="w-[80px] h-[80px]"
-                  >
-                    <rect x="3" y="4.5" width="18" height="16" rx="2.5" />
-                    <path d="M3 9.5h18" />
-                    <path d="M8 3v3M16 3v3" />
-                  </svg>
-                </div>
+                <img
+                  src={getMomentIconPath(type)}
+                  alt={type || "Moment"}
+                  className="w-[96px] h-[96px] object-contain opacity-40"
+                  decoding="async"
+                />
               </div>
             )}
 
@@ -182,8 +156,13 @@ const MomentPage = ({ data, publicCode, platform }: Props) => {
               )}
 
               {/* Type icon */}
-              <div className="mx-auto w-[44px] h-[44px] rounded-full bg-primary-cream text-primary-blue flex items-center justify-center">
-                <CalendarGlyph />
+              <div className="mx-auto w-[44px] h-[44px] rounded-full bg-primary-cream flex items-center justify-center">
+                <img
+                  src={getMomentIconPath(type)}
+                  alt={type || "Moment"}
+                  className="w-[22px] h-[22px] object-contain"
+                  decoding="async"
+                />
               </div>
 
               {/* Type label */}

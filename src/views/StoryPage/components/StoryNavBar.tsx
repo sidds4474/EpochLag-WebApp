@@ -14,9 +14,13 @@ function isMobileUA() {
   return /android|iPad|iPhone|iPod/i.test(navigator.userAgent || "");
 }
 
-function trackHeaderClick(publicCode: string, store: string) {
+function trackHeaderClick(
+  publicCode: string,
+  store: string,
+  eventName: string
+) {
   if (typeof window === "undefined" || typeof window.gtag !== "function") return;
-  window.gtag("event", "public_story_app_cta_clicked", {
+  window.gtag("event", eventName, {
     store,
     position: "header",
     public_code: publicCode,
@@ -29,9 +33,14 @@ import type { Platform } from "../../../types/story";
 type StoryNavBarProps = {
   publicCode: string;
   platform: Platform;
+  eventName?: string;
 };
 
-const StoryNavBar = ({ publicCode, platform }: StoryNavBarProps) => {
+const StoryNavBar = ({
+  publicCode,
+  platform,
+  eventName = "public_story_app_cta_clicked",
+}: StoryNavBarProps) => {
   const [modalOpen, setModalOpen] = useState(false);
 
   const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
@@ -42,14 +51,14 @@ const StoryNavBar = ({ publicCode, platform }: StoryNavBarProps) => {
     if (!isMobileUA()) {
       e.preventDefault();
       setModalOpen(true);
-      trackHeaderClick(publicCode, "modal");
+      trackHeaderClick(publicCode, "modal", eventName);
       return;
     }
 
     const target = isAndroid ? PLAY_STORE_URL : APP_STORE_URL;
     e.preventDefault();
     window.location.href = target;
-    trackHeaderClick(publicCode, isAndroid ? "android" : "ios");
+    trackHeaderClick(publicCode, isAndroid ? "android" : "ios", eventName);
   };
 
   return (

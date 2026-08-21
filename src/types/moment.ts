@@ -94,6 +94,26 @@ export type MomentDraft = {
   note: string | null;
 };
 
+export type PublicMomentAuthor = {
+  firstName?: string;
+  lastName?: string;
+  profilePicture?: string | null;
+};
+
+export type PublicMomentData = {
+  title?: string;
+  type?: MomentType;
+  date?: string;
+  note?: string | null;
+  coverImageUrl?: string | null;
+  isRecurring?: boolean;
+  frequency?: MomentFrequency | null;
+  nextOccurrence?: string | null;
+  daysUntil?: number;
+  participantCount?: number;
+  author?: PublicMomentAuthor;
+};
+
 export type FriendSearchResult = {
   _id: string;
   firstName: string;

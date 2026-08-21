@@ -11,9 +11,13 @@ function isMobileUA() {
   return /android|iPad|iPhone|iPod/i.test(navigator.userAgent || "");
 }
 
-function trackFooterClick(publicCode: string, store: string) {
+function trackFooterClick(
+  publicCode: string,
+  store: string,
+  eventName: string
+) {
   if (typeof window === "undefined" || typeof window.gtag !== "function") return;
-  window.gtag("event", "public_story_app_cta_clicked", {
+  window.gtag("event", eventName, {
     store,
     position: "footer",
     public_code: publicCode,
@@ -26,9 +30,18 @@ import type { Platform } from "../../../types/story";
 type Props = {
   platform: Platform;
   publicCode: string;
+  title?: string;
+  subcopy?: string;
+  eventName?: string;
 };
 
-const AppDownloadCTA = ({ platform, publicCode }: Props) => {
+const AppDownloadCTA = ({
+  platform,
+  publicCode,
+  title = "Stories like this live in Epoch Lag",
+  subcopy = "Start your own. Keep the moments that matter close, with the people who matter most.",
+  eventName = "public_story_app_cta_clicked",
+}: Props) => {
   const [modalOpen, setModalOpen] = useState(false);
   const onDesktop = platform === "desktop";
 
@@ -39,10 +52,10 @@ const AppDownloadCTA = ({ platform, publicCode }: Props) => {
     if (!isMobileUA()) {
       e.preventDefault();
       setModalOpen(true);
-      trackFooterClick(publicCode, "modal");
+      trackFooterClick(publicCode, "modal", eventName);
       return;
     }
-    trackFooterClick(publicCode, store);
+    trackFooterClick(publicCode, store, eventName);
   };
 
   const showIos = platform !== "android";
@@ -53,11 +66,10 @@ const AppDownloadCTA = ({ platform, publicCode }: Props) => {
       <section className="bg-primary-cream">
         <div className="max-w-[860px] mx-auto px-[16px] md:px-[24px] py-[48px] md:py-[64px] text-center">
           <h2 className="font-ivy font-bold text-primary-blue text-[28px] md:text-[36px] leading-[120%]">
-            Stories like this live in Epoch Lag
+            {title}
           </h2>
           <p className="mt-[12px] font-montserrat text-primary-blue text-[16px] md:text-[18px] leading-[160%] opacity-85 max-w-[520px] mx-auto">
-            Start your own. Keep the moments that matter close, with the people
-            who matter most.
+            {subcopy}
           </p>
 
           {onDesktop ? (
@@ -66,7 +78,7 @@ const AppDownloadCTA = ({ platform, publicCode }: Props) => {
                 type="button"
                 onClick={() => {
                   setModalOpen(true);
-                  trackFooterClick(publicCode, "modal");
+                  trackFooterClick(publicCode, "modal", eventName);
                 }}
                 className="cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[14px] md:text-[15px] px-[28px] md:px-[36px] py-[12px] md:py-[14px] rounded-full hover:opacity-90 transition-opacity"
               >

@@ -110,10 +110,22 @@ export async function fetchInspirationFeed(
   return { cards, envelope: res };
 }
 
-type BookmarkEnvelope = { success: boolean; message?: string };
+type BookmarkEnvelope = {
+  success: boolean;
+  message?: string;
+  data?: { isBookmarked?: boolean } | null;
+};
 
-export async function toggleCardBookmark(cardId: string): Promise<void> {
-  await api.post<BookmarkEnvelope>(`/api/bookmarks/${cardId}`);
+// BE toggles the bookmark server-side and echoes the resulting state.
+// Callers should trust the returned `isBookmarked` as ground truth — it's
+// the tiebreaker when a rapid cross-device race causes the client's
+// optimistic guess to disagree with the actual server state.
+export async function toggleCardBookmark(
+  promptId: string
+): Promise<{ isBookmarked: boolean | null }> {
+  const res = await api.post<BookmarkEnvelope>(`/api/bookmarks/${promptId}`);
+  const server = res.data?.isBookmarked;
+  return { isBookmarked: typeof server === "boolean" ? server : null };
 }
 
 export async function fetchHomePeople(): Promise<HomePeople> {

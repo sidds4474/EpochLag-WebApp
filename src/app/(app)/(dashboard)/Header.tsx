@@ -154,12 +154,12 @@ export default function Header({ user, onOpenDrawer }: HeaderProps) {
             className="absolute right-0 top-[48px] min-w-[160px] bg-white rounded-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] border border-black/[0.06] py-[6px] z-10"
           >
             <Link
-              href="/profile"
+              href="/studio"
               role="menuitem"
               onClick={() => setMenuOpen(false)}
               className="block w-full text-left px-[14px] py-[10px] font-montserrat font-medium text-primary-blue text-[14px] hover:bg-black/[0.04] transition-colors"
             >
-              Profile
+              Studio
             </Link>
             <button
               type="button"

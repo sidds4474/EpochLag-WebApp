@@ -7,45 +7,30 @@ import {
   fetchStories,
   permanentDeleteStories,
   removeCardFromFeed,
-  STORY_TAGS,
   type LibraryThread,
   type StoriesMode,
 } from "../../../../lib/library/api";
 import ConfirmationModal from "../../../../components/ConfirmationModal/ConfirmationModal";
 import StoryCard from "./StoryCard";
 import StoryCardSkeleton from "./StoryCardSkeleton";
-import PeoplePanel from "./PeoplePanel";
 import MediaTypePanel from "./MediaTypePanel";
+import FiltersPopover, {
+  activeFilterCount,
+  DEFAULT_FILTERS,
+  type FilterMode,
+  type FilterState,
+} from "./FiltersPopover";
 import { useSelectMode } from "./selectMode";
-
-type PillId =
-  | "recent"
-  | "myStories"
-  | "categories"
-  | "people"
-  | "media"
-  | "loved"
-  | "deleted";
-
-type PillDef = {
-  id: PillId;
-  label: string;
-  mode: StoriesMode | null;
-};
-
-const PILLS: PillDef[] = [
-  { id: "recent", label: "Recent", mode: "latest" },
-  { id: "myStories", label: "My Stories", mode: "myStories" },
-  { id: "categories", label: "Categories", mode: "latest" },
-  { id: "people", label: "People", mode: null },
-  { id: "media", label: "Media Type", mode: null },
-  { id: "loved", label: "Loved", mode: "loved" },
-  { id: "deleted", label: "Deleted", mode: "deleted" },
-];
 
 const PAGE_SIZE = 10;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DELETED_RETENTION_DAYS = 30;
+
+const MODE_TO_STORIES_MODE: Record<FilterMode, StoriesMode> = {
+  recent: "latest",
+  loved: "loved",
+  deleted: "deleted",
+};
 
 function daysRemainingFor(thread: LibraryThread): number | null {
   const beValue = thread.latestStory?.daysRemaining;
@@ -58,16 +43,15 @@ function daysRemainingFor(thread: LibraryThread): number | null {
   return Math.max(0, DELETED_RETENTION_DAYS - elapsed);
 }
 
-// Mirrors mobile's getCardId — latestStory._id is the selection key and
-// the storyId sent to /api/stories/delete. Falls back to the thread _id
-// on cards missing a latestStory.
 function cardKeyFor(thread: LibraryThread): string {
   return thread.latestStory?._id ?? thread._id;
 }
 
-export default function LibraryStoriesPage() {
-  const [activePill, setActivePill] = useState<PillId>("recent");
-  const [activeTags, setActiveTags] = useState<string[]>([]);
+export default function LagsAllPage() {
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filtersButtonRef = useRef<HTMLButtonElement | null>(null);
+
   const [threads, setThreads] = useState<LibraryThread[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -79,50 +63,22 @@ export default function LibraryStoriesPage() {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const {
     isSelecting,
-    canSelect,
     setCanSelect,
     toggle: toggleSelectMode,
     exit: exitSelect,
     setHeaderRight,
   } = useSelectMode();
 
-  const activeDef = useMemo(
-    () => PILLS.find((p) => p.id === activePill)!,
-    [activePill]
-  );
+  useEffect(() => setCanSelect(true), [setCanSelect]);
 
-  // Select is only meaningful when the active pill is a card grid. People
-  // and Media Type have different content shapes.
-  useEffect(() => {
-    setCanSelect(activePill !== "people" && activePill !== "media");
-  }, [activePill, setCanSelect]);
-
-  // Register the Stories tab's Select/Done button in the shared header slot.
-  useEffect(() => {
-    if (!canSelect) {
-      setHeaderRight(null);
-      return;
-    }
-    setHeaderRight(
-      <button
-        type="button"
-        onClick={toggleSelectMode}
-        className="cursor-pointer font-montserrat text-black text-[14px] hover:opacity-80 transition-opacity"
-      >
-        {isSelecting ? "Done" : "Select"}
-      </button>
-    );
-    return () => setHeaderRight(null);
-  }, [canSelect, isSelecting, toggleSelectMode, setHeaderRight]);
-
-  // Exiting select mode (or switching pills) clears the current picks.
   useEffect(() => {
     if (!isSelecting) setSelected(new Set());
   }, [isSelecting]);
+
   useEffect(() => {
     setSelected(new Set());
     exitSelect();
-  }, [activePill, exitSelect]);
+  }, [filters, exitSelect]);
 
   const toggleSelect = useCallback((thread: LibraryThread) => {
     const key = cardKeyFor(thread);
@@ -134,40 +90,30 @@ export default function LibraryStoriesPage() {
     });
   }, []);
 
-  // Clear tag selection when moving away from Categories so it doesn't
-  // silently re-apply if the user comes back.
-  useEffect(() => {
-    if (activePill !== "categories" && activeTags.length > 0) {
-      setActiveTags([]);
-    }
-  }, [activePill, activeTags.length]);
-
   useEffect(() => {
     setThreads([]);
     setPage(0);
     setHasMore(true);
     setError(null);
-  }, [activePill, activeTags]);
+  }, [filters]);
 
   const requestGenRef = useRef(0);
-
-  // Bump the generation on pill/tag change so any in-flight fetches from
-  // the previous filter are ignored when they land.
   useEffect(() => {
     requestGenRef.current += 1;
-  }, [activePill, activeTags]);
+  }, [filters]);
+
+  const storiesMode = MODE_TO_STORIES_MODE[filters.mode];
 
   const loadPage = useCallback(
     async (nextPage: number) => {
-      if (!activeDef.mode) return;
       const gen = requestGenRef.current;
       setLoading(true);
       try {
         const { threads: fresh, pagination } = await fetchStories({
-          mode: activeDef.mode,
+          mode: storiesMode,
           page: nextPage,
           limit: PAGE_SIZE,
-          tags: activePill === "categories" ? activeTags : undefined,
+          tags: filters.categories.length > 0 ? filters.categories : undefined,
         });
         if (gen !== requestGenRef.current) return;
         setThreads((prev) => {
@@ -190,14 +136,13 @@ export default function LibraryStoriesPage() {
         if (gen === requestGenRef.current) setLoading(false);
       }
     },
-    [activeDef.mode, activePill, activeTags]
+    [storiesMode, filters.categories]
   );
 
   useEffect(() => {
-    if (!activeDef.mode) return;
     if (page !== 0) return;
     loadPage(1);
-  }, [activeDef.mode, page, loadPage]);
+  }, [page, loadPage]);
 
   useEffect(() => {
     if (!hasMore || page === 0) return;
@@ -216,36 +161,24 @@ export default function LibraryStoriesPage() {
     return () => obs.disconnect();
   }, [hasMore, page, loading, loadPage]);
 
-  const toggleTag = (tag: string) => {
-    setActiveTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
-  };
-
-  const showCategoryChips = activePill === "categories";
-  const isPlaceholder = activeDef.mode === null;
+  const filterCount = useMemo(() => activeFilterCount(filters), [filters]);
   const selectedCount = selected.size;
 
-  // Batch delete flow. Endpoint switches on the active pill: normal pills
-  // soft-delete stories and best-effort clear the source card from the
-  // For-You feed; Deleted pill wipes permanently.
   const handleBatchDelete = useCallback(async () => {
     const picked = threads.filter((t) => selected.has(cardKeyFor(t)));
     if (picked.length === 0) return;
     const storyIds = picked.map(cardKeyFor);
     const previousThreads = threads;
-    // Optimistic removal.
     setThreads((prev) => prev.filter((t) => !selected.has(cardKeyFor(t))));
     setSelected(new Set());
     setConfirmOpen(false);
     exitSelect();
 
     try {
-      if (activePill === "deleted") {
+      if (filters.mode === "deleted") {
         await permanentDeleteStories(storyIds);
       } else {
         await deleteStories(storyIds);
-        // Best-effort side effect — don't fail the whole op if these throw.
         await Promise.allSettled(
           picked
             .map((t) => t.promptCard?._id)
@@ -254,9 +187,7 @@ export default function LibraryStoriesPage() {
         );
       }
       toast.success(
-        activePill === "deleted"
-          ? "Deleted permanently"
-          : "Moved to Deleted"
+        filters.mode === "deleted" ? "Deleted permanently" : "Moved to Deleted"
       );
     } catch (err) {
       setThreads(previousThreads);
@@ -264,90 +195,132 @@ export default function LibraryStoriesPage() {
         err instanceof Error ? err.message : "Couldn't delete stories"
       );
     }
-  }, [activePill, exitSelect, selected, threads]);
+  }, [filters.mode, exitSelect, selected, threads]);
+
+  // Register Filters + Select in the shared header-right slot of the tab row.
+  useEffect(() => {
+    setHeaderRight(
+      <div className="flex items-center gap-[12px] md:gap-[16px]">
+        <div className="relative">
+          <button
+            ref={filtersButtonRef}
+            type="button"
+            onClick={() => setFiltersOpen((v) => !v)}
+            className="cursor-pointer inline-flex items-center gap-[8px] bg-white border border-black/[0.14] text-primary-blue rounded-full pl-[14px] pr-[14px] py-[8px] hover:bg-black/[0.03] transition-colors"
+          >
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M9.5 14C11.1569 14 12.5 15.3431 12.5 17C12.5 18.6568 11.1569 20 9.5 20C7.84315 20 6.5 18.6568 6.5 17C6.5 15.3431 7.84315 14 9.5 14Z"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              />
+              <path
+                d="M14.5 3.99998C12.8431 3.99998 11.5 5.34312 11.5 6.99998C11.5 8.65683 12.8431 9.99998 14.5 9.99998C16.1569 9.99998 17.5 8.65683 17.5 6.99998C17.5 5.34312 16.1569 3.99998 14.5 3.99998Z"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              />
+              <path
+                d="M15 16.959L22 16.959"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+              />
+              <path
+                d="M9 6.95898L2 6.95898"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+              />
+              <path
+                d="M2 16.959L4 16.959"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+              />
+              <path
+                d="M22 6.95898L20 6.95898"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+              />
+            </svg>
+            <span className="font-montserrat font-medium text-[13px]">Filters</span>
+            {filterCount > 0 && (
+              <span
+                aria-label={`${filterCount} active filters`}
+                className="inline-flex items-center justify-center min-w-[20px] h-[20px] rounded-full bg-primary-orange text-white font-montserrat font-semibold text-[11px] px-[6px]"
+              >
+                {filterCount}
+              </span>
+            )}
+          </button>
+          <FiltersPopover
+            open={filtersOpen}
+            anchorRef={filtersButtonRef}
+            applied={filters}
+            onClose={() => setFiltersOpen(false)}
+            onApply={(next) => {
+              setFilters(next);
+              setFiltersOpen(false);
+            }}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={toggleSelectMode}
+          className="cursor-pointer font-montserrat text-black text-[14px] hover:opacity-80 transition-opacity"
+        >
+          {isSelecting ? "Done" : "Select"}
+        </button>
+      </div>
+    );
+    return () => setHeaderRight(null);
+  }, [
+    isSelecting,
+    toggleSelectMode,
+    setHeaderRight,
+    filtersOpen,
+    filterCount,
+    filters,
+  ]);
+
+  // Media-type filter uses the existing media-gallery endpoint. When any
+  // type is selected we render MediaTypePanel's overview strip(s) above
+  // the story grid — both filters compose, since media strips and the
+  // story grid are independent surfaces. Category (tags) still narrows
+  // the story grid; the media strips are always all-media (BE endpoint
+  // has no tags param).
+  const mediaTypeToBucket: Record<
+    "audio" | "gallery" | "video",
+    "audio" | "image" | "video"
+  > = { audio: "audio", gallery: "image", video: "video" };
+  const bucketTypes = filters.mediaTypes.map((t) => mediaTypeToBucket[t]);
+  const showMediaStrip = bucketTypes.length > 0;
+  // Story grid is hidden when the only active filter is media type —
+  // media strip stands alone. Any category or mode change brings the
+  // grid back so both surfaces show together.
+  const showStoryGrid =
+    !showMediaStrip ||
+    filters.categories.length > 0 ||
+    filters.mode !== "recent";
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex items-center gap-[10px] mb-[16px]">
-        <svg
-          width={18}
-          height={18}
-          viewBox="0 0 24 24"
-          fill="none"
-          className="shrink-0 text-primary-blue/70"
-          aria-hidden
-        >
-          <path
-            d="M3 6h18M6 12h12M10 18h4"
-            stroke="currentColor"
-            strokeWidth={1.6}
-            strokeLinecap="round"
-          />
-        </svg>
-        <div className="flex-1 flex items-center gap-[8px] flex-wrap">
-          {PILLS.map((p) => {
-            const active = p.id === activePill;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setActivePill(p.id)}
-                className={`cursor-pointer px-[12px] py-[3px] rounded-full font-montserrat text-[12px] border transition-colors ${
-                  active
-                    ? "bg-primary-blue text-white border-primary-blue font-semibold"
-                    : "bg-white text-primary-blue border-black/[0.14] font-medium hover:bg-black/[0.03]"
-                }`}
-              >
-                {p.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {showCategoryChips && (
-        <div className="flex items-center gap-[8px] flex-wrap mb-[16px]">
-          {STORY_TAGS.map((tag) => {
-            const active = activeTags.includes(tag);
-            return (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => toggleTag(tag)}
-                className={`cursor-pointer px-[10px] py-[2px] rounded-full font-montserrat font-medium text-[11px] border transition-colors ${
-                  active
-                    ? "bg-primary-orange text-white border-primary-orange"
-                    : "bg-white text-primary-blue border-black/[0.12] hover:bg-black/[0.03]"
-                }`}
-              >
-                {tag}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {activePill === "people" ? (
-        <PeoplePanel />
-      ) : activePill === "media" ? (
-        <div className="flex-1 min-h-0 overflow-y-auto pt-[8px] pb-[28px] scrollbar-hide">
-          <MediaTypePanel />
-        </div>
-      ) : (
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[24px] pt-[28px] pb-[28px] scrollbar-hide"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[8px] md:px-[24px] pt-[8px] pb-[28px] scrollbar-hide"
       >
-        {isPlaceholder ? (
-          <p className="font-montserrat text-primary-blue/60 text-[14px] mt-[8px]">
-            Nothing to show here.
-          </p>
-        ) : error ? (
+        {showMediaStrip && (
+          <div className={showStoryGrid ? "mb-[24px]" : ""}>
+            <MediaTypePanel visibleTypes={bucketTypes} />
+          </div>
+        )}
+        {!showStoryGrid ? null : error ? (
           <p className="font-montserrat text-primary-orange text-[14px] mt-[8px]">
             {error}
           </p>
         ) : threads.length === 0 && loading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-[24px] gap-y-[40px]">
+          <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-[16px] md:gap-x-[24px] gap-y-[28px] md:gap-y-[40px]">
             {Array.from({ length: 6 }).map((_, i) => (
               <StoryCardSkeleton key={i} />
             ))}
@@ -357,13 +330,13 @@ export default function LibraryStoriesPage() {
             No stories to show.
           </p>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-[24px] gap-y-[40px]">
+          <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-[16px] md:gap-x-[24px] gap-y-[28px] md:gap-y-[40px]">
             {threads.map((t) => (
               <StoryCard
                 key={t._id}
                 thread={t}
                 daysRemaining={
-                  activePill === "deleted" ? daysRemainingFor(t) : null
+                  filters.mode === "deleted" ? daysRemainingFor(t) : null
                 }
                 isSelecting={isSelecting}
                 selected={selected.has(cardKeyFor(t))}
@@ -379,7 +352,6 @@ export default function LibraryStoriesPage() {
           </div>
         )}
       </div>
-      )}
 
       {isSelecting && selectedCount > 0 && (
         <div className="fixed left-1/2 -translate-x-1/2 bottom-[24px] z-40 flex items-center gap-[12px] bg-primary-blue text-white rounded-full pl-[20px] pr-[8px] py-[8px] shadow-[0_6px_24px_rgba(0,0,0,0.25)]">
@@ -402,31 +374,18 @@ export default function LibraryStoriesPage() {
               />
             </svg>
           </button>
-          <button
-            type="button"
-            disabled
-            title="Add to Album — coming soon"
-            aria-label="More actions"
-            className="w-[36px] h-[36px] rounded-full bg-white/5 flex items-center justify-center opacity-40 cursor-not-allowed"
-          >
-            <svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-              <circle cx="5" cy="12" r="1.6" fill="currentColor" />
-              <circle cx="12" cy="12" r="1.6" fill="currentColor" />
-              <circle cx="19" cy="12" r="1.6" fill="currentColor" />
-            </svg>
-          </button>
         </div>
       )}
 
       <ConfirmationModal
         open={confirmOpen}
         title={
-          activePill === "deleted"
+          filters.mode === "deleted"
             ? "Delete permanently?"
             : "Move to Deleted?"
         }
         body={
-          activePill === "deleted"
+          filters.mode === "deleted"
             ? `${selectedCount} ${selectedCount === 1 ? "story" : "stories"} will be permanently removed. This can't be undone.`
             : `${selectedCount} ${selectedCount === 1 ? "story" : "stories"} will be moved to Deleted. You have 30 days to restore.`
         }

@@ -178,9 +178,13 @@ function SectionStrip({
 
 function Overview({
   onOpenBucket,
+  visibleTypes,
 }: {
   onOpenBucket: (type: MediaBucketType) => void;
+  visibleTypes?: MediaBucketType[];
 }) {
+  const shouldShow = (t: MediaBucketType) =>
+    !visibleTypes || visibleTypes.includes(t);
   const [data, setData] = useState<MediaGalleryOverview | null>(overviewCache);
   const [loading, setLoading] = useState(!overviewCache);
   const [error, setError] = useState<string | null>(null);
@@ -223,27 +227,33 @@ function Overview({
 
   return (
     <div className="flex flex-col gap-[32px]">
-      <SectionStrip
-        title="Images"
-        tiles={data?.images ?? []}
-        onViewAll={() => onOpenBucket("image")}
-        onOpen={openInSection(data?.images ?? [])}
-        loading={loading}
-      />
-      <SectionStrip
-        title="Video"
-        tiles={data?.videos ?? []}
-        onViewAll={() => onOpenBucket("video")}
-        onOpen={openInSection(data?.videos ?? [])}
-        loading={loading}
-      />
-      <SectionStrip
-        title="Audio"
-        tiles={data?.audios ?? []}
-        onViewAll={() => onOpenBucket("audio")}
-        onOpen={openInSection(data?.audios ?? [])}
-        loading={loading}
-      />
+      {shouldShow("image") && (
+        <SectionStrip
+          title="Images"
+          tiles={data?.images ?? []}
+          onViewAll={() => onOpenBucket("image")}
+          onOpen={openInSection(data?.images ?? [])}
+          loading={loading}
+        />
+      )}
+      {shouldShow("video") && (
+        <SectionStrip
+          title="Video"
+          tiles={data?.videos ?? []}
+          onViewAll={() => onOpenBucket("video")}
+          onOpen={openInSection(data?.videos ?? [])}
+          loading={loading}
+        />
+      )}
+      {shouldShow("audio") && (
+        <SectionStrip
+          title="Audio"
+          tiles={data?.audios ?? []}
+          onViewAll={() => onOpenBucket("audio")}
+          onOpen={openInSection(data?.audios ?? [])}
+          loading={loading}
+        />
+      )}
       {viewer && (
         <MediaViewer
           tiles={viewer.tiles}
@@ -402,9 +412,15 @@ function Detail({
   );
 }
 
-export default function MediaTypePanel() {
+export default function MediaTypePanel({
+  initialType = null,
+  visibleTypes,
+}: {
+  initialType?: MediaBucketType | null;
+  visibleTypes?: MediaBucketType[];
+} = {}) {
   const [selectedType, setSelectedType] = useState<MediaBucketType | null>(
-    null
+    initialType
   );
 
   if (selectedType) {
@@ -413,5 +429,7 @@ export default function MediaTypePanel() {
     );
   }
 
-  return <Overview onOpenBucket={setSelectedType} />;
+  return (
+    <Overview onOpenBucket={setSelectedType} visibleTypes={visibleTypes} />
+  );
 }

@@ -242,7 +242,8 @@ export async function updateUserCard(
 // endpoint is reused for the Moments-cover picker per product spec. Falls
 // through to empty on failure so the modal still renders the Upload slot.
 export type GradientCover = {
-  _id: string;
+  _id?: string;
+  id?: string;
   url?: string | null;
   imageUrl?: string | null;
   type?: string;

@@ -1009,7 +1009,7 @@ function TellStep2({
           storyId={createdStory.storyId}
           onDone={() => {
             if (albumId) {
-              router.push(`/library/albums/${albumId}`);
+              router.push(`/lags`);
               return;
             }
             if (createdStory.threadId) {

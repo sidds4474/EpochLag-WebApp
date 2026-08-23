@@ -108,7 +108,7 @@ export default function AlbumDetailPage() {
         const status = (err as { status?: number })?.status;
         if (status === 404) {
           toast.error("This album is no longer available");
-          router.push("/library/albums");
+          router.push("/lags/albums");
           return;
         }
         if (status === 400) {
@@ -430,7 +430,7 @@ export default function AlbumDetailPage() {
       await deleteAlbum(albumId);
       setConfirmDeleteOpen(false);
       toast.success("Album deleted");
-      router.push("/library/albums");
+      router.push("/lags/albums");
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Couldn't delete album"
@@ -443,7 +443,7 @@ export default function AlbumDetailPage() {
       await leaveAlbum(albumId);
       setConfirmLeaveOpen(false);
       toast.success("Left album");
-      router.push("/library/albums");
+      router.push("/lags/albums");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't leave album");
     }

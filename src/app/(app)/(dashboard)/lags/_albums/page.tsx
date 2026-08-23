@@ -120,7 +120,7 @@ export default function LibraryAlbumsPage() {
       try {
         const album = await createAlbum(title);
         setCreateOpen(false);
-        router.push(`/library/albums/${album._id}`);
+        router.push(`/lags/albums/${album._id}`);
       } catch (err) {
         toast.error(
           err instanceof Error ? err.message : "Couldn't create album"

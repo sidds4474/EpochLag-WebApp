@@ -42,7 +42,7 @@ const NAV_ITEMS: Array<{
     href: "/lags",
     label: "Lags",
     icon: <LibraryIcon width={20} height={20} />,
-    match: (p) => p.startsWith("/lags") || p.startsWith("/library"),
+    match: (p) => p.startsWith("/lags"),
   },
 ];
 

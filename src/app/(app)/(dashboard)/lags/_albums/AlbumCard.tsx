@@ -137,7 +137,7 @@ export default function AlbumCard({
   }
 
   return (
-    <Link href={`/library/albums/${album._id}`} className="block">
+    <Link href={`/lags/albums/${album._id}`} className="block">
       {content}
     </Link>
   );

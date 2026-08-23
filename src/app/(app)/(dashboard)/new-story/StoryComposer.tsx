@@ -43,6 +43,7 @@ import {
 } from "../../../../lib/create/media-storage";
 import { buildPreviewThread } from "../../../../lib/create/preview";
 import { fetchUserCard, getCachedUserCard } from "../../../../lib/home/api";
+import { fetchDraftDetail } from "../../../../lib/studio/api";
 import { useAuth } from "../../../../lib/auth/AuthProvider";
 import type { ThreadResponse, UserCard } from "../../../../types/home";
 import PreviewOverlay from "../../../../views/Thread/PreviewOverlay";
@@ -237,10 +238,21 @@ type Props = {
    *  set, we skip the lazy white-card create and instead reply against this
    *  existing prompt; the prompt strip renders above the title. */
   promptId?: string | null;
+  /** Draft-resume entry point (from Studio → Draft tab). When set, we hydrate
+   *  the composer from the server-side draft (title, cover, meta) so the user
+   *  picks up where they left off. Media blocks land as URLs — the composer
+   *  can't reattach the underlying Files, but URL-only media still uploads
+   *  again fine on publish because we skip un-uploaded blocks with no file. */
+  draftId?: string | null;
   onBack: () => void;
 };
 
-export default function StoryComposer({ albumId, promptId: replyPromptId, onBack }: Props) {
+export default function StoryComposer({
+  albumId,
+  promptId: replyPromptId,
+  draftId,
+  onBack,
+}: Props) {
   const router = useRouter();
   const { user } = useAuth();
   const [prompt, setPrompt] = useState<UserCard | null>(() =>
@@ -337,7 +349,10 @@ export default function StoryComposer({ albumId, promptId: replyPromptId, onBack
   // Answer-a-Prompt seeds promptIdRef with the existing prompt so we reply
   // to it instead of minting a fresh white card.
   const promptIdRef = useRef<string | null>(replyPromptId ?? null);
-  const storyIdRef = useRef<string | null>(null);
+  // Draft-resume seeds storyIdRef so publish PUTs the existing draft
+  // record instead of creating a brand-new story. The draft's own
+  // promptId (if any) is hydrated in the effect below.
+  const storyIdRef = useRef<string | null>(draftId ?? null);
 
   useEffect(() => {
     if (!replyPromptId) return;
@@ -364,6 +379,59 @@ export default function StoryComposer({ albumId, promptId: replyPromptId, onBack
       cancelled = true;
     };
   }, [replyPromptId]);
+
+  // Draft-resume hydration. On mount (if the URL carried a draftId),
+  // pull the server-side draft and seed title + cover + a single text
+  // block from the persisted content. We don't try to re-parse the
+  // serialized content back into individual blocks — that's a heavier
+  // operation and drafts on the web are always follow-up edits; the
+  // user typically wants to keep writing, not re-drag media.
+  useEffect(() => {
+    if (!draftId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const detail = await fetchDraftDetail(draftId);
+        if (cancelled) return;
+        if (detail.title) setTitle(detail.title);
+        if (detail.promptId) promptIdRef.current = detail.promptId;
+        if (detail.coverImage) {
+          setCover((prev) =>
+            prev.file || prev.imageUrl
+              ? prev
+              : { file: null, imageUrl: detail.coverImage!, preview: detail.coverImage! }
+          );
+        }
+        if (typeof detail.dateOfStory === "string") setDateOfStory(detail.dateOfStory);
+        if (detail.content && detail.content.trim().length > 0) {
+          // Replace the initial empty text block with the draft's saved
+          // text. Only fires if we don't already have user-typed content
+          // from a browser refresh restoring localStorage.
+          setBlocks((prev) => {
+            const hasTyped = prev.some(
+              (b) => b.type === "text" && b.text.trim().length > 0
+            );
+            if (hasTyped) return prev;
+            return [
+              {
+                id: makeBlockId("text"),
+                type: "text",
+                text: detail.content!,
+              },
+              emptyTextBlock(),
+            ];
+          });
+        }
+      } catch {
+        /* silent — draft may have been deleted or ID is stale */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId]);
+
   const dirtyRef = useRef(false);
   const draftSavingRef = useRef(false);
 
@@ -1054,7 +1122,7 @@ export default function StoryComposer({ albumId, promptId: replyPromptId, onBack
           // Back should return to Lags (or wherever they came from), not
           // drop them back into a stale composer session.
           if (albumId) {
-            router.replace(`/library/albums/${albumId}`);
+            router.replace(`/lags`);
             return;
           }
           if (createdStory.threadId) {

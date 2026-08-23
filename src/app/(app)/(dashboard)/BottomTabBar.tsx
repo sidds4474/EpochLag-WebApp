@@ -42,11 +42,11 @@ export default function BottomTabBar({ user }: { user: User | null }) {
       href: "/lags",
       label: "Lags",
       icon: <LibraryIcon width={22} height={22} />,
-      match: (p) => p.startsWith("/lags") || p.startsWith("/library"),
+      match: (p) => p.startsWith("/lags"),
     },
     {
-      href: "/profile",
-      label: "Profile",
+      href: "/studio",
+      label: "Studio",
       icon: user?.profilePicture ? (
         <span className="w-[24px] h-[24px] rounded-full overflow-hidden block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -63,7 +63,7 @@ export default function BottomTabBar({ user }: { user: User | null }) {
       ) : (
         <PersonIcon width={22} height={22} />
       ),
-      match: (p) => p.startsWith("/profile"),
+      match: (p) => p.startsWith("/studio") || p.startsWith("/profile"),
     },
   ];
 

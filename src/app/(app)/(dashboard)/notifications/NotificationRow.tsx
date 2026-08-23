@@ -505,9 +505,9 @@ async function resolveRoute(n: Notification): Promise<string | null> {
     }
     case "album_user_added":
     case "story_added_to_album": {
-      const albumId =
-        n.navigation?.albumId || n.profileDetails?.albumId || null;
-      return albumId ? `/library/albums/${albumId}` : null;
+      // Albums are disabled in the Lags redesign — notification stays
+      // rendered but doesn't route anywhere.
+      return null;
     }
     case "moment_invite": {
       const momentId = extractMomentId(n);

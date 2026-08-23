@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import { bustUrl } from "../../../../lib/images";
-import { BookmarkIcon, PersonIcon } from "../icons";
+import { BookmarkIcon, PersonIcon, SendIcon } from "../icons";
 import { parseContentToBlocks } from "../../../../lib/parseStoryContent";
 import { toggleCardBookmark } from "../../../../lib/home/api";
+import { mintPromptPublicLink } from "../../../../lib/share/api";
 import type { LibraryThread } from "../../../../lib/library/api";
 
 type StoryCardProps = {
@@ -76,6 +77,50 @@ export default function StoryCard({
       }
     },
     [bookmarked, bookmarkCardId]
+  );
+
+  const shareCardId = thread.promptCard?._id ?? null;
+  const sharePendingRef = useRef(false);
+  const handleShare = useCallback(
+    async (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!shareCardId || sharePendingRef.current) return;
+      sharePendingRef.current = true;
+      try {
+        const { publicCode } = await mintPromptPublicLink(shareCardId);
+        const origin =
+          typeof window !== "undefined" ? window.location.origin : "";
+        const url = `${origin}/prompt/${publicCode}`;
+        const shareData = { url, title: title || "Epoch Lag" };
+        // Web Share API on mobile/supported browsers → native share sheet.
+        // Otherwise → copy to clipboard.
+        if (
+          typeof navigator !== "undefined" &&
+          typeof navigator.share === "function" &&
+          navigator.canShare?.(shareData) !== false
+        ) {
+          try {
+            await navigator.share(shareData);
+          } catch {
+            // User dismissed the sheet — treat as no-op, don't toast.
+          }
+        } else if (
+          typeof navigator !== "undefined" &&
+          navigator.clipboard?.writeText
+        ) {
+          await navigator.clipboard.writeText(url);
+          toast.success("Link copied");
+        } else {
+          toast.success(url);
+        }
+      } catch {
+        toast.error("Couldn't create share link");
+      } finally {
+        sharePendingRef.current = false;
+      }
+    },
+    [shareCardId, title]
   );
 
   return (
@@ -154,14 +199,26 @@ export default function StoryCard({
             {daysRemaining} days
           </span>
         ) : !isSelecting ? (
-          <button
-            type="button"
-            onClick={handleBookmarkToggle}
-            aria-label={bookmarked ? "Remove bookmark" : "Bookmark"}
-            className="absolute top-[10px] right-[10px] w-[36px] h-[36px] rounded-full bg-white border border-white shadow-[0_1px_3px_rgba(0,0,0,0.15)] flex items-center justify-center text-primary-blue hover:bg-white/95 transition-colors cursor-pointer"
-          >
-            <BookmarkIcon width={15} height={17} filled={bookmarked} />
-          </button>
+          <div className="absolute top-[10px] right-[10px] flex flex-col gap-[8px]">
+            <button
+              type="button"
+              onClick={handleBookmarkToggle}
+              aria-label={bookmarked ? "Remove bookmark" : "Bookmark"}
+              className="w-[36px] h-[36px] rounded-full bg-white border border-white shadow-[0_1px_3px_rgba(0,0,0,0.15)] flex items-center justify-center text-primary-blue hover:bg-white/95 transition-colors cursor-pointer"
+            >
+              <BookmarkIcon width={15} height={17} filled={bookmarked} />
+            </button>
+            {shareCardId && (
+              <button
+                type="button"
+                onClick={handleShare}
+                aria-label="Share link"
+                className="w-[36px] h-[36px] rounded-full bg-white border border-white shadow-[0_1px_3px_rgba(0,0,0,0.15)] flex items-center justify-center text-primary-blue hover:bg-white/95 transition-colors cursor-pointer"
+              >
+                <SendIcon width={16} height={16} />
+              </button>
+            )}
+          </div>
         ) : null}
       </div>
       <div className="min-h-[36px] flex items-center justify-center px-[4px]">

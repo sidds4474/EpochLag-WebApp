@@ -8,7 +8,7 @@ import { toggleCardBookmark } from "../../../../../lib/home/api";
 import { mintPromptPublicLink } from "../../../../../lib/share/api";
 import { parseContentToBlocks } from "../../../../../lib/parseStoryContent";
 import type { LibraryThread } from "../../../../../lib/library/api";
-import { BookmarkIcon, SendIcon } from "../../icons";
+import { BookmarkIcon, LibraryIcon, SendIcon } from "../../icons";
 
 function coverFor(t: LibraryThread): string | null {
   const s = t.latestStory;
@@ -183,12 +183,12 @@ export default function PlacePanelStoryRow({ thread }: PlacePanelStoryRowProps) 
   return (
     <Link
       href={`/thread/${thread._id}`}
-      className="relative block bg-white rounded-[16px] shadow-[0_0_25px_0_rgba(0,0,0,0.20)] hover:shadow-[0_0_30px_0_rgba(0,0,0,0.25)] transition-shadow overflow-hidden"
+      className="relative block bg-white rounded-[16px] md:rounded-[20px] shadow-[0_0_25px_0_rgba(0,0,0,0.20)] hover:shadow-[0_0_30px_0_rgba(0,0,0,0.25)] transition-shadow overflow-hidden"
     >
       {/* Mobile: horizontal thumbnail | content. Desktop: cover on top,
           content below (with avatar/chip/bookmark overlaid on cover). */}
-      <div className="flex md:block">
-        <div className="relative shrink-0 w-[110px] aspect-square md:w-full md:aspect-[16/10] bg-primary-blue/10">
+      <div className="flex md:block md:p-[8px]">
+        <div className="relative shrink-0 w-[110px] aspect-square md:w-full md:aspect-[16/10] bg-primary-blue/10 md:rounded-t-[14px] md:overflow-hidden">
           {cover ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -201,19 +201,24 @@ export default function PlacePanelStoryRow({ thread }: PlacePanelStoryRowProps) 
 
           {/* Desktop overlay: avatar + chip top-left */}
           <div className="hidden md:flex absolute top-[10px] left-[10px] items-center gap-[6px]">
-            <div className="w-[30px] h-[30px] rounded-full overflow-hidden bg-white/90 border-2 border-white shrink-0">
-              {avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={bustUrl(avatar, undefined)}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center font-montserrat font-semibold text-primary-blue text-[11px]">
-                  {initial}
-                </div>
-              )}
+            <div className="relative w-[30px] h-[30px] shrink-0">
+              <div className="w-full h-full rounded-full overflow-hidden bg-white/90 border-2 border-white">
+                {avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={bustUrl(avatar, undefined)}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center font-montserrat font-semibold text-primary-blue text-[11px]">
+                    {initial}
+                  </div>
+                )}
+              </div>
+              <div className="absolute -bottom-[2px] -right-[2px] w-[14px] h-[14px] rounded-full bg-white flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.15)]">
+                <LibraryIcon width={9} height={9} />
+              </div>
             </div>
             {participantCount > 0 && (
               <div className="flex items-center gap-[4px] bg-white/90 rounded-full px-[8px] py-[3px] text-[#1C274C]">
@@ -248,7 +253,7 @@ export default function PlacePanelStoryRow({ thread }: PlacePanelStoryRowProps) 
           </div>
         </div>
 
-        <div className="flex-1 min-w-0 flex flex-col justify-between md:justify-start p-[12px] md:px-[12px] md:py-[8px] gap-[6px]">
+        <div className="flex-1 min-w-0 flex flex-col justify-between md:justify-start p-[12px] md:px-[6px] md:pt-[8px] md:pb-[4px] gap-[6px]">
           {/* Mobile top row: avatar/chip on left, bookmark on right */}
           <div className="md:hidden flex items-center justify-between">
             <div className="flex items-center gap-[6px]">

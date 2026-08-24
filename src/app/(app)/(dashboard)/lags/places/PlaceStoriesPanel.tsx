@@ -77,8 +77,8 @@ function PanelBody({
 
   return (
     <>
-      <div className="px-[20px] pt-[20px] pb-[12px]">
-        <h2 className="font-montserrat font-bold text-primary-blue text-[24px] leading-tight">
+      <div className="px-[16px] pb-[16px]">
+        <h2 className="font-montserrat font-medium text-primary-blue text-[22px] leading-tight">
           {heading}
         </h2>
         <p className="font-montserrat text-primary-blue/60 text-[13px] mt-[4px]">
@@ -86,7 +86,7 @@ function PanelBody({
         </p>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide px-[20px] pb-[20px]">
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide px-[16px] pb-[20px]">
         {threads.length === 0 && !loading && (
           <p className="pt-[24px] font-montserrat text-primary-blue/60 text-[14px]">
             No stories at this place.
@@ -122,7 +122,7 @@ export function PlaceStoriesInlinePanel({
     <aside
       role="region"
       aria-label="Stories at place"
-      className="hidden md:flex flex-col w-[340px] bg-white border-l border-black/[0.08]"
+      className="hidden md:flex flex-col w-[270px] md:-mt-[64px]"
     >
       <PanelBody
         key={place.placeId ?? place.formattedAddress}

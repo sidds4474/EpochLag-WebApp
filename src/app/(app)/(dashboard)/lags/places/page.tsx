@@ -140,8 +140,8 @@ export default function LagsPlacesPage() {
 
   return (
     <>
-      <div className="relative flex h-full md:h-[calc(100%-24px)] min-h-0 rounded-[20px] overflow-hidden border border-black/[0.06] bg-[#e5e5e5]">
-        <div className="relative flex-1 min-h-0 min-w-0">
+      <div className="relative flex md:gap-[20px] h-full md:h-[calc(100%-24px)] min-h-0">
+        <div className="relative flex-1 min-h-0 min-w-0 rounded-[20px] overflow-hidden bg-[#e5e5e5]">
           <PlacesMap
             pins={pins}
             activeKey={activeKey}

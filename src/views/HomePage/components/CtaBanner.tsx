@@ -5,7 +5,6 @@ import { motion, useInView } from "motion/react";
 import AppStoreBadge from "../../../assets/images/app-store-badge.svg";
 import GooglePlayBadge from "../../../assets/images/google-play-badge.svg";
 import QrCode from "../../../assets/images/qr-code.png";
-import CtaBgCircle from "../../../assets/images/cta-bg-circle.svg";
 import { APP_STORE_URL, PLAY_STORE_URL, handleStoreClick } from "../../../utils/storeLinks";
 
 const CtaBanner = () => {
@@ -15,16 +14,8 @@ const CtaBanner = () => {
   return (
     <section
       ref={sectionRef}
-      className="relative w-full bg-warm-cream overflow-visible px-[16px] md:px-[24px] lg:px-[64px] 2xl:px-[95px] 6xl:px-[145px] py-[24px] md:py-[48px]"
+      className="relative w-full overflow-visible bg-[linear-gradient(to_bottom,#FDE6C9_0%,#FDE6C9_35%,var(--color-warm-cream)_35%,var(--color-warm-cream)_100%)] px-[16px] md:px-[24px] lg:px-[64px] 2xl:px-[95px] 6xl:px-[145px] py-[24px] md:py-[48px]"
     >
-      {/* Decorative circle - desktop only */}
-      <img
-        src={CtaBgCircle.src}
-        alt=""
-        aria-hidden="true"
-        className="hidden lg:block pointer-events-none absolute left-0 -translate-x-[5%] top-[0%] -translate-y-[50%] w-[280px] 2xl:w-[325px] h-auto z-[1]"
-      />
-
       <div className="relative z-[2] w-full bg-primary-blue rounded-[20px] md:rounded-[28px] 2xl:rounded-[32px] px-[24px] md:px-[40px] lg:px-[60px] 2xl:px-[80px] py-[40px] md:py-[56px] lg:py-[64px] 2xl:py-[72px]">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-[40px] lg:gap-[48px] xl:gap-[64px]">
           {/* Left - Text & Badges */}

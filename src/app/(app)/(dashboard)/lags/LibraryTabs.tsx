@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "motion/react";
 import { useSelectMode } from "./selectMode";
 
 const TABS: Array<{ href: string; label: string; match: (p: string) => boolean }> = [
@@ -29,30 +28,27 @@ export default function LagsTabs() {
   const { headerRight } = useSelectMode();
   return (
     <div className="flex items-center justify-between gap-[12px] md:gap-[16px]">
-      <div className="flex items-center gap-[2px] md:gap-[4px] bg-[#ededed] rounded-full p-[3px] md:p-[4px] overflow-x-auto scrollbar-hide max-w-full">
+      <div className="flex items-center gap-[8px] md:gap-[10px] overflow-x-auto scrollbar-hide max-w-full">
         {TABS.map((tab) => {
           const active = tab.match(pathname);
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              className={`relative cursor-pointer px-[12px] md:px-[18px] py-[5px] md:py-[6px] rounded-full font-montserrat font-medium text-[12px] md:text-[14px] whitespace-nowrap ${
-                active ? "text-white" : "text-primary-blue"
+              className={`relative cursor-pointer px-[18px] md:px-[24px] py-[10px] md:py-[12px] rounded-full font-montserrat font-medium text-[13px] md:text-[14px] whitespace-nowrap transition-colors ${
+                active
+                  ? "bg-primary-blue text-white font-semibold"
+                  : "bg-[#f0f0f0] text-primary-blue hover:bg-black/[0.08]"
               }`}
             >
-              {active && (
-                <motion.span
-                  layoutId="lags-tab-pill"
-                  className="absolute inset-0 bg-primary-blue rounded-full"
-                  transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
-                />
-              )}
               <span className="relative">{tab.label}</span>
             </Link>
           );
         })}
       </div>
-      {headerRight}
+      <div className="hidden md:flex items-center gap-[12px] md:gap-[16px]">
+        {headerRight}
+      </div>
     </div>
   );
 }

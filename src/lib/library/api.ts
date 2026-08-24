@@ -77,6 +77,7 @@ export type FetchStoriesParams = {
   limit?: number;
   tags?: string[];
   personId?: string;
+  groupId?: string;
   isPrivate?: boolean;
   isBookmark?: boolean;
   search?: string;
@@ -94,6 +95,7 @@ export async function fetchStories(
     limit = 10,
     tags,
     personId,
+    groupId,
     isPrivate,
     isBookmark,
     search,
@@ -106,6 +108,7 @@ export async function fetchStories(
   qs.set("sortBy", "latestActivity");
   qs.set("sortOrder", "desc");
   if (personId) qs.set("people", personId);
+  if (groupId) qs.set("groupId", groupId);
   if (isPrivate) qs.set("isPrivate", "true");
   if (isBookmark) qs.set("isBookmark", "true");
   if (search && search.trim()) qs.set("search", search.trim());

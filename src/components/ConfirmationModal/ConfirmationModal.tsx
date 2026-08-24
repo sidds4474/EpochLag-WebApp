@@ -38,7 +38,7 @@ export default function ConfirmationModal({
   }
 
   const confirmClasses = destructive
-    ? "bg-red-500 text-white hover:opacity-90"
+    ? "bg-[#D95F3B] text-white hover:opacity-90"
     : "bg-primary-orange text-primary-white hover:opacity-90";
 
   return (
@@ -58,12 +58,12 @@ export default function ConfirmationModal({
             {body}
           </p>
         )}
-        <div className="mt-[20px] flex items-center gap-[10px]">
+        <div className={`mt-[20px] flex items-center gap-[10px] ${destructive ? "flex-row-reverse" : ""}`}>
           <button
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="cursor-pointer flex-1 bg-white text-primary-blue font-montserrat font-semibold text-[14px] rounded-full py-[10px] border border-primary-blue/25 hover:bg-black/[0.03] transition-colors disabled:opacity-50"
+            className="cursor-pointer flex-1 bg-white text-[#092E4A] font-montserrat font-semibold text-[14px] rounded-full py-[10px] border border-[#092E4A] hover:bg-black/[0.03] transition-colors disabled:opacity-50"
           >
             {cancelLabel}
           </button>

@@ -4,8 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import LogoDark from "../../../assets/images/logo-dark.webp";
-import type { HomePeople } from "../../../types/home";
-import { PersonRow } from "../../../components/ui";
 import {
   ChevronRightIcon,
   HomeIcon,
@@ -13,10 +11,6 @@ import {
   InteractionsIcon,
   PlusIcon,
 } from "./icons";
-
-type SidebarProps = {
-  people: HomePeople | null;
-};
 
 // Three primary destinations only. Old routes (interactions, bookmarks, drafts)
 // still exist and are reachable elsewhere; they're just gone from top-level nav.
@@ -52,10 +46,8 @@ function fireCreate() {
   }
 }
 
-export default function Sidebar({ people }: SidebarProps) {
+export default function Sidebar() {
   const pathname = usePathname() ?? "";
-  const hasFriends = (people?.users.length ?? 0) > 0;
-  const topFive = people?.users.slice(0, 5) ?? [];
 
   return (
     <>
@@ -63,7 +55,7 @@ export default function Sidebar({ people }: SidebarProps) {
           opens a slide-out drawer instead. See TabletDrawer.tsx. */}
 
       {/* Desktop: full sidebar (lg+) */}
-      <aside className="hidden lg:flex w-[17.0625rem] shrink-0 flex-col px-[20px] py-[24px] gap-[20px] overflow-y-auto scrollbar-hide">
+      <aside className="hidden lg:flex w-[17.0625rem] shrink-0 flex-col px-[20px] py-[24px] gap-[20px] overflow-y-auto scrollbar-hide shadow-[0_0_28.3px_0_rgba(0,0,0,0.10)] relative z-10">
         <Link href="/home" className="block">
           <img
             src={LogoDark.src}
@@ -117,54 +109,6 @@ export default function Sidebar({ people }: SidebarProps) {
             );
           })}
         </nav>
-
-        <div className="h-[1px] shrink-0 bg-[color:var(--color-border-divider)]" />
-
-        <div className="flex flex-col gap-[10px]">
-          <div className="flex items-center justify-between px-[2px]">
-            <h3 className="font-montserrat font-bold text-primary-blue text-[14px]">
-              Friends &amp; Family
-            </h3>
-            {hasFriends && (
-              <Link
-                href="/friends"
-                className="font-montserrat text-primary-blue/60 text-[12px] hover:text-primary-blue"
-              >
-                View All
-              </Link>
-            )}
-          </div>
-
-          {people === null ? (
-            <div className="flex flex-col gap-[6px]">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="h-[44px] rounded-[12px] bg-black/[0.04] animate-pulse"
-                />
-              ))}
-            </div>
-          ) : hasFriends ? (
-            <ul className="flex flex-col gap-[2px]">
-              {topFive.map((person) => (
-                <li key={person._id}>
-                  <PersonRow
-                    person={person}
-                    href={`/profile/${person._id}`}
-                  />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Link
-              href="/friends"
-              className="cursor-pointer flex items-center justify-center gap-[8px] border border-black/[0.15] rounded-full py-[10px] font-montserrat font-medium text-[13px] text-primary-blue/80 hover:bg-black/[0.03] transition-colors"
-            >
-              <PlusIcon width={14} height={14} />
-              Add friends
-            </Link>
-          )}
-        </div>
 
         <div className="flex-1" />
 

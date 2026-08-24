@@ -196,3 +196,13 @@ body::-webkit-scrollbar {
   from { transform: translateX(100%); }
   to   { transform: translateX(0); }
 }
+
+.gm-style img,
+.gm-style area,
+.gm-style div[tabindex] {
+  outline: none !important;
+}
+.gm-style :focus,
+.gm-style :focus-visible {
+  outline: none !important;
+}

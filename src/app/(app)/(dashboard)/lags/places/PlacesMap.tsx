@@ -15,7 +15,6 @@ export type MapPin = {
 type PlacesMapProps = {
   pins: MapPin[];
   activeKey: string | null;
-  panelOpen: boolean;
   onPinTap: (pin: MapPin) => void;
   onMapClick: () => void;
 };
@@ -166,32 +165,27 @@ function mercY(lat: number): number {
   return 0.5 - y / (2 * Math.PI);
 }
 
-// Cover-fits pins to viewport: picks the *higher* of lat-fit and lng-fit
-// zoom so the tighter dimension fills the frame and the other overflows.
-// User pans horizontally (or vertically) to see off-screen pins.
-function FitBounds({
-  pins,
-  panelOpen,
-}: {
-  pins: MapPin[];
-  panelOpen: boolean;
-}) {
+// Cover-fits pins to viewport once, on the first non-empty pins load.
+// Subsequent pin-array changes (from lazy coord resolution) do not refit
+// so the user's manual pan is preserved.
+function InitialCoverFit({ pins }: { pins: MapPin[] }) {
   const map = useMap();
+  const fittedRef = useRef(false);
   useEffect(() => {
-    if (!map || pins.length === 0) return;
+    if (!map || pins.length === 0 || fittedRef.current) return;
+    fittedRef.current = true;
 
     if (pins.length === 1) {
       const p = pins[0];
-      const offset = panelOpen ? -0.05 : 0;
-      map.setCenter({ lat: p.lat, lng: p.lng + offset });
+      map.setCenter({ lat: p.lat, lng: p.lng });
       map.setZoom(10);
       return;
     }
 
     const div = map.getDiv() as HTMLElement | null;
     if (!div) return;
-    const viewW = div.clientWidth - (panelOpen ? 380 : 40) - 40;
-    const viewH = div.clientHeight - 40 - 40;
+    const viewW = div.clientWidth - 80;
+    const viewH = div.clientHeight - 80;
     if (viewW <= 0 || viewH <= 0) return;
 
     let latN = -90;
@@ -220,15 +214,33 @@ function FitBounds({
       ((2 * Math.atan(Math.exp(yMid)) - Math.PI / 2) * 180) / Math.PI;
     const centerLng = (lngW + lngE) / 2;
 
-    // Bias center left when panel is open so the visible viewport centroid
-    // lines up with the pin centroid rather than the full map centroid.
-    const worldPx = 256 * Math.pow(2, zoom);
-    const panelShiftPx = panelOpen ? 380 / 2 : 0;
-    const lngShift = (panelShiftPx / worldPx) * 360;
-
-    map.setCenter({ lat: centerLat, lng: centerLng - lngShift });
+    map.setCenter({ lat: centerLat, lng: centerLng });
     map.setZoom(zoom);
-  }, [map, pins, panelOpen]);
+  }, [map, pins]);
+  return null;
+}
+
+// Focuses the tapped pin: pans to it and bumps zoom to at least 8 for
+// context. The map div is a flex sibling of the panel — its own width
+// already excludes the panel, so panTo centers the pin in the visible area.
+function FocusActivePin({
+  pins,
+  activeKey,
+}: {
+  pins: MapPin[];
+  activeKey: string | null;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (!map || !activeKey) return;
+    const pin = pins.find((p) => p.key === activeKey);
+    if (!pin) return;
+
+    const currentZoom = map.getZoom() ?? 4;
+    const targetZoom = Math.max(currentZoom, 8);
+    if (targetZoom !== currentZoom) map.setZoom(targetZoom);
+    map.panTo({ lat: pin.lat, lng: pin.lng });
+  }, [map, activeKey, pins]);
   return null;
 }
 
@@ -246,7 +258,6 @@ function MapClickCloser({ onMapClick }: { onMapClick: () => void }) {
 export default function PlacesMap({
   pins,
   activeKey,
-  panelOpen,
   onPinTap,
   onMapClick,
 }: PlacesMapProps) {
@@ -272,7 +283,8 @@ export default function PlacesMap({
         styles={GRAYSCALE_STYLE}
         className="w-full h-full"
       >
-        <FitBounds pins={pins} panelOpen={panelOpen} />
+        <InitialCoverFit pins={pins} />
+        <FocusActivePin pins={pins} activeKey={activeKey} />
         <MapClickCloser onMapClick={onMapClick} />
         <MarkersLayer pins={pins} activeKey={activeKey} onPinTap={onPinTap} />
       </GMap>

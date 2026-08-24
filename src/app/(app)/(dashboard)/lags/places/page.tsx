@@ -138,8 +138,6 @@ export default function LagsPlacesPage() {
     return () => document.removeEventListener("keydown", onKey);
   }, [activePlace, handleClose]);
 
-  const panelOpen = activePlace !== null;
-
   return (
     <>
       <div className="relative flex h-full md:h-[calc(100%-24px)] min-h-0 rounded-[20px] overflow-hidden border border-black/[0.06] bg-[#e5e5e5]">
@@ -147,7 +145,6 @@ export default function LagsPlacesPage() {
           <PlacesMap
             pins={pins}
             activeKey={activeKey}
-            panelOpen={panelOpen}
             onPinTap={handlePinTap}
             onMapClick={handleClose}
           />

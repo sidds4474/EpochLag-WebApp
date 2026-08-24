@@ -89,7 +89,7 @@ export default function TabletDrawer({
         aria-label="Navigation menu"
       >
         <Link
-          href="/profile"
+          href="/studio"
           onClick={onClose}
           className="flex items-center gap-[12px] px-[4px]"
         >

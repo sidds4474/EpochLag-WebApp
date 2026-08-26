@@ -2,21 +2,21 @@
 
 import { useRef, useState, useEffect } from "react";
 import { motion, useInView } from "motion/react";
-import ForYou from "../../../assets/images/For you.png";
-import ChooseCover from "../../../assets/images/Choose cover.png";
-import NewStory from "../../../assets/images/New story3rd.png";
-import Timeline from "../../../assets/images/timeline 4th.png";
-import CreateGroup from "../../../assets/images/Create Group 5th.png";
-import Grid from "../../../assets/images/grid 6th.png";
-import Received from "../../../assets/images/Received 7th.png";
+import Homescreen from "../../../assets/images/landing/Homescreen.png";
+import ChooseCover from "../../../assets/images/landing/Choose_cover.png";
+import TellAStory from "../../../assets/images/landing/Tell_a_story.png";
+import Inspiration from "../../../assets/images/landing/Inspiration.png";
+import Moments from "../../../assets/images/landing/Moments.png";
+import Grid from "../../../assets/images/landing/grid.png";
+import Studio from "../../../assets/images/landing/Studio.png";
 
-const slides = [ForYou, ChooseCover, NewStory, Timeline, CreateGroup, Grid, Received];
+const slides = [Homescreen, ChooseCover, TellAStory, Inspiration, Moments, Grid, Studio];
 
 const slideContent = [
   {
     subtitle: "HOW IT WORKS",
-    heading: "Not sure where to start? We've got you.",
-    body: "Browse dozens of story prompts across every chapter of life - childhood, family, travel, milestones, and more. Send one to someone you love or answer it yourself. Sometimes the right question is all you need.",
+    heading: "Welcome home",
+    body: "The moments worth remembering, all in one place. A memory from your past, a question waiting for you, and the latest from the people you love.",
   },
   {
     subtitle: "HOW IT WORKS",
@@ -26,27 +26,27 @@ const slideContent = [
   {
     subtitle: "HOW IT WORKS",
     heading: "Tell your stories, your way.",
-    body: "Write, record a voice message, add photos, videos, and dates \u2014 all in one place. Whether you\u2019re sharing a memory or answering a question someone sent you, Epoch Lag makes it simple to tell the story the way it actually happened.",
+    body: "Write, record a voice message, add photos, videos, and dates — all in one place. Whether you’re sharing a memory or answering a question someone sent you, Epoch Lag makes it simple to tell the story the way it actually happened.",
   },
   {
     subtitle: "HOW IT WORKS",
-    heading: "Watch your life take shape.",
-    body: "Every story you tell lands on a timeline, organized chronologically across the years. Scroll back through the moments that made you who you are and see the full picture of a life well lived.",
+    heading: "Not sure where to start? We've got you.",
+    body: "Browse thoughtful prompts made to unlock the stories worth telling, about childhood, love, family, and everything in between. Send one to someone you love and discover a story you’ve never heard before.",
   },
   {
     subtitle: "HOW IT WORKS",
-    heading: "Bring the people who matter into the story.",
-    body: "Invite family and friends to share, contribute, and respond. Create groups so everyone can add their own version of a memory. Because the best stories are rarely just one person\u2019s to tell.",
+    heading: "Keep track of your important events",
+    body: "Some dates are too important to forget. Moments helps you hold onto them. Birthdays, anniversaries, graduations, or any day that matters to the people you love.",
   },
   {
     subtitle: "HOW IT WORKS",
     heading: "Give every chapter its own home.",
-    body: "Organize your stories into shared albums: family trips, childhood memories, a grandparent\u2019s voice. Share them with the people who belong in them, and build something everyone can add to over time.",
+    body: "Browse your full collection, follow your life along a timeline, see where your memories happened on a map, or explore them through the people who shaped them.",
   },
   {
     subtitle: "HOW IT WORKS",
-    heading: "Easily keep track of your stories.",
-    body: "See every story you\u2019ve received, sent, and saved in one place. Never lose a memory someone trusted you with and always know when someone has shared something worth keeping.",
+    heading: "Manage everything in one place",
+    body: "Studio is your creative space in Epoch Lag. Everything you’ve made, saved, and shared lives here. Manage your connections and settings, all from one place.",
   },
 ];
 
@@ -108,7 +108,7 @@ const HowItWorks = () => {
   return (
     <section
       ref={sectionRef}
-      className="w-full bg-primary-cream-dkr overflow-x-clip overflow-y-visible"
+      className="w-full bg-[#FDE6C9] overflow-x-clip overflow-y-visible"
     >
       <div className="w-full flex flex-col md:flex-row px-[16px] md:px-[24px] lg:pl-[64px] 2xl:pl-[95px] 6xl:pl-[145px] md:pr-0 pt-[32px] pb-[10px] md:pt-[40px] md:pb-0 lg:py-0">
         {/* Left - Text Content */}
@@ -166,7 +166,7 @@ const HowItWorks = () => {
         >
           {/* Sizing wrapper customized with layout offsets */}
           <div
-            className="relative w-[302px] sm:w-[346px] md:w-[280px] lg:w-[307px] 2xl:w-[346px] h-full md:ml-[10%] lg:ml-[20%] 2xl:ml-[25%] cursor-grab active:cursor-grabbing select-none touch-pan-y md:translate-y-0"
+            className="relative w-[260px] sm:w-[300px] md:w-[240px] lg:w-[265px] 2xl:w-[300px] h-full md:ml-[10%] lg:ml-[20%] 2xl:ml-[25%] cursor-grab active:cursor-grabbing select-none touch-pan-y md:translate-y-0"
             onMouseDown={handleDragStart}
             onMouseUp={handleDragEnd}
             onTouchStart={handleDragStart}
@@ -188,14 +188,14 @@ const HowItWorks = () => {
                 // Active Card: Center, full size, top layer
                 animateProps = { x: "0%", y: "0%", scale: 1, opacity: 1, zIndex: 30 };
               } else if (diff === 1) {
-                // Next Card: Adjacent to the right, no overlap
-                animateProps = { x: "90%", y: "0%", scale: 1, opacity: 0.6, zIndex: 20 };
+                // Next Card: adjacent to the right with a clear gap between phones
+                animateProps = { x: "112%", y: "0%", scale: 1, opacity: 1, zIndex: 20 };
               } else if (diff === 2) {
-                // Third Card: Peeking from further right on larger screens
-                animateProps = { x: "180%", y: "0%", scale: 1, opacity: 0.3, zIndex: 10 };
+                // Third Card: further right; kept visible for continuity
+                animateProps = { x: "224%", y: "0%", scale: 1, opacity: 1, zIndex: 10 };
               } else if (diff > 2) {
                 // Hidden: off-screen right
-                animateProps = { x: "270%", y: "0%", scale: 1, opacity: 0, zIndex: 0 };
+                animateProps = { x: "336%", y: "0%", scale: 1, opacity: 0, zIndex: 0 };
               } else if (diff === -1) {
                 // Previous Card: stacked behind, same position, hidden
                 animateProps = { x: "0%", y: "0%", scale: 0.95, opacity: 0, zIndex: 10 };

@@ -69,6 +69,9 @@ export default function BottomTabBar({ user }: { user: User | null }) {
 
   const [left1, left2, right1, right2] = items;
 
+  // Hide on immersive routes (Open Story matches Figma — no bottom nav).
+  if (pathname.startsWith("/thread/")) return null;
+
   return (
     <nav
       className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/[0.06] pb-[max(env(safe-area-inset-bottom),8px)] pt-[8px]"

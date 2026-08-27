@@ -1,6 +1,7 @@
 "use client";
 
 import { APIProvider } from "@vis.gl/react-google-maps";
+import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { useAuth } from "../../../lib/auth/AuthProvider";
 import AppDownloadBanner from "./AppDownloadBanner";
@@ -13,7 +14,10 @@ const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const pathname = usePathname() ?? "";
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Immersive routes hide the bottom tab bar, so don't reserve room for it.
+  const isImmersive = pathname.startsWith("/thread/");
 
   return (
     <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
@@ -25,7 +29,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             user={user}
             onOpenDrawer={() => setDrawerOpen(true)}
           />
-          <main className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden pb-[80px] md:pb-0">
+          <main className={`flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden ${isImmersive ? "" : "pb-[80px] md:pb-0"}`}>
             {children}
           </main>
         </div>

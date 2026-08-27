@@ -87,6 +87,21 @@ export async function deleteStory(storyId: string): Promise<void> {
   await api.put<Envelope<unknown>>(`/api/stories/${storyId}/delete`, {});
 }
 
+// Removes a single media entry from a story by its position in the media
+// array. BE only accepts this on draft stories — the caller downgrades the
+// story to draft first if it's currently published. Removals must be sent
+// in DESCENDING index order sequentially: BE bumps __v on every media
+// mutation so parallel fanout hits optimistic-concurrency conflicts, and
+// ascending would shift the remaining indices under the caller's feet.
+export async function deleteStoryMedia(
+  storyId: string,
+  index: number
+): Promise<void> {
+  await api.delete<Envelope<unknown>>(
+    `/api/stories/${storyId}/media/${index}`
+  );
+}
+
 export async function setThreadPrivacy(
   threadId: string,
   input: { isPrivate: boolean }

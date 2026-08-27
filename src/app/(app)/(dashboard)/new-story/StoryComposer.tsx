@@ -27,6 +27,7 @@ import { ApiError } from "../../../../lib/api/client";
 import {
   createStory,
   createUserCard,
+  deleteStoryMedia,
   getUploadToken,
   publishStory,
   setThreadPrivacy,
@@ -46,6 +47,7 @@ import { fetchUserCard, getCachedUserCard } from "../../../../lib/home/api";
 import { fetchDraftDetail } from "../../../../lib/studio/api";
 import { useAuth } from "../../../../lib/auth/AuthProvider";
 import type { ThreadResponse, UserCard } from "../../../../types/home";
+import type { ContentBlock } from "../../../../types/story";
 import PreviewOverlay from "../../../../views/Thread/PreviewOverlay";
 import ChooseCoverModal, { type CoverPick } from "./ChooseCoverModal";
 import StoryCreatedOverlay from "./StoryCreated";
@@ -245,6 +247,26 @@ type Props = {
    *  again fine on publish because we skip un-uploaded blocks with no file. */
   draftId?: string | null;
   onBack: () => void;
+  /** Edit-mode entry (from Open Story → Edit Lag). Seeds every field from
+   *  the existing story so the composer opens with everything pre-populated.
+   *  Save path takes a different branch (update, no create/publish flow). */
+  mode?: "new" | "edit";
+  initialTitle?: string;
+  initialBlocks?: ContentBlock[];
+  initialCoverImageUrl?: string | null;
+  initialLocation?: LocationValue | null;
+  initialDateOfStory?: string | null;
+  initialMusic?: MusicValue | null;
+  initialTaggedPeople?: FriendUser[];
+  existingStoryId?: string;
+  existingPromptId?: string;
+  existingThreadId?: string;
+  existingThreadIsPrivate?: boolean;
+  existingStoryStatus?: "draft" | "published";
+  /** Answer-a-Prompt edit — the shared prompt card is read-only for cover
+   *  edits (would clobber other answerers). Locks the cover picker. */
+  isInspoEdit?: boolean;
+  onSaved?: () => void;
 };
 
 export default function StoryComposer({
@@ -252,7 +274,23 @@ export default function StoryComposer({
   promptId: replyPromptId,
   draftId,
   onBack,
+  mode = "new",
+  initialTitle,
+  initialBlocks,
+  initialCoverImageUrl,
+  initialLocation,
+  initialDateOfStory,
+  initialMusic,
+  initialTaggedPeople,
+  existingStoryId,
+  existingPromptId,
+  existingThreadId,
+  existingThreadIsPrivate,
+  existingStoryStatus,
+  isInspoEdit = false,
+  onSaved,
 }: Props) {
+  const isEdit = mode === "edit";
   const router = useRouter();
   const { user } = useAuth();
   const [prompt, setPrompt] = useState<UserCard | null>(() =>
@@ -265,11 +303,51 @@ export default function StoryComposer({
   // `readDraft`/`writeDraft` below for the shape.
   const draftKey = draftKeyFor(replyPromptId, albumId);
   const initialDraft = useMemo(() => readDraft(draftKey), [draftKey]);
-  const [title, setTitle] = useState(initialDraft?.title ?? "");
+  // Edit-mode seed for the block editor. Existing media blocks land with
+  // `uploadedUrl` already set + `file: null` so publish/save skips the
+  // upload phase for them entirely.
+  const editSeededBlocks = useMemo<EditorBlock[] | null>(() => {
+    if (!isEdit || !initialBlocks || initialBlocks.length === 0) return null;
+    return initialBlocks.map((b, i): EditorBlock => {
+      if (b.type === "text") {
+        return {
+          id: makeBlockId("text") + `-seed-${i}`,
+          type: "text",
+          text: b.text,
+        };
+      }
+      if (b.type === "audio") {
+        return {
+          id: makeBlockId("audio") + `-seed-${i}`,
+          type: "audio",
+          file: null,
+          preview: b.url,
+          uploadedUrl: b.url,
+        };
+      }
+      return {
+        id: makeBlockId(b.type) + `-seed-${i}`,
+        type: b.type,
+        file: null,
+        preview: b.url,
+        uploadedUrl: b.url,
+      };
+    });
+  }, [isEdit, initialBlocks]);
+  const [title, setTitle] = useState(
+    isEdit ? (initialTitle ?? "") : (initialDraft?.title ?? "")
+  );
   // Sync-hydrate blocks from the draft. Media blocks come back with null
   // file/preview — a separate effect below reads the Blob out of IndexedDB
   // and patches state to attach the file + fresh blob URL.
   const [blocks, setBlocks] = useState<EditorBlock[]>(() => {
+    if (editSeededBlocks) {
+      // Ensure a trailing empty text block so the user can keep typing at
+      // the end of the story without hunting for the picker.
+      const last = editSeededBlocks[editSeededBlocks.length - 1];
+      if (last && last.type === "text") return editSeededBlocks;
+      return [...editSeededBlocks, emptyTextBlock()];
+    }
     if (!initialDraft || initialDraft.blocks.length === 0) return [emptyTextBlock()];
     return initialDraft.blocks.map((b): EditorBlock => {
       if (b.kind === "text") {
@@ -294,6 +372,13 @@ export default function StoryComposer({
     });
   });
   const [cover, setCover] = useState<CoverState>(() => {
+    if (isEdit && initialCoverImageUrl) {
+      return {
+        file: null,
+        imageUrl: initialCoverImageUrl,
+        preview: initialCoverImageUrl,
+      };
+    }
     if (initialDraft?.coverImageUrl) {
       return {
         file: null,
@@ -317,17 +402,28 @@ export default function StoryComposer({
     return EMPTY_COVER;
   });
   const [dateOfStory, setDateOfStory] = useState<string | null>(
-    initialDraft?.dateOfStory ?? null
+    isEdit
+      ? (initialDateOfStory ?? null)
+      : (initialDraft?.dateOfStory ?? null)
   );
   const [location, setLocation] = useState<LocationValue | null>(
-    initialDraft?.location ?? null
+    isEdit ? (initialLocation ?? null) : (initialDraft?.location ?? null)
   );
-  const [music, setMusic] = useState<MusicValue | null>(initialDraft?.music ?? null);
-  const [allowShare, setAllowShare] = useState(initialDraft?.allowShare ?? false);
+  const [music, setMusic] = useState<MusicValue | null>(
+    isEdit ? (initialMusic ?? null) : (initialDraft?.music ?? null)
+  );
+  const [allowShare, setAllowShare] = useState(
+    isEdit
+      ? !existingThreadIsPrivate
+      : (initialDraft?.allowShare ?? false)
+  );
   // taggedPeople is client-only — never sent to /api/stories. Snapshot at
   // publish time and hand to the celebration screen to pre-check them in
-  // the share modal.
-  const [taggedPeople, setTaggedPeople] = useState<FriendUser[]>([]);
+  // the share modal. Edit mode seeds from the story's existing tagged
+  // people (also UI-only, mobile explicitly doesn't persist this).
+  const [taggedPeople, setTaggedPeople] = useState<FriendUser[]>(
+    isEdit ? (initialTaggedPeople ?? []) : []
+  );
   const [showTagPeople, setShowTagPeople] = useState(false);
 
   const [showCoverModal, setShowCoverModal] = useState(false);
@@ -348,11 +444,41 @@ export default function StoryComposer({
   // so the unmount effect below can read them without stale closures.
   // Answer-a-Prompt seeds promptIdRef with the existing prompt so we reply
   // to it instead of minting a fresh white card.
-  const promptIdRef = useRef<string | null>(replyPromptId ?? null);
+  const promptIdRef = useRef<string | null>(
+    existingPromptId ?? replyPromptId ?? null
+  );
   // Draft-resume seeds storyIdRef so publish PUTs the existing draft
   // record instead of creating a brand-new story. The draft's own
-  // promptId (if any) is hydrated in the effect below.
-  const storyIdRef = useRef<string | null>(draftId ?? null);
+  // promptId (if any) is hydrated in the effect below. Edit mode
+  // seeds directly with the existing story's id.
+  const storyIdRef = useRef<string | null>(
+    existingStoryId ?? draftId ?? null
+  );
+
+  // Edit-mode preservation refs. Mobile spec: if a chip is untouched (state
+  // remains equal to original), the save handler falls back to the original
+  // value rather than sending null (which BE treats as "wipe this field").
+  const originalDateRef = useRef<string | null>(initialDateOfStory ?? null);
+  const originalLocationRef = useRef<LocationValue | null>(
+    initialLocation ?? null
+  );
+  const originalMusicRef = useRef<MusicValue | null>(initialMusic ?? null);
+  const originalStatusRef = useRef<"draft" | "published" | null>(
+    existingStoryStatus ?? null
+  );
+  // Snapshot of the ordered media-only URLs at edit mount. On save, any URL
+  // in the snapshot that's no longer present in current blocks = removed;
+  // send DELETE /api/stories/:id/media/:index for it (descending order).
+  const initialMediaSnapshotRef = useRef<Array<{ url: string }>>(
+    isEdit && initialBlocks
+      ? initialBlocks
+          .filter(
+            (b): b is Extract<ContentBlock, { type: "image" | "video" | "audio" }> =>
+              b.type !== "text"
+          )
+          .map((b) => ({ url: b.url }))
+      : []
+  );
 
   // Background media uploads — kicked off the moment a user adds a photo,
   // video, or finishes a voice recording. Publish awaits any still in flight
@@ -361,6 +487,7 @@ export default function StoryComposer({
   const uploadPromisesRef = useRef<Map<string, Promise<void>>>(new Map());
 
   useEffect(() => {
+    if (isEdit) return; // edit-mode owns its own prompt/cover seeding
     if (!replyPromptId) return;
     let cancelled = false;
     fetchUserCard(replyPromptId)
@@ -475,6 +602,7 @@ export default function StoryComposer({
   // blocks with their Blobs (see the IDB hydration effect).
   useEffect(() => {
     if (createdStory) return; // published — cleanup happens below
+    if (isEdit) return; // edit sessions never persist a new-story draft
     const persistedBlocks: PersistedBlock[] = blocks
       .filter(
         (b) =>
@@ -593,6 +721,11 @@ export default function StoryComposer({
     return () => {
       if (draftSavingRef.current) return;
       if (createdStory) return; // published — no draft dance needed
+      // CRITICAL: edit mode must never touch storyIdRef via draft-save —
+      // that would call updateStory on the real published story with only
+      // the serialized text (wiping every media block and downgrading it
+      // to draft) any time the user backs out.
+      if (isEdit) return;
       if (!dirtyRef.current) return;
       draftSavingRef.current = true;
       // Draft save only persists text — media blocks stay in-memory to keep
@@ -838,6 +971,198 @@ export default function StoryComposer({
         err instanceof ApiError
           ? err.message
           : "Something went wrong. Please try again.";
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Edit-mode privacy toggle — fires the PUT immediately (not on Save).
+  // Mobile's ManageStoryParticipantsModal owns this endpoint on a separate
+  // flow; the web edit view surfaces the toggle inline but the call is
+  // still independent of the Save button. Optimistic + rollback on failure.
+  async function handleAllowShareChange(next: boolean) {
+    setAllowShare(next);
+    if (!isEdit || !existingThreadId) return;
+    try {
+      await setThreadPrivacy(existingThreadId, { isPrivate: !next });
+    } catch {
+      setAllowShare(!next);
+      toast.error("Couldn't update sharing. Try again.");
+    }
+  }
+
+  // Edit-mode save — matches mobile's ChooseCoverV4Screen orchestration.
+  // Order matters:
+  //   1. Guard on media in flight (blob URLs would poison the content string).
+  //   2. Cover attach (skipped on inspo edits — shared prompt card is R/O).
+  //   3. Diff current media vs the mount-time snapshot to detect removals.
+  //   4. If ANY removals AND story was published, downgrade to draft first.
+  //      DELETEs are rejected on published stories; adding new media without
+  //      removals auto-downgrades server-side, so pure-add skips this step.
+  //   5. DELETE removed media by index in DESCENDING order (sequential —
+  //      BE bumps __v on every media mutation → parallel fanout conflicts).
+  //   6. Upload any NEW media (background uploads may already have stamped
+  //      uploadedUrl).
+  //   7. PUT /stories/:id with content/title/date/location/music.
+  //      Untouched date/location/music fall back to the original snapshot so
+  //      the caller doesn't accidentally wipe a field it didn't touch.
+  //   8. Best-effort re-publish. Swallow ALL errors — if BE didn't downgrade,
+  //      this 400s ("already published") and that's a no-op.
+  async function handleSaveEdit() {
+    if (submitting) return;
+    const storyId = storyIdRef.current;
+    if (!storyId) return;
+    if (!title.trim()) {
+      toast.error("Give your story a title");
+      return;
+    }
+    const hasContent = blocksRef.current.some((b) =>
+      b.type === "text" ? b.text.trim().length > 0 : true
+    );
+    if (!hasContent) {
+      toast.error("Add some text or media to your story");
+      return;
+    }
+    if (recording) {
+      toast.error("Stop the recording before saving");
+      return;
+    }
+    // Wait on any background uploads still in flight. If those uploads
+    // FAILED (background upload swallows errors), the block keeps its
+    // `file` with no `uploadedUrl` — the fallback loop below will retry
+    // the upload synchronously instead of blocking the user.
+    if (uploadPromisesRef.current.size > 0) {
+      await Promise.all(uploadPromisesRef.current.values());
+    }
+
+    setSubmitting(true);
+    try {
+      // 1. Cover attach — skip on inspo edits (shared prompt card is R/O).
+      const promptId = promptIdRef.current;
+      if (!isInspoEdit && promptId) {
+        if (cover.file) {
+          await updateUserCard(promptId, { file: cover.file });
+        } else if (
+          cover.imageUrl &&
+          cover.imageUrl !== initialCoverImageUrl
+        ) {
+          await updateUserCard(promptId, { imageUrl: cover.imageUrl });
+        }
+      }
+
+      // 2. Media diff. Snapshot = media at mount; current = uploaded URLs
+      // still present in blocks. Anything in snapshot missing from current
+      // = removed. Original indices come from snapshot order.
+      const currentBlocks = blocksRef.current;
+      const currentUrls = new Set(
+        currentBlocks
+          .filter((b) => b.type !== "text" && !!b.uploadedUrl)
+          .map((b) => (b as { uploadedUrl?: string }).uploadedUrl!)
+      );
+      const removedIndices: number[] = [];
+      initialMediaSnapshotRef.current.forEach((snap, idx) => {
+        if (!currentUrls.has(snap.url)) removedIndices.push(idx);
+      });
+
+      // 3. Downgrade guard — BE rejects both DELETEs and new-media uploads
+      // on published stories ("Cannot add media to published stories").
+      // Mobile relies on a BE-side auto-downgrade for pure-add edits; web BE
+      // doesn't do that, so we downgrade explicitly whenever there's any
+      // media mutation (adds OR removals). Re-publish at the end flips it
+      // back — if BE never downgraded, that call 400s harmlessly.
+      const hasNewUploads = currentBlocks.some(
+        (b) => b.type !== "text" && !b.uploadedUrl && !!b.file
+      );
+      if (
+        (removedIndices.length > 0 || hasNewUploads) &&
+        originalStatusRef.current === "published"
+      ) {
+        await updateStory(storyId, { status: "draft" });
+      }
+
+      // 4. DELETE removed media in descending index order, sequential.
+      const descending = [...removedIndices].sort((a, b) => b - a);
+      for (const idx of descending) {
+        try {
+          await deleteStoryMedia(storyId, idx);
+        } catch {
+          // Non-fatal — if a media entry is already gone BE will 404. The
+          // content string we send in step 6 is authoritative for the
+          // final block order anyway.
+        }
+      }
+
+      // 5. Upload any NEW media that snuck in without a background upload.
+      const uploadedByBlock = new Map<string, string>();
+      const pendingUploads: Array<Promise<void>> = [];
+      for (const b of currentBlocks) {
+        if (b.type === "text") continue;
+        if (b.uploadedUrl) {
+          uploadedByBlock.set(b.id, b.uploadedUrl);
+          continue;
+        }
+        if (!b.file) continue;
+        const file = b.file;
+        const blockId = b.id;
+        pendingUploads.push(
+          (async () => {
+            const token = await getUploadToken(storyId, {
+              fileName: file.name,
+              fileSize: file.size,
+              mimeType: file.type,
+            });
+            const uploaded = await uploadToCloudinary(token, file);
+            uploadedByBlock.set(blockId, uploaded.secure_url);
+          })()
+        );
+      }
+      await Promise.all(pendingUploads);
+
+      // 6. Serialize + update.
+      const serializable: StoryBlock[] = currentBlocks
+        .map((b): StoryBlock | null => {
+          if (b.type === "text") {
+            return b.text.trim() ? { type: "text", text: b.text } : null;
+          }
+          const url = uploadedByBlock.get(b.id);
+          return url ? { type: b.type, url } : null;
+        })
+        .filter((b): b is StoryBlock => b !== null);
+      const content = serializeBlocksToContent(serializable);
+
+      // Preserve-untouched pattern: if chip state is null but original was
+      // set, don't overwrite the original.
+      const nextDate = dateOfStory ?? originalDateRef.current ?? undefined;
+      const nextLocation = location ?? originalLocationRef.current ?? null;
+      const nextMusic = music ?? originalMusicRef.current ?? null;
+
+      await updateStory(storyId, {
+        title: title.trim(),
+        content,
+        dateOfStory: nextDate ?? undefined,
+        location: nextLocation,
+        music: nextMusic,
+      });
+
+      // 7. Best-effort re-publish. Swallow everything — if BE didn't
+      // downgrade, this 400s and that's fine.
+      try {
+        await publishStory(storyId, {
+          shareWith: [],
+          sendSeparately: false,
+        });
+      } catch {
+        /* silent — fire-and-forget insurance */
+      }
+
+      toast.success("Story updated");
+      onSaved?.();
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Couldn't save. Try again.";
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -1268,7 +1593,7 @@ export default function StoryComposer({
             <ChevronLeftIcon width={16} height={16} />
           </button>
           <h1 className="hidden lg:block font-montserrat font-bold text-primary-blue text-[28px] leading-tight truncate">
-            New Lag
+            {isEdit ? "Edit Lag" : "New Lag"}
           </h1>
         </div>
         {/* Mobile-only centered title */}
@@ -1336,11 +1661,17 @@ export default function StoryComposer({
           </button>
           <button
             type="button"
-            onClick={handlePublish}
+            onClick={isEdit ? handleSaveEdit : handlePublish}
             disabled={submitting}
             className="hidden lg:flex cursor-pointer items-center justify-center bg-primary-orange text-white rounded-full h-[44px] px-[44px] font-montserrat font-medium text-[15px] hover:brightness-95 transition-[filter] disabled:opacity-60"
           >
-            {submitting ? "Creating…" : "Create Story"}
+            {submitting
+              ? isEdit
+                ? "Saving…"
+                : "Creating…"
+              : isEdit
+                ? "Save"
+                : "Create Story"}
           </button>
         </div>
       </div>
@@ -1438,7 +1769,7 @@ export default function StoryComposer({
             </span>
             <ToggleSwitch
               checked={allowShare}
-              onChange={setAllowShare}
+              onChange={handleAllowShareChange}
               ariaLabel="Allow others to share"
             />
           </div>
@@ -1533,7 +1864,7 @@ export default function StoryComposer({
               </span>
               <ToggleSwitch
                 checked={allowShare}
-                onChange={setAllowShare}
+                onChange={handleAllowShareChange}
                 ariaLabel="Allow others to share"
               />
             </div>
@@ -1559,17 +1890,25 @@ export default function StoryComposer({
         <button
           type="button"
           onClick={() => {
+            if (isEdit) {
+              void handleSaveEdit();
+              return;
+            }
             if (mobileStep === "content") setMobileStep("cover");
             else void handlePublish();
           }}
           disabled={submitting}
           className="cursor-pointer w-full h-[52px] rounded-full bg-primary-orange text-white font-montserrat font-semibold text-[15px] hover:brightness-95 transition-[filter] disabled:opacity-60"
         >
-          {mobileStep === "content"
-            ? "Next"
-            : submitting
-            ? "Creating…"
-            : "Create Story"}
+          {isEdit
+            ? submitting
+              ? "Saving…"
+              : "Save"
+            : mobileStep === "content"
+              ? "Next"
+              : submitting
+                ? "Creating…"
+                : "Create Story"}
         </button>
       </div>
 

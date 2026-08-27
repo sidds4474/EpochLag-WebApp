@@ -2,13 +2,20 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { use, useEffect, useState } from "react";
-import { toast } from "react-hot-toast";
 import { ApiError } from "../../../../../lib/api/client";
 import { fetchThread } from "../../../../../lib/interactions/api";
 import { parseContentToBlocks } from "../../../../../lib/parseStoryContent";
 import type { Story, ThreadResponse } from "../../../../../types/home";
-import EditComposer from "./EditComposer";
+import type {
+  LocationValue,
+  MusicValue,
+} from "../../new-story/pickers";
+import StoryComposer from "../../new-story/StoryComposer";
 
+// Wraps StoryComposer in "edit" mode. All state (title, blocks, cover,
+// location, date, music, tag people, share toggle) is seeded from the
+// existing story + thread. Save takes a different branch (update, no
+// create) — see StoryComposer.handleSaveEdit.
 export default function EditStoryPage({
   params,
 }: {
@@ -83,18 +90,52 @@ export default function EditStoryPage({
   const { story, thread } = state;
   const blocks = parseContentToBlocks(story.content ?? "");
 
+  // Answer-a-Prompt edit: shared prompt card is R/O (would clobber for
+  // other answerers). Mobile uses `prompt.isTitleAvailable === false` as
+  // the inspo-edit signal.
+  const isInspoEdit = thread.thread.prompt?.isTitleAvailable === false;
+
+  const initialLocation: LocationValue | null = story.location
+    ? {
+        formattedAddress: story.location.formattedAddress ?? "",
+        placeId: "",
+        city: story.location.city ?? story.location.formattedAddress ?? "",
+      }
+    : null;
+  const initialMusic: MusicValue | null = story.music
+    ? {
+        trackName: story.music.trackName ?? "",
+        artistName: story.music.artistName ?? "",
+        previewUrl: story.music.previewUrl ?? "",
+        artworkUrl: story.music.artworkUrl ?? "",
+      }
+    : null;
+
   return (
-    <EditComposer
-      storyId={storyId}
-      threadId={thread.thread._id}
-      threadIsPrivate={!!thread.thread.isPrivate}
+    <StoryComposer
+      mode="edit"
+      onBack={() => router.back()}
+      existingStoryId={storyId}
+      existingPromptId={thread.thread.prompt?._id}
+      existingThreadId={thread.thread._id}
+      existingThreadIsPrivate={!!thread.thread.isPrivate}
+      existingStoryStatus="published"
+      isInspoEdit={isInspoEdit}
       initialTitle={story.title ?? ""}
       initialBlocks={blocks}
+      initialCoverImageUrl={
+        // Same priority ThreadViewer's coverUrl uses so the composer
+        // shows exactly what the reader was seeing.
+        thread.thread.prompt?.imageUrl ??
+        story.coverImage ??
+        story.cover ??
+        story.imageUrl ??
+        null
+      }
+      initialLocation={initialLocation}
       initialDateOfStory={story.dateOfStory ?? null}
-      initialLocation={story.location ?? null}
-      initialMusic={story.music ?? null}
+      initialMusic={initialMusic}
       onSaved={() => router.replace(`/thread/${thread.thread._id}`)}
-      onCancel={() => router.back()}
     />
   );
 }

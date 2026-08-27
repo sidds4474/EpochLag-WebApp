@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import type { User } from "../../../types/user";
 import LogoDark from "../../../assets/images/logo-dark.webp";
-import { useAuth } from "../../../lib/auth/AuthProvider";
 import { bustUrl } from "../../../lib/images";
 import { PersonIcon, SearchIcon } from "./icons";
 import NotificationsBell from "./notifications/NotificationsBell";
@@ -27,10 +26,7 @@ function MenuIcon({ width = 24, height = 24 }: { width?: number; height?: number
 
 export default function Header({ user, onOpenDrawer }: HeaderProps) {
   const router = useRouter();
-  const { signOut } = useAuth();
   const [query, setQuery] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -38,22 +34,6 @@ export default function Header({ user, onOpenDrawer }: HeaderProps) {
     if (!trimmed) return;
     router.push(`/search?q=${encodeURIComponent(trimmed)}`);
   };
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handlePointer = (e: MouseEvent) => {
-      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
-    };
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
-    };
-    document.addEventListener("mousedown", handlePointer);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("mousedown", handlePointer);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [menuOpen]);
 
   const initial = (user?.firstName || "?").charAt(0).toUpperCase();
 
@@ -123,58 +103,26 @@ export default function Header({ user, onOpenDrawer }: HeaderProps) {
 
         <NotificationsBell />
 
-      <div ref={menuRef} className="relative hidden lg:block">
-        <button
-          type="button"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Account menu"
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          className="cursor-pointer w-[40px] h-[40px] rounded-full overflow-hidden bg-primary-blue/15 text-primary-blue flex items-center justify-center shrink-0"
-        >
-          {user?.profilePicture ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={bustUrl(user.profilePicture, user.updatedAt)}
-              alt=""
-              className="w-full h-full object-cover"
-            />
-          ) : user ? (
-            <span className="font-montserrat font-semibold text-[15px]">
-              {initial}
-            </span>
-          ) : (
-            <PersonIcon width={20} height={20} />
-          )}
-        </button>
-
-        {menuOpen && (
-          <div
-            role="menu"
-            className="absolute right-0 top-[48px] min-w-[160px] bg-white rounded-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] border border-black/[0.06] py-[6px] z-10"
-          >
-            <Link
-              href="/studio"
-              role="menuitem"
-              onClick={() => setMenuOpen(false)}
-              className="block w-full text-left px-[14px] py-[10px] font-montserrat font-medium text-primary-blue text-[14px] hover:bg-black/[0.04] transition-colors"
-            >
-              Studio
-            </Link>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                signOut();
-              }}
-              className="cursor-pointer w-full text-left px-[14px] py-[10px] font-montserrat font-medium text-primary-blue text-[14px] hover:bg-black/[0.04] transition-colors"
-            >
-              Sign out
-            </button>
-          </div>
+      <Link
+        href="/studio"
+        aria-label="Studio"
+        className="cursor-pointer hidden lg:flex w-[40px] h-[40px] rounded-full overflow-hidden bg-primary-blue/15 text-primary-blue items-center justify-center shrink-0"
+      >
+        {user?.profilePicture ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={bustUrl(user.profilePicture, user.updatedAt)}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        ) : user ? (
+          <span className="font-montserrat font-semibold text-[15px]">
+            {initial}
+          </span>
+        ) : (
+          <PersonIcon width={20} height={20} />
         )}
-      </div>
+      </Link>
       </div>
     </header>
   );

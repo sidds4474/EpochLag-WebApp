@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import HeroImg from "../../../../assets/images/hero_img.jpg";
 import { BellIcon, SearchIcon } from "../icons";
 
@@ -19,10 +20,18 @@ export default function HeroGreeting({
   firstName: string;
   unreadCount?: number;
 }) {
+  const router = useRouter();
   const [greeting, setGreeting] = useState<string>(() =>
     getGreeting(new Date().getHours())
   );
   const timerRef = useRef<number | null>(null);
+
+  // Warm the /notifications + /search route chunks so first taps on the
+  // hero bell / search pill don't stall while Next fetches the page JS.
+  useEffect(() => {
+    router.prefetch("/notifications");
+    router.prefetch("/search");
+  }, [router]);
 
   // Roll the greeting over if the tab stays open past the bucket boundary.
   useEffect(() => {
@@ -61,7 +70,7 @@ export default function HeroGreeting({
       <Link
         href="/notifications"
         aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
-        className="md:hidden absolute top-[18px] right-[18px] w-[28px] h-[28px] flex items-center justify-center text-white"
+        className="md:hidden absolute top-[10px] right-[10px] z-10 w-[44px] h-[44px] flex items-center justify-center text-white"
       >
         <BellIcon width={22} height={22} />
         {unreadCount > 0 && (

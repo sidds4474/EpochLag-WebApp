@@ -23,6 +23,12 @@ export default function NotificationsBell({ onUnreadChange }: Props) {
     onUnreadChange?.(hasUnread);
   }, [hasUnread, onUnreadChange]);
 
+  // Warm the /notifications route chunk so tablet taps don't stall for a
+  // second while Next fetches the page JS on click.
+  useEffect(() => {
+    router.prefetch("/notifications");
+  }, [router]);
+
   useEffect(() => {
     if (!open) return;
     refresh();

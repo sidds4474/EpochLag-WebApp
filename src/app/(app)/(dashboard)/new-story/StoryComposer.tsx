@@ -354,6 +354,12 @@ export default function StoryComposer({
   // promptId (if any) is hydrated in the effect below.
   const storyIdRef = useRef<string | null>(draftId ?? null);
 
+  // Background media uploads — kicked off the moment a user adds a photo,
+  // video, or finishes a voice recording. Publish awaits any still in flight
+  // instead of doing the upload synchronously, making Publish feel instant
+  // for stories where everything already uploaded in the background.
+  const uploadPromisesRef = useRef<Map<string, Promise<void>>>(new Map());
+
   useEffect(() => {
     if (!replyPromptId) return;
     let cancelled = false;
@@ -566,6 +572,12 @@ export default function StoryComposer({
         if (missing.size === 0) return next;
         return next.filter((b) => !missing.has(b.id));
       });
+      // Kick off background uploads for blocks whose files were just
+      // restored from IDB — matches the fresh-add path so a resumed draft
+      // publishes just as fast.
+      for (const { id, file } of resolved) {
+        if (file) startBackgroundUpload(id, file);
+      }
     })();
     return () => {
       cancelled = true;
@@ -654,6 +666,35 @@ export default function StoryComposer({
     return { promptId, storyId };
   }
 
+  // Fire-and-forget media upload. Tracked in `uploadPromisesRef` so publish
+  // can await any still in flight. On success, stamps `uploadedUrl` on the
+  // block so publish skips re-upload; on failure, silently drops the tracker
+  // and publish's fallback loop will retry synchronously.
+  function startBackgroundUpload(blockId: string, file: File) {
+    const promise = (async () => {
+      const { storyId } = await ensureIds();
+      const token = await getUploadToken(storyId, {
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
+      });
+      const uploaded = await uploadToCloudinary(token, file);
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.id === blockId && b.type !== "text"
+            ? { ...b, uploadedUrl: uploaded.secure_url }
+            : b
+        )
+      );
+    })().catch(() => {
+      // Swallow — publish's fallback loop will re-upload if needed.
+    });
+    uploadPromisesRef.current.set(blockId, promise);
+    void promise.finally(() => {
+      uploadPromisesRef.current.delete(blockId);
+    });
+  }
+
   async function handlePublish() {
     if (submitting) return;
     if (!title.trim()) {
@@ -694,11 +735,21 @@ export default function StoryComposer({
         }
       }
 
-      // Phase-2 block content: upload any un-uploaded media in-order, then
+      // Wait for any background uploads still in flight before touching the
+      // block list — they may stamp `uploadedUrl` and skip work below.
+      if (uploadPromisesRef.current.size > 0) {
+        await Promise.all(uploadPromisesRef.current.values());
+      }
+
+      // Phase-2 block content: upload any un-uploaded media in parallel, then
       // serialize with the returned URLs. Uploaded blocks are cached in a
       // Map so retries after a mid-flight failure don't re-upload.
       const uploadedByBlock = new Map<string, string>();
-      for (const b of blocks) {
+      const pendingUploads: Array<Promise<void>> = [];
+      // Read fresh from the ref — background uploads may have stamped
+      // `uploadedUrl` on blocks after this handler captured its closure.
+      const currentBlocks = blocksRef.current;
+      for (const b of currentBlocks) {
         if (b.type === "text") continue;
         if (b.uploadedUrl) {
           uploadedByBlock.set(b.id, b.uploadedUrl);
@@ -709,14 +760,20 @@ export default function StoryComposer({
         // above blocks the in-record case; the rest we just skip.
         if (!b.file) continue;
         const file = b.file;
-        const token = await getUploadToken(storyId, {
-          fileName: file.name,
-          fileSize: file.size,
-          mimeType: file.type,
-        });
-        const uploaded = await uploadToCloudinary(token, file);
-        uploadedByBlock.set(b.id, uploaded.secure_url);
+        const blockId = b.id;
+        pendingUploads.push(
+          (async () => {
+            const token = await getUploadToken(storyId, {
+              fileName: file.name,
+              fileSize: file.size,
+              mimeType: file.type,
+            });
+            const uploaded = await uploadToCloudinary(token, file);
+            uploadedByBlock.set(blockId, uploaded.secure_url);
+          })()
+        );
       }
+      await Promise.all(pendingUploads);
 
       // Reflect the new URLs back into state so a subsequent failed
       // publish doesn't re-upload.
@@ -728,7 +785,7 @@ export default function StoryComposer({
         )
       );
 
-      const serializable: StoryBlock[] = blocks
+      const serializable: StoryBlock[] = currentBlocks
         .map((b): StoryBlock | null => {
           if (b.type === "text") {
             return b.text.trim() ? { type: "text", text: b.text } : null;
@@ -813,6 +870,38 @@ export default function StoryComposer({
   // click. Consumed & cleared by the block's mount effect.
   const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
 
+  // Empty-state gate: shows a 2×2 tile picker in place of the block editor +
+  // bottom pill row when the composer body has no meaningful content. Mirrors
+  // TellAStoryV4Screen.js:3460's `isPureEmptyState`. Title / cover / metadata
+  // chips / share toggle are intentionally ignored — this is a *body-content*
+  // picker. A single trailing empty text block does NOT count as content.
+  const isPureEmptyState = useMemo(() => {
+    if (editingBlockId) return false;
+    if (recording) return false;
+    const hasContent = blocks.some(
+      (b) => b.type !== "text" || b.text.trim().length > 0
+    );
+    return !hasContent;
+  }, [blocks, editingBlockId, recording]);
+
+  // Dev-only visibility into which signal killed the grid — matches the mobile
+  // `[EmptyStateGate] hidden — reasons:` log so debugging stays symmetrical
+  // when the grid unexpectedly fails to re-appear on delete-all.
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+    if (isPureEmptyState) return;
+    const reasons: string[] = [];
+    if (editingBlockId) reasons.push("editing");
+    if (recording) reasons.push("recording");
+    if (blocks.some((b) => b.type !== "text" || b.text.trim().length > 0)) {
+      reasons.push("hasContent");
+    }
+    if (reasons.length > 0) {
+      // eslint-disable-next-line no-console
+      console.log("[EmptyStateGate] hidden — reasons:", reasons.join(","));
+    }
+  }, [isPureEmptyState, editingBlockId, recording, blocks]);
+
   // Trailing-empty-text invariant: exactly one empty text block must always
   // exist somewhere in the list — usually at the end so the caret has a
   // landing spot. Mirror of TellAStoryV4Screen.js:449-481. See spec.
@@ -859,6 +948,8 @@ export default function StoryComposer({
     // Persist the blob so it survives a refresh. Fire-and-forget — the IDB
     // write is ~ms and the composer stays interactive while it flushes.
     void putMedia(id, file);
+    // Kick off the upload immediately so publish just has to write metadata.
+    startBackgroundUpload(id, file);
     // Invariant effect appends a trailing empty text block next tick — no
     // need to add one here.
   }
@@ -1001,6 +1092,8 @@ export default function StoryComposer({
       );
       // Persist finalized voice note to IDB so it survives a refresh.
       void putMedia(blockId, file);
+      // Kick off the upload immediately so publish is fast.
+      startBackgroundUpload(blockId, file);
       chunksRef.current = [];
       streamRef.current?.getTracks().forEach((t) => t.stop());
       audioCtxRef.current?.close().catch(() => undefined);
@@ -1069,6 +1162,25 @@ export default function StoryComposer({
     } else {
       setBlocks((prev) => [...prev, fresh]);
     }
+    setPendingFocusId(fresh.id);
+  }
+
+  // Empty-state Text tile wrapper: `handleAddTextBlock` only sets
+  // pendingFocusId, which is enough once BlocksEditor is mounted. But in the
+  // empty state BlocksEditor is unmounted (grid is rendered instead), so we
+  // must also flip editingBlockId here to move the gate off the grid — then
+  // the fresh mount of the block picks up pendingFocusId and grabs focus.
+  function handleEmptyStateAddText() {
+    const currentBlocks = blocksRef.current;
+    const last = currentBlocks[currentBlocks.length - 1];
+    if (isEmptyText(last)) {
+      setEditingBlockId(last.id);
+      setPendingFocusId(last.id);
+      return;
+    }
+    const fresh = emptyTextBlock();
+    setBlocks((prev) => [...prev, fresh]);
+    setEditingBlockId(fresh.id);
     setPendingFocusId(fresh.id);
   }
 
@@ -1241,20 +1353,29 @@ export default function StoryComposer({
         <div className="flex-1 min-w-0 flex flex-col gap-[16px]">
           {prompt && <PromptStrip prompt={prompt} />}
           <TitleInput value={title} onChange={setTitle} />
-          <BlocksEditor
-            blocks={blocks}
-            editingBlockId={editingBlockId}
-            pendingFocusId={pendingFocusId}
-            recording={recording}
-            onUpdate={updateBlock}
-            onRemove={removeBlock}
-            onReorder={reorderBlocks}
-            onFocusBlock={setEditingBlockId}
-            onFocusHandled={() => setPendingFocusId(null)}
-            onStopRecording={stopRecording}
-            onTogglePauseRecording={togglePauseRecording}
-            onCancelRecording={cancelRecording}
-          />
+          {isPureEmptyState ? (
+            <EmptyStateGrid
+              onVoice={startRecording}
+              onPhoto={() => setUploadModal("image")}
+              onVideo={() => setUploadModal("video")}
+              onText={handleEmptyStateAddText}
+            />
+          ) : (
+            <BlocksEditor
+              blocks={blocks}
+              editingBlockId={editingBlockId}
+              pendingFocusId={pendingFocusId}
+              recording={recording}
+              onUpdate={updateBlock}
+              onRemove={removeBlock}
+              onReorder={reorderBlocks}
+              onFocusBlock={setEditingBlockId}
+              onFocusHandled={() => setPendingFocusId(null)}
+              onStopRecording={stopRecording}
+              onTogglePauseRecording={togglePauseRecording}
+              onCancelRecording={cancelRecording}
+            />
+          )}
         </div>
 
         {/* RIGHT RAIL (desktop only) */}
@@ -1354,20 +1475,29 @@ export default function StoryComposer({
               taggedPeople={taggedPeople}
               onOpenTagPeople={() => setShowTagPeople(true)}
             />
-            <BlocksEditor
-              blocks={blocks}
-              editingBlockId={editingBlockId}
-              pendingFocusId={pendingFocusId}
-              recording={recording}
-              onUpdate={updateBlock}
-              onRemove={removeBlock}
-              onReorder={reorderBlocks}
-              onFocusBlock={setEditingBlockId}
-              onFocusHandled={() => setPendingFocusId(null)}
-              onStopRecording={stopRecording}
-              onTogglePauseRecording={togglePauseRecording}
-              onCancelRecording={cancelRecording}
-            />
+            {isPureEmptyState ? (
+              <EmptyStateGrid
+                onVoice={startRecording}
+                onPhoto={() => setUploadModal("image")}
+                onVideo={() => setUploadModal("video")}
+                onText={handleEmptyStateAddText}
+              />
+            ) : (
+              <BlocksEditor
+                blocks={blocks}
+                editingBlockId={editingBlockId}
+                pendingFocusId={pendingFocusId}
+                recording={recording}
+                onUpdate={updateBlock}
+                onRemove={removeBlock}
+                onReorder={reorderBlocks}
+                onFocusBlock={setEditingBlockId}
+                onFocusHandled={() => setPendingFocusId(null)}
+                onStopRecording={stopRecording}
+                onTogglePauseRecording={togglePauseRecording}
+                onCancelRecording={cancelRecording}
+              />
+            )}
           </>
         ) : (
           <>
@@ -1443,14 +1573,16 @@ export default function StoryComposer({
         </button>
       </div>
 
-      <BlockPicker
-        onAddText={handleAddTextBlock}
-        onAddImage={() => setUploadModal("image")}
-        onAddVideo={() => setUploadModal("video")}
-        onAddAudio={recording ? stopRecording : startRecording}
-        recording={recording !== null}
-        mobileStep={mobileStep}
-      />
+      {!isPureEmptyState && (
+        <BlockPicker
+          onAddText={handleAddTextBlock}
+          onAddImage={() => setUploadModal("image")}
+          onAddVideo={() => setUploadModal("video")}
+          onAddAudio={recording ? stopRecording : startRecording}
+          recording={recording !== null}
+          mobileStep={mobileStep}
+        />
+      )}
 
       <UploadMediaModal
         open={uploadModal !== null}
@@ -1481,6 +1613,84 @@ export default function StoryComposer({
         }}
       />
     </div>
+  );
+}
+
+// 2×2 body-content picker shown in place of the block editor + bottom pill
+// row when the composer body is empty. Matches Figma node 15254:49310 —
+// Voice / Photo / Video / Text pills, centered in the block area.
+function EmptyStateGrid({
+  onVoice,
+  onPhoto,
+  onVideo,
+  onText,
+}: {
+  onVoice: () => void;
+  onPhoto: () => void;
+  onVideo: () => void;
+  onText: () => void;
+}) {
+  return (
+    <div className="flex-1 min-h-[240px] flex items-center justify-center">
+      <div className="w-full max-w-[416px] lg:max-w-[372px] grid grid-cols-2 gap-[15px] lg:gap-[12px]">
+        <EmptyStateTile
+          onClick={onVoice}
+          ariaLabel="Add voice"
+          icon={<MicIcon width={32} height={32} />}
+          label="Voice"
+        />
+        <EmptyStateTile
+          onClick={onPhoto}
+          ariaLabel="Add photo"
+          icon={<ImageIcon width={32} height={32} />}
+          label="Photo"
+        />
+        <EmptyStateTile
+          onClick={onVideo}
+          ariaLabel="Add video"
+          icon={<CameraIcon width={36} height={36} />}
+          label="Video"
+        />
+        <EmptyStateTile
+          onClick={onText}
+          ariaLabel="Add text"
+          icon={
+            <span className="font-montserrat font-medium text-primary-blue text-[28px] leading-none">
+              Aa
+            </span>
+          }
+          label="Text"
+        />
+      </div>
+    </div>
+  );
+}
+
+function EmptyStateTile({
+  onClick,
+  ariaLabel,
+  icon,
+  label,
+}: {
+  onClick: () => void;
+  ariaLabel: string;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className="cursor-pointer flex flex-col items-center justify-center gap-[6px] lg:gap-[4px] min-h-[97px] lg:min-h-[86px] rounded-[48px] bg-white lg:bg-[#ededed] text-primary-blue hover:brightness-[0.97] active:opacity-85 transition-[filter,opacity]"
+    >
+      <span className="flex items-center justify-center h-[36px] lg:h-[28px] lg:scale-[0.82] origin-center">
+        {icon}
+      </span>
+      <span className="font-montserrat font-medium text-[16px] leading-[20px]">
+        {label}
+      </span>
+    </button>
   );
 }
 

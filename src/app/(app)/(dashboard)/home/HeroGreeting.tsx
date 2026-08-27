@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import HeroImg from "../../../../assets/images/hero_img.jpg";
 import { BellIcon, SearchIcon } from "../icons";
@@ -20,11 +19,9 @@ export default function HeroGreeting({
   firstName: string;
   unreadCount?: number;
 }) {
-  const router = useRouter();
   const [greeting, setGreeting] = useState<string>(() =>
     getGreeting(new Date().getHours())
   );
-  const [query, setQuery] = useState("");
   const timerRef = useRef<number | null>(null);
 
   // Roll the greeting over if the tab stays open past the bucket boundary.
@@ -38,13 +35,6 @@ export default function HeroGreeting({
       if (timerRef.current) window.clearTimeout(timerRef.current);
     };
   }, []);
-
-  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const q = query.trim();
-    if (!q) return;
-    router.push(`/search?q=${encodeURIComponent(q)}`);
-  };
 
   const label = firstName ? `${greeting}, ${firstName}` : greeting;
 
@@ -84,25 +74,19 @@ export default function HeroGreeting({
           {label}
         </h1>
 
-        {/* Mobile-only search embedded in hero — matches HomeSearchBar */}
-        <form onSubmit={onSubmit} className="md:hidden">
-          <label className="relative block">
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Find memories"
-              className="w-full bg-white rounded-full pl-[18px] pr-[44px] py-[12px] font-montserrat font-normal text-primary-blue text-[14px] leading-[16px] placeholder:text-[#848484] focus:outline-none shadow-[0_1px_3px_rgba(0,0,0,0.10)]"
-            />
-            <button
-              type="submit"
-              aria-label="Search"
-              className="absolute right-[16px] top-1/2 -translate-y-1/2 text-primary-blue/70"
-            >
-              <SearchIcon width={18} height={18} />
-            </button>
-          </label>
-        </form>
+        {/* Mobile-only fake search pill — mirrors HomeSearchBar.js on mobile:
+            tapping the pill routes to /search, which owns the real input. */}
+        <Link
+          href="/search"
+          className="md:hidden w-full bg-white rounded-full pl-[18px] pr-[44px] py-[12px] flex items-center shadow-[0_1px_3px_rgba(0,0,0,0.10)] relative"
+        >
+          <span className="font-montserrat font-normal text-[#848484] text-[14px] leading-[16px]">
+            Find memories
+          </span>
+          <span className="absolute right-[16px] top-1/2 -translate-y-1/2 text-primary-blue/70">
+            <SearchIcon width={18} height={18} />
+          </span>
+        </Link>
       </div>
     </section>
   );

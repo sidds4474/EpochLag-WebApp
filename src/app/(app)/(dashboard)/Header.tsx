@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
 import type { User } from "../../../types/user";
 import LogoDark from "../../../assets/images/logo-dark.webp";
 import { bustUrl } from "../../../lib/images";
+import HeaderSearch from "./HeaderSearch";
 import { PersonIcon, SearchIcon } from "./icons";
 import NotificationsBell from "./notifications/NotificationsBell";
 
@@ -25,16 +24,6 @@ function MenuIcon({ width = 24, height = 24 }: { width?: number; height?: number
 }
 
 export default function Header({ user, onOpenDrawer }: HeaderProps) {
-  const router = useRouter();
-  const [query, setQuery] = useState("");
-
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const trimmed = query.trim();
-    if (!trimmed) return;
-    router.push(`/search?q=${encodeURIComponent(trimmed)}`);
-  };
-
   const initial = (user?.firstName || "?").charAt(0).toUpperCase();
 
   return (
@@ -64,27 +53,9 @@ export default function Header({ user, onOpenDrawer }: HeaderProps) {
       </Link>
 
       {/* Desktop-only: search pill fills the middle */}
-      <form
-        onSubmit={handleSubmit}
-        className="hidden lg:block flex-1 max-w-[631px]"
-      >
-        <label className="relative block">
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search"
-            className="w-full bg-[color:var(--color-surface-muted)] rounded-full pl-[16px] pr-[44px] py-[12px] font-montserrat font-medium text-primary-blue text-[16px] leading-[20px] placeholder:text-[#a5a5a5] focus:outline-none focus:ring-2 focus:ring-primary-blue/15"
-          />
-          <button
-            type="submit"
-            aria-label="Search"
-            className="cursor-pointer absolute right-[16px] top-1/2 -translate-y-1/2 text-primary-blue/70 hover:text-primary-blue"
-          >
-            <SearchIcon width={20} height={20} />
-          </button>
-        </label>
-      </form>
+      <div className="hidden lg:flex flex-1 max-w-[631px]">
+        <HeaderSearch />
+      </div>
 
       <div className="hidden lg:block flex-1" />
 

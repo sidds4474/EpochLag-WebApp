@@ -4,7 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DockingItem } from "../../../../lib/home/api";
-import { updateDockingItemProgress } from "../../../../lib/home/api";
+import {
+  fetchUserCard,
+  getCachedUserCard,
+} from "../../../../lib/home/api";
+import {
+  buildInviteHref,
+  buildPromptDetailHref,
+  resolveDockingAction,
+} from "../../../../lib/home/dockingActionRouter";
+import { DOCKING_PROGRESS_ENABLED } from "../../../../lib/flags";
 import {
   AvatarWithBadge,
   CircleArrowButton,
@@ -39,7 +48,7 @@ export default function RemindersRow({
         </div>
       ) : (
         <Carousel>
-          {items.slice(0, 3).map((it) => (
+          {items.map((it) => (
             <DockingTile key={it._id} item={it} />
           ))}
         </Carousel>
@@ -91,18 +100,84 @@ function Carousel({ children }: { children: ReactNode }) {
   );
 }
 
+// Two-tier tile thumb fallback. Priority: BE-provided cover → per-type
+// bundled/S3 fallback → gradient blob (rendered downstream by TileCover
+// when both are null). Matches mobile's HomeTile `thumbUrl || thumbSource`
+// rule (see mapDockingItemToTile.js: FALLBACK_TILE_THUMB / HOWS_LIFE_TILE_THUMB).
+//
+// The hows-life URL is the same S3 mirror used by the composer + share
+// preview downstream — keeping the on-screen and persisted covers aligned.
+const HOWS_LIFE_TILE_THUMB =
+  "https://epochlag-bucket.s3.us-east-1.amazonaws.com/color-gradient/gradient-image-18.png";
+const GENERIC_TILE_THUMB = "/gradients/8.jpg";
+const CHALLENGE_TILE_THUMB = "/gradients/9.jpg";
+
+const FALLBACK_THUMB_BY_TYPE: Record<string, string> = {
+  "hows-life": HOWS_LIFE_TILE_THUMB,
+  challenge: CHALLENGE_TILE_THUMB,
+  card_of_the_day: GENERIC_TILE_THUMB,
+  announcement: GENERIC_TILE_THUMB,
+};
+
+// hows-life docking cards are wrappers — the real cover lives on the
+// underlying user-card at action.cardId, but BE ships imagePath: null on
+// the outer tile. Fetch the wrapped card lazily so cookbook / How's Life /
+// other hows-life tiles each show their distinct prompt cover (matches
+// what the user sees after tapping through to PromptDetail).
 function DockingTile({ item }: { item: DockingItem }) {
   const router = useRouter();
   const isMomentLike = item.type === "moment" || item.type === "birthday";
-  const cover = isMomentLike ? item.profilePhotoPath : item.imagePath;
-  const isChallenge = item.type === "challenge";
-  const isDone = isChallenge && item.progressStatus === "completed";
-  const disabled = isChallenge && isDone;
+  const isHowsLifeTile = item.type === "hows-life";
+  const innerPromptId =
+    isHowsLifeTile && item.action && typeof item.action === "object"
+      ? typeof (item.action as Record<string, unknown>).cardId === "string"
+        ? ((item.action as Record<string, unknown>).cardId as string)
+        : null
+      : null;
 
+  const [innerCover, setInnerCover] = useState<string | null>(() => {
+    if (!innerPromptId) return null;
+    const cached = getCachedUserCard(innerPromptId);
+    return cached?.imageUrl ?? null;
+  });
+  useEffect(() => {
+    if (!innerPromptId || innerCover) return;
+    let cancelled = false;
+    fetchUserCard(innerPromptId)
+      .then((card) => {
+        if (cancelled) return;
+        if (card?.imageUrl) setInnerCover(card.imageUrl);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [innerPromptId, innerCover]);
+
+  // Moment/birthday use the recipient's profile photo when present; other
+  // types read imagePath. Then fall through to the wrapped-prompt cover
+  // (hows-life only), then the per-type bundled fallback, then the gradient
+  // blob rendered inside TileCover.
+  const beCover = isMomentLike ? item.profilePhotoPath : item.imagePath;
+  const cover =
+    beCover || innerCover || FALLBACK_THUMB_BY_TYPE[item.type] || null;
+  const isChallenge = item.type === "challenge";
+  const isHowsLife = item.type === "hows-life";
+  // Progress gating is behind DOCKING_PROGRESS_ENABLED — currently off per BE
+  // guidance. When the flag is false, neither `challenge` nor `hows-life`
+  // tiles show a Done state or disable on tap, matching mobile.
+  const isDone =
+    DOCKING_PROGRESS_ENABLED &&
+    (isChallenge || isHowsLife) &&
+    item.progressStatus === "completed";
+  const disabled = isDone;
+
+  // hows-life shares the "Challenge" overline with real challenges — it's a
+  // first-class card type on the mobile side (mapDockingItemToTile.js:180).
   const overline =
     item.type === "card_of_the_day"
       ? "Prompt"
-      : item.type === "challenge"
+      : item.type === "challenge" || item.type === "hows-life"
         ? "Challenge"
         : item.type === "announcement"
           ? "Announcement"
@@ -117,11 +192,13 @@ function DockingTile({ item }: { item: DockingItem }) {
   const onOpen = async () => {
     if (disabled) return;
     if (item.type === "card_of_the_day") {
-      // Route straight into the composer's Answer-a-Prompt mode. The
-      // composer fetches the full UserCard on mount to hydrate the prompt
-      // strip — DockingItem doesn't carry enough fields to seed the cache
-      // safely (missing author, createdAt, cardType, etc).
-      router.push(`/new-lag?promptId=${encodeURIComponent(item._id)}`);
+      // Prompt of the Day opens the flip-card read view (mobile parity).
+      // User taps "Answer yourself" on the back face to reach the composer,
+      // or "Send it to someone" to open the share modal.
+      const q = new URLSearchParams({ mode: "curated" });
+      router.push(
+        `/prompt/detail/${encodeURIComponent(item._id)}?${q.toString()}`
+      );
       return;
     }
     if (isMomentLike) {
@@ -133,15 +210,16 @@ function DockingTile({ item }: { item: DockingItem }) {
       router.push(`/new-story?${params.toString()}`);
       return;
     }
-    if (isChallenge) {
-      // Optimistically mark done; BE call is fire-and-forget for now.
-      try {
-        await updateDockingItemProgress(item._id, "completed");
-      } catch {}
+    // Challenge / announcement / referral / hows-life tiles all resolve via
+    // the docking action router. Unknown action.kind falls through and does
+    // nothing — matches mobile's silent fallback for unroutable tiles.
+    const route = resolveDockingAction(item);
+    if (route.kind === "invite") {
+      router.push(buildInviteHref(route));
       return;
     }
-    if (item.type === "announcement") {
-      // action.kind routing left to a future dockingActionRouter.
+    if (route.kind === "prompt-detail") {
+      router.push(buildPromptDetailHref(route));
       return;
     }
   };
@@ -153,7 +231,7 @@ function DockingTile({ item }: { item: DockingItem }) {
       disabled={disabled}
       className={`snap-start shrink-0
         w-[calc((100vw-42px)/2)] max-w-[240px] h-[143px]
-        md:w-auto md:max-w-[340px] md:h-[200px] md:shrink md:flex-1 md:min-w-[240px]
+        md:w-[280px] md:max-w-none md:h-[200px]
         text-left bg-white
         rounded-[13px] md:rounded-[24px]
         shadow-[0_0_17.8px_rgba(0,0,0,0.15)]
@@ -180,7 +258,7 @@ function DockingTile({ item }: { item: DockingItem }) {
             </p>
           )}
           <h3 className="font-montserrat font-medium text-black text-[14px] leading-[16px] md:text-primary-blue md:text-[15px] md:leading-[20px] line-clamp-2">
-            {item.title}
+            {item.title || (isHowsLife ? "How's Life" : "")}
           </h3>
         </div>
         {subLabel && (
@@ -197,6 +275,7 @@ function DockingTile({ item }: { item: DockingItem }) {
 // ship a cover so we don't need to bundle placeholder art on the client.
 const GRADIENT_BY_TYPE: Record<string, string> = {
   challenge: "linear-gradient(135deg, #a8c5e0 0%, #6d8fb5 55%, #3a5877 100%)",
+  "hows-life": "linear-gradient(135deg, #f5b7a1 0%, #d97a5a 55%, #6b3a2a 100%)",
   card_of_the_day:
     "linear-gradient(135deg, #f2d0a4 0%, #d78a5a 55%, #6b3a2a 100%)",
   announcement:
@@ -271,7 +350,7 @@ function TileCover({
 }
 
 function TypeIcon({ type }: { type: string }) {
-  if (type === "challenge") return <FlagIcon />;
+  if (type === "challenge" || type === "hows-life") return <FlagIcon />;
   if (type === "card_of_the_day" || type === "announcement")
     return <SparkleIcon />;
   return <SparkleIcon />;
@@ -427,7 +506,7 @@ function AddMomentCTA() {
   return (
     <Link
       href="/new-story?moment=1"
-      className="shrink-0 w-[calc((100vw-42px)/2)] max-w-[240px] h-[143px] md:w-auto md:max-w-[340px] md:h-[200px] md:shrink md:flex-1 md:min-w-[240px] bg-white rounded-[13px] md:rounded-[24px] shadow-[0_0_17.8px_rgba(0,0,0,0.15)] p-[16px] flex flex-col items-center justify-center gap-[10px] text-primary-blue/70 hover:text-primary-blue transition-colors"
+      className="shrink-0 w-[calc((100vw-42px)/2)] max-w-[240px] h-[143px] md:w-[280px] md:max-w-none md:h-[200px] bg-white rounded-[13px] md:rounded-[24px] shadow-[0_0_17.8px_rgba(0,0,0,0.15)] p-[16px] flex flex-col items-center justify-center gap-[10px] text-primary-blue/70 hover:text-primary-blue transition-colors"
     >
       <span className="w-[44px] h-[44px] rounded-full bg-primary-cream flex items-center justify-center">
         <PlusIcon width={18} height={18} strokeWidth={2} />
@@ -445,7 +524,7 @@ function ReminderSkeleton() {
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="shrink-0 w-[calc((100vw-42px)/2)] max-w-[240px] h-[143px] md:w-auto md:max-w-[340px] md:h-[200px] md:shrink md:flex-1 md:min-w-[240px] bg-white rounded-[13px] md:rounded-[24px] shadow-[0_0_17.8px_rgba(0,0,0,0.15)] p-[14px] md:p-[16px] flex flex-col gap-[12px]"
+          className="shrink-0 w-[calc((100vw-42px)/2)] max-w-[240px] h-[143px] md:w-[280px] md:max-w-none md:h-[200px] bg-white rounded-[13px] md:rounded-[24px] shadow-[0_0_17.8px_rgba(0,0,0,0.15)] p-[14px] md:p-[16px] flex flex-col gap-[12px]"
         >
           <div className="flex items-start justify-between">
             <div className="w-[64px] h-[64px] rounded-full bg-black/[0.06] animate-pulse" />

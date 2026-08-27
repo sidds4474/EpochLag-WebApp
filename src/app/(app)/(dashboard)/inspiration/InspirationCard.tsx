@@ -10,14 +10,23 @@ type Props = {
   card: UserCard;
   onAnswer: () => void;
   onShare: () => void;
+  // PromptDetail opens the card already flipped so the reader sees the
+  // Answer / Send actions immediately. Tap anywhere on the back flips it to
+  // reveal the cover.
+  initialFlipped?: boolean;
 };
 
 // 3D card flip. Container establishes perspective; the inner "flipper" holds
 // two absolute faces (front/back) with `backface-visibility: hidden`, and we
 // rotateY the flipper on tap. Front intercepts the tap; back has its own
 // buttons and back-arrow so we don't consume the tap there.
-export default function InspirationCard({ card, onAnswer, onShare }: Props) {
-  const [flipped, setFlipped] = useState(false);
+export default function InspirationCard({
+  card,
+  onAnswer,
+  onShare,
+  initialFlipped = false,
+}: Props) {
+  const [flipped, setFlipped] = useState(initialFlipped);
   const { bookmarked, toggle } = useInspirationBookmark(
     card._id,
     card.isBookmarked
@@ -30,7 +39,7 @@ export default function InspirationCard({ card, onAnswer, onShare }: Props) {
   return (
     <div className="[perspective:1400px] w-full h-full">
       <div
-        className="relative w-full h-full transition-transform duration-500 [transform-style:preserve-3d]"
+        className="relative w-full h-full transition-transform duration-500 [transform-style:preserve-3d] [will-change:transform]"
         style={{ transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
       >
         {/* FRONT */}

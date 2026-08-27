@@ -16,6 +16,7 @@ export type DockingItemType =
   | "moment"
   | "birthday"
   | "challenge"
+  | "hows-life"
   | "announcement";
 
 export type DockingProgressStatus =
@@ -201,13 +202,36 @@ export async function fetchDockingFeed(
   }
 }
 
+// Mobile ships `status` (not `progressStatus`) — the BE payload contract on
+// this endpoint keys off `status`. Extras (`promptCardId`, `storyId`,
+// `cardType`) are optional analytics context BE stashes with the progress
+// record; only send them when the caller has them.
+export type DockingProgressPayload = {
+  status: DockingProgressStatus;
+  promptCardId?: string;
+  storyId?: string;
+  cardType?: string;
+};
+
 export async function updateDockingItemProgress(
   cardId: string,
-  progressStatus: DockingProgressStatus
+  payload: DockingProgressPayload
 ): Promise<void> {
-  await api.post(`/api/docking-station/cards/${cardId}/progress`, {
-    progressStatus,
-  });
+  await api.post(`/api/docking-station/cards/${cardId}/progress`, payload);
+}
+
+// Enriches a single docking card. The feed payload is a snapshot; this
+// endpoint returns the fresh title/message/action so a deep-link (or a
+// screen loaded from a stale notification) shows the current copy.
+export async function fetchDockingCard(cardId: string): Promise<DockingItem | null> {
+  try {
+    const res = await api.get<Envelope<DockingItem>>(
+      `/api/docking-station/cards/${cardId}`
+    );
+    return res.data ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchRecentStories(

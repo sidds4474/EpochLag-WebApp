@@ -132,9 +132,7 @@ export default function StoryCard({
           onToggleSelect?.(thread);
         }
       }}
-      className={`relative flex flex-col bg-white rounded-[22px] shadow-[0_0_18px_rgba(0,0,0,0.2)] hover:shadow-[0_0_22px_rgba(0,0,0,0.25)] transition-shadow pt-[8px] px-[8px] pb-[16px] gap-[7px] ${
-        selected ? "ring-2 ring-primary-orange" : ""
-      }`}
+      className="relative flex flex-col bg-white rounded-[22px] shadow-[0_0_18px_rgba(0,0,0,0.2)] hover:shadow-[0_0_22px_rgba(0,0,0,0.25)] transition-shadow pt-[8px] px-[8px] pb-[16px] gap-[7px]"
     >
       <div className="relative aspect-[5/4] bg-primary-blue/10 rounded-[15px] overflow-hidden">
         {cover ? (
@@ -176,10 +174,10 @@ export default function StoryCard({
 
         {isSelecting && (
           <span
-            className={`absolute top-[10px] right-[10px] w-[26px] h-[26px] rounded-full flex items-center justify-center border-2 transition-colors ${
+            className={`absolute top-[10px] right-[10px] w-[26px] h-[26px] rounded-full flex items-center justify-center border transition-colors ${
               selected
                 ? "bg-primary-orange border-primary-orange text-white"
-                : "bg-white/90 border-white text-transparent"
+                : "bg-black/25 border-white/70 text-transparent"
             }`}
             aria-hidden
           >

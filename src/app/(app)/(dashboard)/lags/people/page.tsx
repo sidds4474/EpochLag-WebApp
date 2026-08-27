@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { bustUrl } from "../../../../../lib/images";
@@ -40,31 +40,74 @@ export default function LagsPeoplePage() {
   const [error, setError] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Registers the tab's header actions: search icon (mobile heading
-  // row only, per Figma) + Select. LagsHeading renders headerRight on
-  // mobile; LagsTabs renders it on desktop.
+  // Focus the input when the pill expands. autoFocus only fires on mount,
+  // so we do it imperatively on each open.
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
+
+  // Registers the tab's header actions: an inline search pill that morphs
+  // between a 36px icon button (closed) and a 280px input row (open). Width
+  // transitions smoothly because the input stays mounted in both states.
   useEffect(() => {
     setHeaderRight(
-      <>
+      <div
+        className={`flex items-center rounded-full overflow-hidden transition-[width,background-color] duration-300 ease-out ${
+          searchOpen
+            ? "w-[280px] bg-[#f0f0f0] pl-[14px] pr-[4px] gap-[8px]"
+            : "w-[36px] bg-transparent hover:bg-black/[0.05]"
+        }`}
+      >
         <button
           type="button"
-          onClick={() => setSearchOpen((v) => !v)}
-          aria-label={searchOpen ? "Close search" : "Search"}
-          className="cursor-pointer w-[36px] h-[36px] rounded-full text-primary-blue hover:bg-black/[0.05] flex items-center justify-center transition-colors"
+          onClick={() => {
+            if (!searchOpen) setSearchOpen(true);
+          }}
+          aria-label="Search"
+          tabIndex={searchOpen ? -1 : 0}
+          className={`shrink-0 flex items-center justify-center text-primary-blue ${
+            searchOpen ? "w-[18px] h-[36px] cursor-default" : "w-[36px] h-[36px] cursor-pointer"
+          }`}
         >
           <SearchIcon width={18} height={18} />
         </button>
-        <button
-          type="button"
-          className="cursor-pointer font-montserrat text-black text-[14px] hover:opacity-80 transition-opacity"
-        >
-          Select
-        </button>
-      </>
+        <input
+          ref={searchInputRef}
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search groups and people"
+          tabIndex={searchOpen ? 0 : -1}
+          className={`flex-1 min-w-0 bg-transparent border-0 outline-none font-montserrat text-primary-blue text-[14px] placeholder:text-primary-blue/40 transition-opacity duration-200 ${
+            searchOpen ? "opacity-100 delay-100" : "opacity-0"
+          }`}
+        />
+        {searchOpen && (
+          <button
+            type="button"
+            onClick={() => {
+              if (query) setQuery("");
+              else setSearchOpen(false);
+            }}
+            aria-label={query ? "Clear search" : "Close search"}
+            className="shrink-0 cursor-pointer w-[28px] h-[28px] rounded-full flex items-center justify-center text-primary-blue/60 hover:text-primary-blue"
+          >
+            <svg width={12} height={12} viewBox="0 0 24 24" fill="none">
+              <path
+                d="M6 6l12 12M18 6l-12 12"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        )}
+      </div>
     );
     return () => setHeaderRight(null);
-  }, [searchOpen, setHeaderRight]);
+  }, [searchOpen, query, setHeaderRight]);
 
   // Reset search when it's closed so re-opening starts fresh.
   useEffect(() => {
@@ -108,8 +151,21 @@ export default function LagsPeoplePage() {
 
   const visibleGroups = useMemo(() => {
     const list = groups ?? [];
+    // Match groups by name OR by any member's name/epochlagID — so typing a
+    // friend's name surfaces the groups they belong to.
     const filtered = searching
-      ? list.filter((g) => norm(g.name).includes(q))
+      ? list.filter((g) => {
+          if (norm(g.name).includes(q)) return true;
+          return (g.members ?? []).some((m) => {
+            const full = `${m.firstName ?? ""} ${m.lastName ?? ""}`.trim();
+            return (
+              norm(full).includes(q) ||
+              norm(m.firstName).includes(q) ||
+              norm(m.lastName).includes(q) ||
+              norm(m.epochlagID).includes(q)
+            );
+          });
+        })
       : list;
     return [...filtered].sort((a, b) =>
       norm(a.name).localeCompare(norm(b.name))
@@ -161,36 +217,6 @@ export default function LagsPeoplePage() {
 
   return (
     <div className="pt-[16px] pb-[40px] overflow-y-auto scrollbar-hide h-full min-h-0">
-      {searchOpen && (
-        <div className="flex items-center gap-[10px] bg-[#f0f0f0] rounded-full px-[14px] py-[8px] mb-[16px] max-w-[420px]">
-          <SearchIcon width={14} height={14} />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search groups and people"
-            autoFocus
-            className="flex-1 bg-transparent border-0 outline-none font-montserrat text-primary-blue text-[14px] placeholder:text-primary-blue/40"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              aria-label="Clear search"
-              className="cursor-pointer text-primary-blue/60 hover:text-primary-blue"
-            >
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M6 6l12 12M18 6l-12 12"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          )}
-        </div>
-      )}
       {loading ? (
         <div className="grid grid-cols-3 md:grid-cols-4 2xl:grid-cols-5 gap-[8px] md:gap-[12px]">
           {Array.from({ length: 6 }).map((_, i) => (

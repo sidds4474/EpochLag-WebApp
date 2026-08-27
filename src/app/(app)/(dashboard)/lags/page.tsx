@@ -71,6 +71,14 @@ export default function LagsAllPage() {
 
   useEffect(() => setCanSelect(true), [setCanSelect]);
 
+  // When leaving the All tab (component unmounts), exit selection mode so
+  // the trigger resets and selection doesn't leak across data sources.
+  useEffect(() => {
+    return () => {
+      exitSelect();
+    };
+  }, [exitSelect]);
+
   useEffect(() => {
     if (!isSelecting) setSelected(new Set());
   }, [isSelecting]);
@@ -197,7 +205,37 @@ export default function LagsAllPage() {
     }
   }, [filters.mode, exitSelect, selected, threads]);
 
-  // Register Filters + Select in the shared header-right slot of the tab row.
+  // Batch "Add to Album" — wired up but disabled while the Albums feature is
+  // commented out. When Albums ships, uncomment the state + handler + the
+  // BatchActionsMenu trigger in the header/toolbar below.
+  //
+  // const cardIdToThreadIdRef = useRef<Record<string, string>>({});
+  // useEffect(() => {
+  //   const map: Record<string, string> = {};
+  //   for (const t of threads) {
+  //     const cardId = cardKeyFor(t);
+  //     const threadId = t.latestStory?._id ?? t._id;
+  //     if (cardId && threadId) map[cardId] = threadId;
+  //   }
+  //   cardIdToThreadIdRef.current = map;
+  // }, [threads]);
+  //
+  // const [showBatchMenu, setShowBatchMenu] = useState(false);
+  // const [showAddToAlbum, setShowAddToAlbum] = useState(false);
+  // const [albumThreadIds, setAlbumThreadIds] = useState<string[]>([]);
+  //
+  // const handleBatchAddToAlbum = useCallback(() => {
+  //   const ids = Array.from(selected)
+  //     .map((cid) => cardIdToThreadIdRef.current[cid] || cid)
+  //     .filter(Boolean);
+  //   setAlbumThreadIds(ids);
+  //   setShowAddToAlbum(true);
+  //   setShowBatchMenu(false);
+  // }, [selected]);
+
+  // Register Filters + selection controls in the shared header-right slot of
+  // the tab row. Default state: [Filters] [Select]. Selecting state:
+  // [Filters] [{n} lags selected] [trash (if n>0)] [X close].
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-[12px] md:gap-[16px]">
@@ -265,23 +303,84 @@ export default function LagsAllPage() {
             }}
           />
         </div>
-        <button
-          type="button"
-          onClick={toggleSelectMode}
-          className="cursor-pointer font-montserrat text-black text-[14px] hover:opacity-80 transition-opacity"
-        >
-          {isSelecting ? "Done" : "Select"}
-        </button>
+        {!isSelecting ? (
+          <button
+            type="button"
+            onClick={toggleSelectMode}
+            className="cursor-pointer font-montserrat text-black text-[14px] hover:opacity-80 transition-opacity"
+          >
+            Select
+          </button>
+        ) : (
+          <>
+            {selectedCount > 0 && (
+              <>
+                <span className="font-montserrat text-primary-blue text-[14px]">
+                  {selectedCount} {selectedCount === 1 ? "lag" : "lags"} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setConfirmOpen(true)}
+                  aria-label="Delete selected"
+                  className="cursor-pointer w-[32px] h-[32px] flex items-center justify-center text-primary-orange hover:opacity-80 transition-opacity"
+                >
+                  <svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v13a2 2 0 01-2 2H8a2 2 0 01-2-2V7"
+                      stroke="currentColor"
+                      strokeWidth={1.8}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+                {/*
+                  Batch actions "···" menu — shown here when Albums ships.
+                  Currently hidden because the only action is Add to Album.
+                <button
+                  type="button"
+                  onClick={() => setShowBatchMenu(true)}
+                  aria-label="More actions"
+                  className="cursor-pointer w-[32px] h-[32px] flex items-center justify-center text-primary-blue hover:opacity-80"
+                >
+                  <svg width={20} height={20} viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx={5} cy={12} r={2} />
+                    <circle cx={12} cy={12} r={2} />
+                    <circle cx={19} cy={12} r={2} />
+                  </svg>
+                </button>
+                */}
+              </>
+            )}
+            <button
+              type="button"
+              onClick={exitSelect}
+              aria-label="Exit selection mode"
+              className="cursor-pointer w-[36px] h-[36px] rounded-full bg-primary-blue text-white flex items-center justify-center hover:opacity-90 transition-opacity"
+            >
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M6 6l12 12M18 6L6 18"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </>
+        )}
       </div>
     );
     return () => setHeaderRight(null);
   }, [
     isSelecting,
     toggleSelectMode,
+    exitSelect,
     setHeaderRight,
     filtersOpen,
     filterCount,
     filters,
+    selectedCount,
   ]);
 
   // Media-type filter uses the existing media-gallery endpoint. When any
@@ -353,27 +452,46 @@ export default function LagsAllPage() {
         )}
       </div>
 
+      {/* Mobile bottom toolbar — matches the mobile Figma. Desktop puts these
+          actions inline in the header (see setHeaderRight above), so this is
+          md:hidden. The "···" more-actions button is omitted while Albums is
+          disabled (its only action is Add to Album). */}
       {isSelecting && selectedCount > 0 && (
-        <div className="fixed left-1/2 -translate-x-1/2 bottom-[24px] z-40 flex items-center gap-[12px] bg-primary-blue text-white rounded-full pl-[20px] pr-[8px] py-[8px] shadow-[0_6px_24px_rgba(0,0,0,0.25)]">
-          <span className="font-montserrat font-medium text-[14px]">
-            {selectedCount} selected
-          </span>
+        <div className="md:hidden fixed left-0 right-0 bottom-0 z-40 flex items-center justify-between bg-white border-t border-black/10 px-[20px] py-[14px] shadow-[0_-2px_16px_rgba(0,0,0,0.08)]">
           <button
             type="button"
             onClick={() => setConfirmOpen(true)}
             aria-label="Delete selected"
-            className="cursor-pointer w-[36px] h-[36px] rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+            className="cursor-pointer w-[36px] h-[36px] flex items-center justify-center text-primary-orange"
           >
-            <svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none">
               <path
                 d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0v13a2 2 0 01-2 2H8a2 2 0 01-2-2V7"
                 stroke="currentColor"
-                strokeWidth={1.6}
+                strokeWidth={1.8}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
             </svg>
           </button>
+          <span className="font-montserrat font-medium text-primary-blue text-[14px]">
+            {selectedCount} {selectedCount === 1 ? "Story" : "Stories"} selected
+          </span>
+          {/* Batch actions "···" — shown here when Albums ships.
+          <button
+            type="button"
+            onClick={() => setShowBatchMenu(true)}
+            aria-label="More actions"
+            className="cursor-pointer w-[36px] h-[36px] flex items-center justify-center text-primary-blue"
+          >
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="currentColor">
+              <circle cx={5} cy={12} r={2} />
+              <circle cx={12} cy={12} r={2} />
+              <circle cx={19} cy={12} r={2} />
+            </svg>
+          </button>
+          */}
+          <span className="w-[36px] h-[36px]" aria-hidden />
         </div>
       )}
 

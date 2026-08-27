@@ -112,7 +112,7 @@ export default function Sidebar() {
 
         <div className="flex-1" />
 
-        <p className="font-montserrat text-primary-blue/40 text-[11px]">
+        <p className="font-montserrat text-[#092E4A] text-[11px]">
           © {new Date().getFullYear()} Epoch Lag. All rights reserved.
         </p>
       </aside>

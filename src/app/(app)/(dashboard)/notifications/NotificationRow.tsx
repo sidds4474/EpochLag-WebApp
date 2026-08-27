@@ -163,12 +163,22 @@ function renderAvatar(n: Notification): ReactNode {
       card?.imagePath || n.navigation?.dockingDetails?.imageUrl || null;
     if (dockingSrc) {
       return (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={dockingSrc}
-          alt=""
-          className="w-[44px] h-[44px] rounded-full object-cover"
-        />
+        <div className="relative w-[44px] h-[44px]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={dockingSrc}
+            alt=""
+            className="w-full h-full rounded-full object-cover"
+          />
+          {/* Concentric orange badge overlay in bottom-right — matches the
+              mobile app design for card/prompt notifications. */}
+          <span
+            aria-hidden
+            className="absolute -bottom-[1px] -right-[1px] w-[16px] h-[16px] rounded-full bg-[#FCE1BE] border-2 border-white flex items-center justify-center"
+          >
+            <span className="w-[7px] h-[7px] rounded-full bg-[#EF9849]" />
+          </span>
+        </div>
       );
     }
   }

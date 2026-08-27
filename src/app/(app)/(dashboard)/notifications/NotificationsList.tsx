@@ -12,6 +12,9 @@ type Props = {
   onClearAll: () => Promise<void>;
   onNavigate?: () => void;
   variant: "popover" | "page";
+  /** Suppress the internal header on mobile (used when the page renders its
+   *  own back-button header). Desktop is unchanged. */
+  hideHeaderOnMobile?: boolean;
 };
 
 export default function NotificationsList({
@@ -21,6 +24,7 @@ export default function NotificationsList({
   onClearAll,
   onNavigate,
   variant,
+  hideHeaderOnMobile,
 }: Props) {
   const sections = groupBySection(items);
   const isPopover = variant === "popover";
@@ -45,7 +49,7 @@ export default function NotificationsList({
 
   return (
     <div className="flex flex-col min-h-0">
-      <div className="flex items-center justify-between px-[20px] pt-[16px] pb-[6px]">
+      <div className={`${hideHeaderOnMobile ? "hidden md:flex" : "flex"} items-center justify-between px-[20px] pt-[16px] pb-[6px]`}>
         <h2 className={headerTitleClass}>Notifications</h2>
         {items.length > 0 && (
           <button

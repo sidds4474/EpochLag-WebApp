@@ -129,7 +129,9 @@ export async function resolvePromptRoute(promptId: string): Promise<unknown> {
   return res.data;
 }
 
-export type FeatureUpdatesSettings = Record<string, boolean>;
+export type FeatureUpdatesSettings = {
+  featureUpdatesNotifications?: boolean;
+};
 
 export async function fetchFeatureUpdatesSettings(): Promise<FeatureUpdatesSettings> {
   const res = await api.get<Envelope<FeatureUpdatesSettings>>(
@@ -140,8 +142,12 @@ export async function fetchFeatureUpdatesSettings(): Promise<FeatureUpdatesSetti
 
 export async function updateFeatureUpdatesSettings(
   patch: FeatureUpdatesSettings
-): Promise<void> {
-  await api.put("/api/users/feature-updates-notifications", patch);
+): Promise<FeatureUpdatesSettings> {
+  const res = await api.put<Envelope<FeatureUpdatesSettings>>(
+    "/api/users/feature-updates-notifications",
+    patch
+  );
+  return res.data ?? {};
 }
 
 export function getTimeDifference(iso: string | undefined | null): string {

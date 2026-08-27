@@ -35,7 +35,10 @@ import {
   ChevronRightIcon,
   HeartIcon,
   MoreHorizontalIcon,
+  PencilIcon,
   PromptIcon,
+  SendIcon,
+  TrashIcon,
 } from "../../app/(app)/(dashboard)/icons";
 import { shareStory } from "../../lib/create/api";
 
@@ -185,7 +188,12 @@ export default function ThreadViewer({
   }, [storyId, isLiked, likeCount, preview]);
 
   const router = useRouter();
+  // Two separate open states because both the desktop portal and the mobile
+  // portal render an OptionsMenu — sharing state would mean the invisible
+  // menu's click-outside listener closes the visible one on mousedown before
+  // the button's click event ever fires.
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -289,22 +297,32 @@ export default function ThreadViewer({
 
   const menuItems: OptionsMenuItem[] = [];
   if (isSent && storyId) {
-    menuItems.push({ label: "Edit", onClick: handleEdit });
-  }
-  if (canShare) {
-    menuItems.push({ label: "Share", onClick: () => setShareOpen(true) });
+    menuItems.push({
+      label: "Edit Lag",
+      onClick: handleEdit,
+      icon: <PencilIcon width={18} height={18} />,
+    });
   }
   if (isSent && storyId) {
     menuItems.push({
-      label: "Delete",
+      label: "Delete Lag",
       onClick: () => setDeleteConfirmOpen(true),
       destructive: true,
+      icon: <TrashIcon width={18} height={18} />,
     });
   } else if (!isSent && storyId) {
     menuItems.push({
       label: "Delete for Me",
       onClick: () => setDeleteConfirmOpen(true),
       destructive: true,
+      icon: <TrashIcon width={18} height={18} />,
+    });
+  }
+  if (canShare) {
+    menuItems.push({
+      label: "Share Story",
+      onClick: () => setShareOpen(true),
+      icon: <SendIcon width={18} height={18} />,
     });
   }
 
@@ -420,9 +438,9 @@ export default function ThreadViewer({
                 aria-expanded={menuOpen}
                 onClick={() => setMenuOpen((v) => !v)}
                 disabled={menuItems.length === 0}
-                className="cursor-pointer bg-[#f1f1f1] rounded-full w-[36px] h-[36px] flex items-center justify-center text-primary-blue hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="cursor-pointer bg-[#ededed] rounded-full h-[18px] px-[4px] flex items-center justify-center text-primary-blue hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <MoreHorizontalIcon width={20} height={20} />
+                <MoreHorizontalIcon width={28} height={24} />
               </button>
               <OptionsMenu
                 open={menuOpen}
@@ -450,16 +468,16 @@ export default function ThreadViewer({
               type="button"
               aria-label="More options"
               aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((v) => !v)}
+              aria-expanded={mobileMenuOpen}
+              onClick={() => setMobileMenuOpen((v) => !v)}
               disabled={menuItems.length === 0}
               className="cursor-pointer bg-[#f1f1f1] rounded-full w-[36px] h-[36px] flex items-center justify-center text-primary-blue hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <MoreHorizontalIcon width={20} height={20} />
+              <MoreHorizontalIcon width={28} height={24} />
             </button>
             <OptionsMenu
-              open={menuOpen}
-              onClose={() => setMenuOpen(false)}
+              open={mobileMenuOpen}
+              onClose={() => setMobileMenuOpen(false)}
               items={menuItems}
             />
           </div>,

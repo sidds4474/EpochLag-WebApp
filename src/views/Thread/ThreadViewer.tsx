@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "react-hot-toast";
 import CommentsModal from "../../components/CommentsModal/CommentsModal";
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal";
@@ -10,10 +11,7 @@ import OptionsMenu, {
 } from "../../components/OptionsMenu/OptionsMenu";
 import { ApiError } from "../../lib/api/client";
 import { deleteStory } from "../../lib/create/api";
-import {
-  formatShortDayTime,
-  formatStoryHeaderDate,
-} from "../../lib/formatters";
+import { formatStoryHeaderDate } from "../../lib/formatters";
 import { toggleStoryLike } from "../../lib/interactions/api";
 import { bustUrl } from "../../lib/images";
 import { parseContentToBlocks } from "../../lib/parseStoryContent";
@@ -31,12 +29,13 @@ import MusicPill from "./MusicPill";
 import ShareModal from "../../app/(app)/(dashboard)/new-story/ShareModal";
 import {
   ChatIcon,
+  NoteIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   HeartIcon,
   MoreHorizontalIcon,
-  SparkleIcon,
+  PromptIcon,
 } from "../../app/(app)/(dashboard)/icons";
 import { shareStory } from "../../lib/create/api";
 
@@ -45,8 +44,6 @@ type ThreadViewerProps = {
   activeIndex: number;
   onSelectIndex: (i: number) => void;
   currentUser: User | null;
-  /** Compact title row variant: title left, author avatar+name+date stacked on right. */
-  compactAuthorRow?: boolean;
   /** Parent-managed slide removal. When set, ThreadViewer calls this after a
    * successful delete so the parent can drop the slide from its stories list
    * and adjust activeIndex. When absent, ThreadViewer falls back to router.back(). */
@@ -56,6 +53,17 @@ type ThreadViewerProps = {
    * by the composer's Eye button to show authors what their draft will look
    * like when published. */
   preview?: boolean;
+  /** Desktop-only: page-level DOM slot to portal the Add Story + ⋯ actions
+   * into, so they render on the same row as the page's "Story" title (matches
+   * Figma). Below `lg`, the actions render inline at the top of the story
+   * column as they do today. */
+  actionsPortalRef?: RefObject<HTMLDivElement | null>;
+  /** Desktop-only: page-level DOM slot to portal the Music pill into, so it
+   * sits centered between the "Story" title and the actions on the header
+   * row. Below `lg`, the pill renders inline at the top of the story column. */
+  musicPortalRef?: RefObject<HTMLDivElement | null>;
+  /** Mobile-only: page-level DOM slot to portal just the ⋯ menu into. */
+  mobileMenuPortalRef?: RefObject<HTMLDivElement | null>;
 };
 
 export default function ThreadViewer({
@@ -63,10 +71,18 @@ export default function ThreadViewer({
   activeIndex,
   onSelectIndex,
   currentUser,
-  compactAuthorRow = false,
   onStoryDeleted,
   preview = false,
+  actionsPortalRef,
+  musicPortalRef,
+  mobileMenuPortalRef,
 }: ThreadViewerProps) {
+  // Portal target is a client-only DOM node — wait for mount before rendering
+  // the portalled actions to avoid SSR hydration mismatches.
+  const [portalMounted, setPortalMounted] = useState(false);
+  useEffect(() => {
+    setPortalMounted(true);
+  }, []);
   const currentUserId = currentUser?._id ?? "";
   const stories = data.stories ?? [];
   const total = stories.length;
@@ -80,6 +96,62 @@ export default function ThreadViewer({
   >({});
   const likePendingRef = useRef<Record<string, boolean>>({});
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  // Mobile bottom-sheet state: story enters in "close" (cover full-bleed, sheet
+  // peeks up from bottom). Dragging the handle transitions to "open" (sheet
+  // fills viewport). Desktop ignores this.
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const dragStartRef = useRef<{
+    y: number;
+    x: number;
+    open: boolean;
+  } | null>(null);
+  const sheetScrollRef = useRef<HTMLDivElement>(null);
+  const handleSheetDragStart = useCallback(
+    (e: React.TouchEvent) => {
+      // When sheet is open and content is scrolled, defer to native scroll —
+      // sheet drag would fight vertical scrolling.
+      if (sheetOpen && (sheetScrollRef.current?.scrollTop ?? 0) > 0) return;
+      dragStartRef.current = {
+        y: e.touches[0].clientY,
+        x: e.touches[0].clientX,
+        open: sheetOpen,
+      };
+      setDragging(true);
+    },
+    [sheetOpen]
+  );
+  const handleSheetDragMove = useCallback((e: React.TouchEvent) => {
+    const start = dragStartRef.current;
+    if (!start) return;
+    const dy = e.touches[0].clientY - start.y;
+    const dx = e.touches[0].clientX - start.x;
+    // Primarily horizontal gesture — abort so the story-swipe handler wins.
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+      dragStartRef.current = null;
+      setDragOffset(0);
+      setDragging(false);
+      return;
+    }
+    // Prevent overdragging past the natural snap positions.
+    if (start.open && dy < 0) return setDragOffset(0);
+    if (!start.open && dy > 0) return setDragOffset(0);
+    setDragOffset(dy);
+  }, []);
+  const handleSheetDragEnd = useCallback(() => {
+    const start = dragStartRef.current;
+    if (!start) {
+      setDragging(false);
+      return;
+    }
+    const THRESHOLD = 60;
+    if (start.open && dragOffset > THRESHOLD) setSheetOpen(false);
+    else if (!start.open && dragOffset < -THRESHOLD) setSheetOpen(true);
+    setDragOffset(0);
+    setDragging(false);
+    dragStartRef.current = null;
+  }, [dragOffset]);
 
   const storyId = story?._id ?? "";
   const override = storyId ? likeOverrides[storyId] : undefined;
@@ -251,6 +323,28 @@ export default function ThreadViewer({
   const promptNote = prompt?.note || "";
   const hasPromptNote = hasPrompt && !!promptNote && !!noteAuthorFirst;
 
+  // Desktop prompt strip identity: prefer the prompt's author; fall back to
+  // the note author so the strip still reads as "someone asked" when the
+  // prompt is system-generated but a person left a note on it.
+  const askerAvatar =
+    promptCreator?.profilePicture ?? noteAuthor?.profilePicture ?? null;
+  const askerName = creatorName ?? noteAuthorFirst;
+  const askerId = promptCreator?._id ?? noteAuthor?._id;
+
+  // Note popover state for the desktop prompt strip.
+  const [notePopoverOpen, setNotePopoverOpen] = useState(false);
+  const notePopoverRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!notePopoverOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!notePopoverRef.current?.contains(e.target as Node)) {
+        setNotePopoverOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [notePopoverOpen]);
+
   if (total === 0) {
     return (
       <div className="flex-1 flex items-center justify-center px-[24px] py-[24px]">
@@ -302,31 +396,152 @@ export default function ThreadViewer({
         .join(" ")
     : "";
 
+  // Desktop-only: portalled copy of Add Story + and ⋯ that render alongside
+  // the page's "Story" title. Rendered here (not in the top action row) so
+  // they sit outside the story column, matching Figma. Preview mode omits.
+  const portalActions =
+    portalMounted && !preview && actionsPortalRef?.current
+      ? createPortal(
+          <>
+            <button
+              type="button"
+              onClick={handleAddStory}
+              disabled={!promptId}
+              className="cursor-pointer bg-[#ededed] border border-white rounded-full px-[16px] py-[8px] flex items-center gap-[8px] font-montserrat font-medium text-primary-blue text-[14px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            >
+              Add Story
+              <span className="text-[16px] leading-none">+</span>
+            </button>
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                aria-label="More options"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((v) => !v)}
+                disabled={menuItems.length === 0}
+                className="cursor-pointer bg-[#f1f1f1] rounded-full w-[36px] h-[36px] flex items-center justify-center text-primary-blue hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <MoreHorizontalIcon width={20} height={20} />
+              </button>
+              <OptionsMenu
+                open={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                items={menuItems}
+              />
+            </div>
+          </>,
+          actionsPortalRef.current
+        )
+      : null;
+
+  // Desktop-only music pill portal — sits centered in the page header row
+  // between the "Story" title and the Add Story + / ⋯ actions.
+  const portalMusic =
+    portalMounted && musicPortalRef?.current && story?.music?.trackName
+      ? createPortal(<MusicPill music={story.music} />, musicPortalRef.current)
+      : null;
+
+  const portalMobileMenu =
+    portalMounted && !preview && mobileMenuPortalRef?.current
+      ? createPortal(
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              aria-label="More options"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((v) => !v)}
+              disabled={menuItems.length === 0}
+              className="cursor-pointer bg-[#f1f1f1] rounded-full w-[36px] h-[36px] flex items-center justify-center text-primary-blue hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <MoreHorizontalIcon width={20} height={20} />
+            </button>
+            <OptionsMenu
+              open={menuOpen}
+              onClose={() => setMenuOpen(false)}
+              items={menuItems}
+            />
+          </div>,
+          mobileMenuPortalRef.current
+        )
+      : null;
+
   return (
     <>
-      {total > 1 && canPrev && (
-        <button
-          type="button"
-          aria-label="Previous story"
-          onClick={() => onSelectIndex(safeIndex - 1)}
-          className="cursor-pointer absolute left-[8px] top-1/2 -translate-y-1/2 z-10 w-[36px] h-[36px] rounded-full bg-[#ededed] flex items-center justify-center text-primary-blue hover:bg-[#e3e3e3] transition-colors"
-        >
-          <ChevronLeftIcon width={18} height={18} />
-        </button>
-      )}
-      {total > 1 && canNext && (
-        <button
-          type="button"
-          aria-label="Next story"
-          onClick={() => onSelectIndex(safeIndex + 1)}
-          className="cursor-pointer absolute right-[8px] top-1/2 -translate-y-1/2 z-10 w-[36px] h-[36px] rounded-full bg-[#ededed] flex items-center justify-center text-primary-blue hover:bg-[#e3e3e3] transition-colors"
-        >
-          <ChevronRightIcon width={18} height={18} />
-        </button>
-      )}
+      {portalActions}
+      {portalMusic}
+      {portalMobileMenu}
+
+      <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden lg:overflow-visible">
+        {/* Mobile cover backdrop — full-bleed behind the sheet in Close state.
+            Hidden on desktop (desktop shows cover inline inside the scroll
+            container with its own aspect ratio). */}
+        <div className="lg:hidden absolute inset-0 z-0 overflow-hidden bg-primary-blue/10">
+          {coverUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coverUrl}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : null}
+        </div>
+
+        {/* Desktop gutter arrows — live OUTSIDE the scroll container so
+            they don't get clipped by its implicit overflow-x. Positioned
+            against this relative wrapper which spans the full page width. */}
+        {total > 1 && canPrev && (
+          <button
+            type="button"
+            aria-label="Previous story"
+            onClick={() => onSelectIndex(safeIndex - 1)}
+            className="hidden xl:flex cursor-pointer absolute top-1/2 -translate-y-1/2 z-20 rounded-full bg-[#ededed] hover:bg-[#e3e3e3] transition-colors items-center justify-center text-primary-blue w-[52px] h-[52px] left-[16px] 2xl:left-[40px]"
+          >
+            <ChevronLeftIcon width={22} height={22} />
+          </button>
+        )}
+        {total > 1 && canNext && (
+          <button
+            type="button"
+            aria-label="Next story"
+            onClick={() => onSelectIndex(safeIndex + 1)}
+            className="hidden xl:flex cursor-pointer absolute top-1/2 -translate-y-1/2 z-20 rounded-full bg-[#ededed] hover:bg-[#e3e3e3] transition-colors items-center justify-center text-primary-blue w-[52px] h-[52px] right-[16px] 2xl:right-[40px]"
+          >
+            <ChevronRightIcon width={22} height={22} />
+          </button>
+        )}
+
+      {/* Mobile bottom sheet (lg:contents = layout-inert on desktop, so scroll
+          container + footer behave as direct flex children of the outer wrapper
+          above lg). Below lg, this is an absolute-positioned sheet that
+          translates between Close (top: 55%) and Open (top: 0). */}
+      <div
+        className="lg:contents absolute inset-x-0 bottom-0 z-10 flex flex-col bg-white shadow-[0_-6px_24px_rgba(0,0,0,0.08)] overflow-hidden"
+        style={{
+          // Animate `top` directly so `bottom: 0` stays pinned to the viewport
+          // during drag — using `translateY` here would shift both edges and
+          // reveal the cover backdrop below the sheet.
+          top: `calc(${sheetOpen ? "0%" : "55%"} + ${dragOffset}px)`,
+          borderTopLeftRadius: sheetOpen ? 0 : 24,
+          borderTopRightRadius: sheetOpen ? 0 : 24,
+          transition: dragging
+            ? "none"
+            : "top 320ms cubic-bezier(0.32, 0.72, 0, 1), border-radius 200ms ease-out",
+        }}
+        onTouchStart={handleSheetDragStart}
+        onTouchMove={handleSheetDragMove}
+        onTouchEnd={handleSheetDragEnd}
+        onTouchCancel={handleSheetDragEnd}
+      >
+        {/* Drag handle — visual affordance only; the whole sheet is draggable. */}
+        <div className="lg:hidden shrink-0 pt-[10px] pb-[6px] select-none">
+          <div className="w-[40px] h-[4px] rounded-full bg-black/20 mx-auto" />
+        </div>
 
       <div
-        className="flex-1 min-w-0 overflow-y-auto scrollbar-hide px-[40px] pt-[16px]"
+        ref={sheetScrollRef}
+        className={`flex-1 min-w-0 scrollbar-hide px-[24px] pt-[16px] lg:px-[40px] lg:max-w-[880px] lg:mx-auto lg:w-full ${sheetOpen ? "overflow-y-auto" : "overflow-hidden lg:overflow-y-auto"}`}
         onTouchStart={(e) => {
           if (total <= 1) return;
           touchStartRef.current = {
@@ -349,61 +564,90 @@ export default function ThreadViewer({
           else if (dx > 0 && canPrev) onSelectIndex(safeIndex - 1);
         }}
       >
-        <div className="flex items-center justify-between gap-[16px] mb-[12px]">
-          {preview ? (
-            <span className="shrink-0 w-[1px]" aria-hidden />
-          ) : (
-            <button
-              type="button"
-              onClick={handleAddStory}
-              disabled={!promptId}
-              className="cursor-pointer bg-[#ededed] border border-white rounded-full px-[14px] py-[7px] flex items-center gap-[8px] font-montserrat font-medium text-primary-blue text-[14px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-            >
-              Add Story
-              <span className="text-[16px] leading-none">+</span>
-            </button>
-          )}
-          <div className="flex-1 min-w-0 flex justify-center">
-            {story?.music?.trackName && <MusicPill music={story.music} />}
+        {/* Mobile prompt pill — collapsible, matches mobile Figma. Hidden on
+            Close state per Figma; shown once the sheet is Open. */}
+        {hasPrompt && prompt && sheetOpen && (
+          <div className="lg:hidden">
+            <PromptPill
+              promptContent={prompt.content || ""}
+              showStarIcon={showStarIcon}
+              creatorName={creatorName}
+              creatorAvatar={promptCreator?.profilePicture ?? null}
+            />
           </div>
-          {preview ? (
-            <span className="shrink-0 w-[1px]" aria-hidden />
-          ) : (
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                aria-label="More options"
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                onClick={() => setMenuOpen((v) => !v)}
-                disabled={menuItems.length === 0}
-                className="cursor-pointer bg-[#f1f1f1] rounded-full w-[36px] h-[36px] flex items-center justify-center text-primary-blue hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <MoreHorizontalIcon width={20} height={20} />
-              </button>
-              <OptionsMenu
-                open={menuOpen}
-                onClose={() => setMenuOpen(false)}
-                items={menuItems}
-              />
-            </div>
-          )}
-        </div>
-
-        {hasPrompt && prompt && (
-          <PromptPill
-            promptContent={prompt.content || ""}
-            showStarIcon={showStarIcon}
-            creatorName={creatorName}
-            creatorAvatar={promptCreator?.profilePicture ?? null}
-          />
         )}
-        {hasPromptNote && noteAuthor && (
-          <NotePill
-            note={promptNote}
-            authorFirstName={noteAuthorFirst!}
-            authorAvatar={noteAuthor.profilePicture ?? null}
-          />
+        {/* Desktop prompt strip — always-visible horizontal bar: asker on left
+            (avatar + name + note-indicator when a note exists), prompt content
+            with star icon on right. Matches Figma "Open Story" frame. */}
+        {hasPrompt && prompt && (
+          <div className="hidden lg:flex items-center gap-[12px] rounded-full bg-[#f2f2f2] px-[16px] py-[10px] mb-[12px]">
+            {askerName && (
+              <div className="flex items-center gap-[10px] min-w-0">
+                <div className="w-[36px] h-[36px] rounded-full overflow-hidden bg-primary-blue/15 shrink-0">
+                  {askerAvatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={bustUrl(
+                        askerAvatar,
+                        askerId === currentUser?._id
+                          ? currentUser?.updatedAt
+                          : undefined
+                      )}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center font-montserrat font-semibold text-primary-blue text-[13px]">
+                      {askerName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <span className="font-montserrat font-semibold text-primary-blue text-[15px] truncate">
+                  {askerName}
+                </span>
+                {hasPromptNote && (
+                  <div className="relative shrink-0" ref={notePopoverRef}>
+                    <button
+                      type="button"
+                      aria-label="View note"
+                      aria-expanded={notePopoverOpen}
+                      onClick={() => setNotePopoverOpen((v) => !v)}
+                      className="cursor-pointer inline-flex items-center justify-center text-primary-blue hover:opacity-80 transition-opacity"
+                    >
+                      <NoteIcon width={19} height={19} />
+                    </button>
+                    {notePopoverOpen && (
+                      <div className="absolute top-full left-0 mt-[10px] z-30 w-[280px] rounded-[16px] bg-white shadow-[0_8px_28px_rgba(0,0,0,0.12)] border border-black/[0.06] p-[14px]">
+                        <div className="font-montserrat font-semibold text-primary-blue text-[14px] mb-[6px]">
+                          {noteAuthorFirst}&apos;s note
+                        </div>
+                        <div className="font-montserrat text-primary-blue text-[13px] leading-[18px] whitespace-pre-wrap">
+                          {promptNote}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            <div className={`flex items-center gap-[10px] min-w-0 ${askerName ? "ml-auto" : ""}`}>
+              <PromptIcon width={22} height={22} />
+              <span className="font-montserrat text-primary-blue text-[15px] truncate">
+                {prompt.content}
+              </span>
+            </div>
+          </div>
+        )}
+        {/* Mobile only — desktop shows the note via a popover from the
+            prompt strip's NoteIcon button (above). Hidden on Close per Figma. */}
+        {hasPromptNote && noteAuthor && sheetOpen && (
+          <div className="lg:hidden">
+            <NotePill
+              note={promptNote}
+              authorFirstName={noteAuthorFirst!}
+              authorAvatar={noteAuthor.profilePicture ?? null}
+            />
+          </div>
         )}
 
         {total >= 2 && (
@@ -415,7 +659,7 @@ export default function ThreadViewer({
                 aria-label={`Go to story ${i + 1}`}
                 onClick={() => onSelectIndex(i)}
                 className={`h-[3px] flex-1 rounded-full transition-colors ${
-                  i <= safeIndex
+                  i === safeIndex
                     ? "bg-primary-blue"
                     : "bg-[#dbdbdb] hover:bg-primary-blue/30"
                 }`}
@@ -424,74 +668,162 @@ export default function ThreadViewer({
           </div>
         )}
 
-        <div className="relative rounded-[24px] overflow-hidden bg-primary-blue/10 h-[260px] mb-[20px] mt-[8px]">
-          {coverUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={coverUrl}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-          ) : null}
+        <div className="hidden lg:block relative mb-[20px] mt-[8px]">
+          <div className="relative rounded-[24px] overflow-hidden bg-primary-blue/10 lg:h-auto lg:aspect-[802/509]">
+            {coverUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={coverUrl}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : null}
+          </div>
+          {/* Prev/Next arrows — overlap cover corners on smaller viewports;
+              move into the page gutters on xl+ (52×52 grey circles). */}
+          {total > 1 && canPrev && (
+            <button
+              type="button"
+              aria-label="Previous story"
+              onClick={() => onSelectIndex(safeIndex - 1)}
+              className="xl:hidden cursor-pointer absolute top-1/2 -translate-y-1/2 z-10 rounded-full bg-[#ededed] flex items-center justify-center text-primary-blue hover:bg-[#e3e3e3] transition-colors w-[36px] h-[36px] left-[8px]"
+            >
+              <ChevronLeftIcon width={18} height={18} />
+            </button>
+          )}
+          {total > 1 && canNext && (
+            <button
+              type="button"
+              aria-label="Next story"
+              onClick={() => onSelectIndex(safeIndex + 1)}
+              className="xl:hidden cursor-pointer absolute top-1/2 -translate-y-1/2 z-10 rounded-full bg-[#ededed] flex items-center justify-center text-primary-blue hover:bg-[#e3e3e3] transition-colors w-[36px] h-[36px] right-[8px]"
+            >
+              <ChevronRightIcon width={18} height={18} />
+            </button>
+          )}
         </div>
 
-        {compactAuthorRow ? (
-          <CompactTitleAuthorRow
-            title={story?.title || ""}
-            authorName={authorName}
-            authorAvatar={resolvedAuthor?.profilePicture ?? null}
-            authorInitial={(resolvedAuthor?.firstName || "?")
-              .charAt(0)
-              .toUpperCase()}
-            dateLabel={formatStoryHeaderDate(story?.createdAt)}
-          />
-        ) : (
-          <>
-            {(story?.title || story?.createdAt) && (
-              <div className="flex items-start justify-between gap-[12px]">
-                {story?.title ? (
-                  <h2 className="font-montserrat font-semibold text-primary-blue text-[22px] md:text-[26px] leading-[30px] flex-1 min-w-0">
-                    {story.title}
-                  </h2>
-                ) : (
-                  <span />
-                )}
-                <span className="font-montserrat text-primary-blue/50 text-[13px] shrink-0 mt-[8px]">
-                  {formatShortDayTime(story?.createdAt)}
-                </span>
-              </div>
-            )}
-
-            {resolvedAuthor && (
-              <div className="flex items-center gap-[10px] mt-[10px]">
-                <div className="w-[32px] h-[32px] rounded-full overflow-hidden bg-primary-blue/15 border-[2px] border-white shrink-0">
-                  {resolvedAuthor.profilePicture ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={bustUrl(
-                        resolvedAuthor.profilePicture,
-                        resolvedAuthor._id === currentUser?._id
-                          ? currentUser?.updatedAt
-                          : undefined
-                      )}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center font-montserrat font-semibold text-primary-blue text-[13px]">
-                      {(resolvedAuthor.firstName || "?")
-                        .charAt(0)
-                        .toUpperCase()}
+        {/* Mobile Open — Figma layout: author row on top (avatar + name /
+            location) with Add Story pill on the right; title below. */}
+            <div className="lg:hidden">
+              {resolvedAuthor && (
+                <div className="flex items-center gap-[12px]">
+                  <div className="w-[40px] h-[40px] rounded-full overflow-hidden bg-primary-blue/15 shrink-0">
+                    {resolvedAuthor.profilePicture ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={bustUrl(
+                          resolvedAuthor.profilePicture,
+                          resolvedAuthor._id === currentUser?._id
+                            ? currentUser?.updatedAt
+                            : undefined
+                        )}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center font-montserrat font-semibold text-primary-blue text-[14px]">
+                        {(resolvedAuthor.firstName || "?")
+                          .charAt(0)
+                          .toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-montserrat font-semibold text-primary-blue text-[16px] leading-[20px] truncate">
+                      {authorName}
                     </div>
+                    {(() => {
+                      // Per Figma: Close = timestamp, Open = location.
+                      const subtitle = sheetOpen
+                        ? story?.location?.city ||
+                          story?.location?.formattedAddress ||
+                          story?.location?.country ||
+                          ""
+                        : formatStoryHeaderDate(story?.createdAt);
+                      if (!subtitle) return null;
+                      return (
+                        <div className="font-montserrat text-[#848484] text-[13px] leading-[16px] truncate">
+                          {subtitle}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  {!preview && (
+                    <button
+                      type="button"
+                      onClick={handleAddStory}
+                      disabled={!promptId}
+                      className="cursor-pointer bg-[#ededed] rounded-full px-[14px] py-[8px] flex items-center gap-[6px] font-montserrat font-medium text-primary-blue text-[13px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                    >
+                      Add Story
+                      <span className="text-[15px] leading-none">+</span>
+                    </button>
                   )}
                 </div>
-                <span className="font-montserrat font-medium text-primary-blue text-[15px]">
-                  {authorName}
-                </span>
-              </div>
-            )}
-          </>
-        )}
+              )}
+              {story?.title && (
+                <h2 className="font-montserrat font-bold text-primary-blue text-[22px] leading-[28px] mt-[16px]">
+                  {story.title}
+                </h2>
+              )}
+            </div>
+
+            {/* Desktop (lg+) — Figma layout: title standalone (H4), author row
+                below with avatar 53 + name (H5 Medium 24) + subtitle stacked
+                (timestamp, with · location appended when set). */}
+            <div className="hidden lg:block">
+              {story?.title && (
+                <h2 className="font-montserrat font-bold text-primary-blue text-[24px] leading-[32px]">
+                  {story.title}
+                </h2>
+              )}
+              {resolvedAuthor && (
+                <div className="flex items-center gap-[12px] mt-[14px]">
+                  <div className="w-[42px] h-[42px] rounded-full overflow-hidden bg-primary-blue/15 border-[2px] border-white shrink-0">
+                    {resolvedAuthor.profilePicture ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={bustUrl(
+                          resolvedAuthor.profilePicture,
+                          resolvedAuthor._id === currentUser?._id
+                            ? currentUser?.updatedAt
+                            : undefined
+                        )}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center font-montserrat font-semibold text-primary-blue text-[16px]">
+                        {(resolvedAuthor.firstName || "?")
+                          .charAt(0)
+                          .toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-montserrat font-medium text-primary-blue text-[18px] leading-[24px] truncate">
+                      {authorName}
+                    </div>
+                    {(() => {
+                      const time = formatStoryHeaderDate(story?.createdAt);
+                      const loc =
+                        story?.location?.city ||
+                        story?.location?.formattedAddress ||
+                        story?.location?.country ||
+                        "";
+                      const subtitle = loc ? `${time} · ${loc}` : time;
+                      if (!subtitle) return null;
+                      return (
+                        <div className="font-montserrat text-[#848484] text-[12px] leading-[16px] mt-[2px] truncate">
+                          {subtitle}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
 
         <div className="mt-[18px] mb-[24px] flex flex-col gap-[16px]">
           {blocks.map((block, i) => (
@@ -504,7 +836,7 @@ export default function ThreadViewer({
         </div>
       </div>
 
-      <div className="shrink-0 px-[40px] py-[14px] border-t border-black/[0.06] bg-white flex items-center justify-between text-primary-blue/80 font-montserrat">
+      <div className={`shrink-0 px-[24px] lg:px-[40px] py-[14px] border-t border-black/[0.06] bg-white items-center justify-between text-primary-blue/80 font-montserrat lg:max-w-[880px] lg:mx-auto lg:w-full ${sheetOpen ? "flex" : "hidden lg:flex"}`}>
         <ViewerStack viewers={viewerSource} />
         <div className="flex items-center gap-[18px]">
           {(() => {
@@ -542,6 +874,8 @@ export default function ThreadViewer({
             )}
           </button>
         </div>
+      </div>
+      </div>
       </div>
 
       <ConfirmationModal
@@ -582,68 +916,6 @@ export default function ThreadViewer({
   );
 }
 
-function CompactTitleAuthorRow({
-  title,
-  authorName,
-  authorAvatar,
-  authorInitial,
-  dateLabel,
-}: {
-  title: string;
-  authorName: string;
-  authorAvatar: string | null;
-  authorInitial: string;
-  dateLabel: string;
-}) {
-  const hasAuthor = !!authorName;
-  const hasRightCol = hasAuthor || !!dateLabel;
-  if (!title && !hasRightCol) return null;
-
-  return (
-    <div className="flex items-center justify-between gap-[16px]">
-      {title ? (
-        <h2 className="font-montserrat font-semibold text-primary-blue text-[22px] md:text-[26px] leading-[30px] flex-1 min-w-0">
-          {title}
-        </h2>
-      ) : (
-        <span className="flex-1" />
-      )}
-      {hasRightCol && (
-        <div className="flex items-center gap-[10px] shrink-0">
-          {hasAuthor && (
-            <div className="w-[36px] h-[36px] rounded-full overflow-hidden bg-primary-blue/15 border-[2px] border-white shrink-0">
-              {authorAvatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={authorAvatar}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center font-montserrat font-semibold text-primary-blue text-[13px]">
-                  {authorInitial}
-                </div>
-              )}
-            </div>
-          )}
-          <div className="flex flex-col leading-tight items-end">
-            {hasAuthor && (
-              <span className="font-montserrat font-medium text-primary-blue text-[14px]">
-                {authorName}
-              </span>
-            )}
-            {dateLabel && (
-              <span className="font-montserrat text-primary-blue/50 text-[12px]">
-                {dateLabel}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function PromptPill({
   promptContent,
   showStarIcon,
@@ -659,8 +931,8 @@ function PromptPill({
   return (
     <div className="mt-[4px] mb-[6px] flex items-center gap-[10px]">
       {showStarIcon ? (
-        <div className="w-[32px] h-[32px] rounded-full bg-primary-orange/15 text-primary-orange flex items-center justify-center shrink-0">
-          <SparkleIcon width={18} height={18} />
+        <div className="w-[32px] h-[32px] flex items-center justify-center shrink-0 text-primary-blue">
+          <PromptIcon width={28} height={28} />
         </div>
       ) : (
         <div className="w-[32px] h-[32px] rounded-full overflow-hidden bg-primary-blue/15 border-[2px] border-white shrink-0">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "../../../../../lib/auth/AuthProvider";
 import { fetchThread } from "../../../../../lib/interactions/api";
@@ -21,6 +21,13 @@ export default function ThreadPage() {
 
   const [state, setState] = useState<ThreadState>({ kind: "loading" });
   const [activeStoryIndex, setActiveStoryIndex] = useState(0);
+  // Portal targets for ThreadViewer's header-row content on desktop.
+  // ThreadViewer teleports the music pill into `musicSlotRef` (centered between
+  // the title and the actions) and the Add Story + / ⋯ actions into
+  // `actionsSlotRef` (right side).
+  const musicSlotRef = useRef<HTMLDivElement>(null);
+  const actionsSlotRef = useRef<HTMLDivElement>(null);
+  const mobileMenuSlotRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!threadId) return;
@@ -59,19 +66,31 @@ export default function ThreadPage() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-[40px] pt-[16px] pb-[8px] shrink-0">
+      <div className="px-[24px] lg:px-[80px] pt-[16px] pb-[8px] shrink-0 flex items-center justify-between gap-[12px]">
         <button
           type="button"
           onClick={handleBack}
-          className="cursor-pointer inline-flex items-center gap-[8px] text-primary-blue hover:opacity-80 transition-opacity"
+          className="cursor-pointer inline-flex items-center gap-[8px] text-primary-blue hover:opacity-80 transition-opacity min-w-0 shrink-0"
         >
-          <span className="w-[32px] h-[32px] rounded-full bg-[#ededed] flex items-center justify-center">
+          <span className="w-[32px] h-[32px] rounded-full bg-[#ededed] flex items-center justify-center shrink-0">
             <ChevronLeftIcon width={18} height={18} />
           </span>
-          <span className="font-montserrat font-semibold text-[20px] md:text-[24px] leading-tight">
+          <span className="hidden lg:inline font-montserrat font-semibold lg:font-bold text-[20px] md:text-[24px] lg:text-[30px] leading-tight lg:leading-[36px] truncate">
             Story
           </span>
         </button>
+        <div
+          ref={musicSlotRef}
+          className="flex flex-1 min-w-0 items-center justify-center"
+        />
+        <div
+          ref={actionsSlotRef}
+          className="hidden lg:flex items-center gap-[10px] shrink-0"
+        />
+        <div
+          ref={mobileMenuSlotRef}
+          className="lg:hidden flex items-center shrink-0"
+        />
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col relative">
@@ -91,7 +110,9 @@ export default function ThreadPage() {
             activeIndex={activeStoryIndex}
             onSelectIndex={setActiveStoryIndex}
             currentUser={user}
-            compactAuthorRow
+            actionsPortalRef={actionsSlotRef}
+            musicPortalRef={musicSlotRef}
+            mobileMenuPortalRef={mobileMenuSlotRef}
             onStoryDeleted={(deletedStoryId) => {
               if (state.kind !== "ready") return;
               const remaining = state.data.stories.filter(

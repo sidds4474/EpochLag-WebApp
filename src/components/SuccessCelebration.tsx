@@ -45,12 +45,18 @@ const easeOutBack = (t: number, s = 1.7) =>
 type Props = {
   /** Big centered headline, e.g. "Story Created!" / "Prompt Created!". */
   title: string;
+  /** Override the default title classes (font weight, size, etc.). */
+  titleClassName?: string;
+  /** Override the default top margin (px) between illustration and title. */
+  titleMarginTop?: number;
+  /** Override the default children wrapper classes (spacing above, etc.). */
+  childrenClassName?: string;
   /** Rendered inside the fade-up button row. Callers pass their own
    *  Done / Send / etc. so this component stays presentation-only. */
   children?: React.ReactNode;
 };
 
-export default function SuccessCelebration({ title, children }: Props) {
+export default function SuccessCelebration({ title, titleClassName, titleMarginTop, childrenClassName, children }: Props) {
   const [tSec, setTSec] = useState(0);
   const startRef = useRef<number | null>(null);
   const reducedMotionRef = useRef(false);
@@ -161,9 +167,9 @@ export default function SuccessCelebration({ title, children }: Props) {
       </div>
 
       <h2
-        className="font-montserrat font-bold text-primary-blue text-[28px] leading-tight text-center"
+        className={titleClassName ?? "font-montserrat font-bold text-primary-blue text-[28px] leading-tight text-center"}
         style={{
-          marginTop: 40,
+          marginTop: titleMarginTop ?? 40,
           opacity: titleP,
           transform: `translateY(${(1 - titleP) * 14}px)`,
         }}
@@ -173,7 +179,7 @@ export default function SuccessCelebration({ title, children }: Props) {
 
       {children && (
         <div
-          className="w-full mt-[36px]"
+          className={childrenClassName ?? "w-full mt-[36px]"}
           style={{
             opacity: buttonsP,
             transform: `translateY(${(1 - buttonsP) * 18}px)`,

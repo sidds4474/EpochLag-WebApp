@@ -56,7 +56,7 @@ export default function LagsPeoplePage() {
       <div
         className={`flex items-center rounded-full overflow-hidden transition-[width,background-color] duration-300 ease-out ${
           searchOpen
-            ? "w-[280px] bg-[#f0f0f0] pl-[14px] pr-[4px] gap-[8px]"
+            ? "w-[200px] md:w-[280px] bg-[#f0f0f0] pl-[14px] pr-[4px] gap-[8px]"
             : "w-[36px] bg-transparent hover:bg-black/[0.05]"
         }`}
       >

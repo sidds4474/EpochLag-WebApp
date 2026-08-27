@@ -74,6 +74,10 @@ type MomentsRawData =
   | Moment[]
   | { items?: Moment[]; events?: Moment[] };
 
+export async function deleteMyAccount(): Promise<void> {
+  await api.delete<Envelope<unknown>>("/api/users/profile/delete");
+}
+
 export async function fetchMyMoments(
   page = 1,
   limit = 100

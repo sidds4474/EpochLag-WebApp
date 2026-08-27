@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { ThreadResponse } from "../../types/home";
 import type { User } from "../../types/user";
 import { CloseIcon } from "../../app/(app)/(dashboard)/icons";
@@ -22,6 +22,7 @@ export default function PreviewOverlay({
   currentUser,
   onClose,
 }: Props) {
+  const musicSlotRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -41,15 +42,19 @@ export default function PreviewOverlay({
 
   return (
     <div className="fixed inset-0 z-[70] bg-white flex flex-col">
-      <div className="shrink-0 px-[24px] pt-[16px] pb-[8px] flex items-center justify-between">
-        <span className="font-montserrat font-semibold text-primary-blue/60 text-[13px] uppercase tracking-[0.5px]">
+      <div className="shrink-0 px-[24px] pt-[16px] pb-[8px] flex items-center gap-[12px]">
+        <span className="shrink-0 font-montserrat font-semibold text-primary-blue/60 text-[13px] uppercase tracking-[0.5px]">
           Preview
         </span>
+        <div
+          ref={musicSlotRef}
+          className="flex flex-1 min-w-0 items-center justify-center"
+        />
         <button
           type="button"
           onClick={onClose}
           aria-label="Close preview"
-          className="cursor-pointer w-[36px] h-[36px] rounded-full bg-[#ededed] text-primary-blue flex items-center justify-center hover:bg-[#e3e3e3] transition-colors"
+          className="shrink-0 cursor-pointer w-[36px] h-[36px] rounded-full bg-[#ededed] text-primary-blue flex items-center justify-center hover:bg-[#e3e3e3] transition-colors"
         >
           <CloseIcon width={16} height={16} />
         </button>
@@ -60,7 +65,7 @@ export default function PreviewOverlay({
           activeIndex={0}
           onSelectIndex={() => {}}
           currentUser={currentUser}
-          compactAuthorRow
+          musicPortalRef={musicSlotRef}
           preview
         />
       </div>

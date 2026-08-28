@@ -28,6 +28,7 @@ import StoryMedia from "../StoryPage/components/StoryMedia";
 import MediaLightbox, { type LightboxMediaItem } from "./MediaLightbox";
 import MusicPill from "./MusicPill";
 import StoryLikesDrawer from "./StoryLikesDrawer";
+import ManageStoryParticipantsModal from "./ManageStoryParticipantsModal";
 import ShareModal from "../../app/(app)/(dashboard)/new-story/ShareModal";
 import {
   ChatIcon,
@@ -239,6 +240,7 @@ export default function ThreadViewer({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [likesDrawerOpen, setLikesDrawerOpen] = useState(false);
+  const [participantsOpen, setParticipantsOpen] = useState(false);
   // Definitive count reported by CommentsModal once known — trumps
   // story.commentsCount from the thread response (which can be stale).
   // Falls back to a delta bump if BE doesn't ship pagination.totalItems.
@@ -916,7 +918,15 @@ export default function ThreadViewer({
       </div>
 
       <div className={`shrink-0 px-[24px] lg:px-[40px] py-[14px] border-t border-black/[0.06] bg-white items-center justify-between text-primary-blue/80 font-montserrat lg:max-w-[880px] lg:mx-auto lg:w-full ${sheetOpen ? "flex" : "hidden lg:flex"}`}>
-        <ViewerStack viewers={viewerSource} />
+        <button
+          type="button"
+          onClick={() => setParticipantsOpen(true)}
+          disabled={preview}
+          aria-label="Manage participants"
+          className="cursor-pointer flex items-center rounded-full hover:opacity-80 transition-opacity disabled:opacity-70 disabled:cursor-not-allowed"
+        >
+          <ViewerStack viewers={viewerSource} />
+        </button>
         <div className="flex items-center gap-[18px]">
           {(() => {
             const commentCount =
@@ -1006,6 +1016,18 @@ export default function ThreadViewer({
         open={likesDrawerOpen}
         likes={override?.likes ?? story?.likes ?? []}
         onClose={() => setLikesDrawerOpen(false)}
+      />
+
+      <ManageStoryParticipantsModal
+        open={participantsOpen}
+        onClose={() => setParticipantsOpen(false)}
+        threadId={threadId}
+        storyId={storyId || null}
+        promptContent={prompt?.content ?? story?.title ?? null}
+        participants={participants}
+        currentUserId={currentUserId}
+        creatorId={promptCreator?._id ?? noteAuthor?._id ?? null}
+        isPrivateInitial={isPrivateThread}
       />
 
       <CommentsModal

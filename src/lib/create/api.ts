@@ -112,6 +112,15 @@ export async function setThreadPrivacy(
   );
 }
 
+export async function removeThreadParticipant(
+  threadId: string,
+  userId: string
+): Promise<void> {
+  await api.delete<Envelope<unknown>>(
+    `/api/stories/thread/${threadId}/participant/${userId}`
+  );
+}
+
 // BE quirk: this endpoint expects `userIds` (not `shareWith`) — intentional
 // asymmetry with shareUserCard, preserved from mobile V4.
 export async function shareStory(

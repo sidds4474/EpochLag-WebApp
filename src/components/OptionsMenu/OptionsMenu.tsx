@@ -15,6 +15,8 @@ type Props = {
   items: OptionsMenuItem[];
   /** Alignment along the anchor's horizontal axis. Default "right". */
   align?: "left" | "right";
+  /** Direction the menu opens. Default "down". */
+  direction?: "down" | "up";
 };
 
 export default function OptionsMenu({
@@ -22,6 +24,7 @@ export default function OptionsMenu({
   onClose,
   items,
   align = "right",
+  direction = "down",
 }: Props) {
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -50,14 +53,16 @@ export default function OptionsMenu({
     <div
       ref={rootRef}
       role="menu"
-      className={`absolute z-40 top-full mt-[6px] ${
+      className={`absolute z-40 ${
+        direction === "up" ? "bottom-full mb-[6px]" : "top-full mt-[6px]"
+      } ${
         align === "right" ? "right-0" : "left-0"
-      } min-w-[180px] bg-white rounded-[22px] shadow-[0_6px_24px_rgba(0,0,0,0.15)] border border-black/[0.06] py-[6px]`}
+      } min-w-[180px] bg-white rounded-[18px] shadow-[0_0_12px_rgba(0,0,0,0.15)] py-[6px]`}
     >
       {items.map((item, idx) => (
         <div key={`${idx}-${item.label}`}>
           {idx > 0 && (
-            <div className="h-px bg-[#C9C9C9] mx-[16px]" aria-hidden />
+            <div className="h-px bg-[#C9C9C9] mx-[12px]" aria-hidden />
           )}
           <button
             type="button"
@@ -66,8 +71,10 @@ export default function OptionsMenu({
               item.onClick();
               onClose();
             }}
-            className={`cursor-pointer w-full text-left px-[16px] py-[12px] flex items-center gap-[12px] font-montserrat text-[15px] text-primary-blue transition-colors ${
-              item.destructive ? "hover:bg-red-500/[0.08]" : "hover:bg-black/[0.04]"
+            className={`cursor-pointer w-full text-left px-[12px] py-[9px] flex items-center gap-[10px] font-montserrat font-medium text-[13px] leading-[18px] transition-colors ${
+              item.destructive
+                ? "text-[#D95F3B] hover:bg-[#D95F3B]/[0.06]"
+                : "text-primary-blue hover:bg-black/[0.04]"
             }`}
           >
             <span className="flex-1">{item.label}</span>

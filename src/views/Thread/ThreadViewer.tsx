@@ -25,6 +25,7 @@ import type {
 } from "../../types/home";
 import type { User } from "../../types/user";
 import StoryMedia from "../StoryPage/components/StoryMedia";
+import MediaLightbox, { type LightboxMediaItem } from "./MediaLightbox";
 import MusicPill from "./MusicPill";
 import ShareModal from "../../app/(app)/(dashboard)/new-story/ShareModal";
 import {
@@ -197,6 +198,7 @@ export default function ThreadViewer({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   // Definitive count reported by CommentsModal once known — trumps
   // story.commentsCount from the thread response (which can be stale).
   // Falls back to a delta bump if BE doesn't ship pagination.totalItems.
@@ -388,6 +390,19 @@ export default function ThreadViewer({
     null;
 
   const blocks = parseContentToBlocks(story?.content || "");
+
+  const lightboxItems: LightboxMediaItem[] = blocks
+    .filter((b): b is Extract<ContentBlock, { type: "image" }> => b.type === "image")
+    .map((b) => ({ type: b.type, url: b.url }));
+  const mediaBlockIndexToLightboxIndex = new Map<number, number>();
+  {
+    let li = 0;
+    blocks.forEach((b, bi) => {
+      if (b.type === "image") {
+        mediaBlockIndexToLightboxIndex.set(bi, li++);
+      }
+    });
+  }
 
   const viewerSource: ThreadParticipant[] =
     (story?.viewers as ThreadParticipant[] | undefined)?.length
@@ -844,13 +859,19 @@ export default function ThreadViewer({
             </div>
 
         <div className="mt-[18px] mb-[24px] flex flex-col gap-[16px]">
-          {blocks.map((block, i) => (
-            <BodyBlock
-              key={i}
-              block={block}
-              storyTitle={story?.title || undefined}
-            />
-          ))}
+          {blocks.map((block, i) => {
+            const li = mediaBlockIndexToLightboxIndex.get(i);
+            return (
+              <BodyBlock
+                key={i}
+                block={block}
+                storyTitle={story?.title || undefined}
+                onOpenMedia={
+                  li !== undefined ? () => setLightboxIndex(li) : undefined
+                }
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -919,6 +940,15 @@ export default function ThreadViewer({
         existingMembers={existingMembers}
         onClose={() => setShareOpen(false)}
         onSend={handleShareSend}
+      />
+
+      <MediaLightbox
+        open={lightboxIndex !== null}
+        items={lightboxItems}
+        startIndex={lightboxIndex ?? 0}
+        storyTitle={story?.title || undefined}
+        canDelete={isSent}
+        onClose={() => setLightboxIndex(null)}
       />
 
       <CommentsModal
@@ -1112,9 +1142,11 @@ function ViewerStack({ viewers }: { viewers: ThreadParticipant[] }) {
 function BodyBlock({
   block,
   storyTitle,
+  onOpenMedia,
 }: {
   block: ContentBlock;
   storyTitle?: string;
+  onOpenMedia?: () => void;
 }) {
   if (block.type === "text") {
     return (
@@ -1133,7 +1165,21 @@ function BodyBlock({
     );
   }
   return (
-    <div className="mx-auto max-w-[300px] md:max-w-[420px] w-full">
+    <div
+      className={`mx-auto max-w-[300px] md:max-w-[420px] w-full ${
+        onOpenMedia ? "cursor-pointer" : ""
+      }`}
+      onClick={onOpenMedia}
+      role={onOpenMedia ? "button" : undefined}
+      tabIndex={onOpenMedia ? 0 : undefined}
+      onKeyDown={
+        onOpenMedia
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") onOpenMedia();
+            }
+          : undefined
+      }
+    >
       <StoryMedia
         item={{ type: block.type, url: block.url }}
         storyTitle={storyTitle}

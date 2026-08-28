@@ -959,6 +959,19 @@ export default function ThreadViewer({
         onCommentAdded={() => setCommentCountDelta((d) => d + 1)}
         onCommentDeleted={() => setCommentCountDelta((d) => d - 1)}
         onTotalKnown={(total) => setCommentTotalOverride(total)}
+        storyTitle={story?.title ?? undefined}
+        storyAuthor={
+          resolvedAuthor
+            ? {
+                firstName: resolvedAuthor.firstName,
+                lastName: resolvedAuthor.lastName,
+                profilePicture: resolvedAuthor.profilePicture,
+              }
+            : null
+        }
+        storyCreatedAt={story?.createdAt}
+        storyContent={story?.content ?? undefined}
+        storyCoverUrl={coverUrl}
       />
     </>
   );

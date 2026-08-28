@@ -27,6 +27,7 @@ import type { User } from "../../types/user";
 import StoryMedia from "../StoryPage/components/StoryMedia";
 import MediaLightbox, { type LightboxMediaItem } from "./MediaLightbox";
 import MusicPill from "./MusicPill";
+import StoryLikesDrawer from "./StoryLikesDrawer";
 import ShareModal from "../../app/(app)/(dashboard)/new-story/ShareModal";
 import {
   ChatIcon,
@@ -96,7 +97,17 @@ export default function ThreadViewer({
   const canNext = safeIndex < total - 1;
 
   const [likeOverrides, setLikeOverrides] = useState<
-    Record<string, { liked: boolean; count: number }>
+    Record<
+      string,
+      {
+        liked: boolean;
+        count: number;
+        // Optimistic snapshot for the Likes drawer. Seeded from story.likes
+        // on toggle so the drawer reflects the tap instantly instead of
+        // waiting for a refetch.
+        likes?: import("../../types/home").StoryLike[];
+      }
+    >
   >({});
   const likePendingRef = useRef<Record<string, boolean>>({});
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -159,8 +170,22 @@ export default function ThreadViewer({
 
   const storyId = story?._id ?? "";
   const override = storyId ? likeOverrides[storyId] : undefined;
-  const isLiked = override?.liked ?? !!story?.isLikedByMe;
-  const likeCount = override?.count ?? story?.likesCount ?? 0;
+  // Prefer deriving from story.likes[] — BE sometimes returns the like list
+  // populated but leaves isLikedByMe stale/false, which flipped the heart to
+  // "unliked" after refresh even though the user was in the list. Only fall
+  // back to isLikedByMe when likes[] isn't present.
+  const derivedLiked =
+    story?.likes && currentUserId
+      ? story.likes.some((l) => l._id === currentUserId)
+      : !!story?.isLikedByMe;
+  const isLiked = override?.liked ?? derivedLiked;
+  // Match mobile OpenStory count fallback: totalLikes → likes.length → likesCount → 0.
+  const likeCount =
+    override?.count ??
+    story?.totalLikes ??
+    story?.likes?.length ??
+    story?.likesCount ??
+    0;
 
   const handleLikeToggle = useCallback(async () => {
     if (preview) return;
@@ -169,24 +194,38 @@ export default function ThreadViewer({
     likePendingRef.current[storyId] = true;
     const prevLiked = isLiked;
     const prevCount = likeCount;
+    const prevLikes = override?.likes ?? story?.likes ?? [];
     const nextLiked = !prevLiked;
     const nextCount = Math.max(0, prevCount + (nextLiked ? 1 : -1));
+    const nextLikes = nextLiked
+      ? currentUser
+        ? [
+            ...prevLikes.filter((l) => l._id !== currentUser._id),
+            {
+              _id: currentUser._id,
+              firstName: currentUser.firstName,
+              lastName: currentUser.lastName,
+              profilePicture: currentUser.profilePicture ?? null,
+            },
+          ]
+        : prevLikes
+      : prevLikes.filter((l) => l._id !== currentUserId);
     setLikeOverrides((m) => ({
       ...m,
-      [storyId]: { liked: nextLiked, count: nextCount },
+      [storyId]: { liked: nextLiked, count: nextCount, likes: nextLikes },
     }));
     try {
       await toggleStoryLike(storyId);
     } catch {
       setLikeOverrides((m) => ({
         ...m,
-        [storyId]: { liked: prevLiked, count: prevCount },
+        [storyId]: { liked: prevLiked, count: prevCount, likes: prevLikes },
       }));
       toast.error("Couldn't update like");
     } finally {
       likePendingRef.current[storyId] = false;
     }
-  }, [storyId, isLiked, likeCount, preview]);
+  }, [storyId, isLiked, likeCount, preview, override, story?.likes, currentUser, currentUserId]);
 
   const router = useRouter();
   // Two separate open states because both the desktop portal and the mobile
@@ -199,6 +238,7 @@ export default function ThreadViewer({
   const [shareOpen, setShareOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [likesDrawerOpen, setLikesDrawerOpen] = useState(false);
   // Definitive count reported by CommentsModal once known — trumps
   // story.commentsCount from the thread response (which can be stale).
   // Falls back to a delta bump if BE doesn't ship pagination.totalItems.
@@ -899,19 +939,30 @@ export default function ThreadViewer({
               </button>
             );
           })()}
-          <button
-            type="button"
-            onClick={handleLikeToggle}
-            aria-label={isLiked ? "Unlike" : "Like"}
-            className={`cursor-pointer flex items-center gap-[6px] transition-opacity hover:opacity-80 ${
-              isLiked ? "text-[#e53e3e]" : "text-primary-blue"
-            }`}
-          >
-            <HeartIcon width={20} height={20} filled={isLiked} />
+          <div className="flex items-center gap-[6px]">
+            <button
+              type="button"
+              onClick={handleLikeToggle}
+              aria-label={isLiked ? "Unlike" : "Like"}
+              className={`cursor-pointer flex items-center transition-opacity hover:opacity-80 ${
+                isLiked ? "text-[#D95F3B]" : "text-primary-blue"
+              }`}
+            >
+              <HeartIcon width={20} height={20} filled={isLiked} />
+            </button>
             {likeCount > 0 && (
-              <span className="text-[14px] font-medium">{likeCount}</span>
+              <button
+                type="button"
+                onClick={() => setLikesDrawerOpen(true)}
+                aria-label="See who liked this"
+                className={`cursor-pointer text-[14px] font-medium hover:underline ${
+                  isLiked ? "text-[#D95F3B]" : "text-primary-blue"
+                }`}
+              >
+                {likeCount}
+              </button>
             )}
-          </button>
+          </div>
         </div>
       </div>
       </div>
@@ -949,6 +1000,12 @@ export default function ThreadViewer({
         storyTitle={story?.title || undefined}
         canDelete={isSent}
         onClose={() => setLightboxIndex(null)}
+      />
+
+      <StoryLikesDrawer
+        open={likesDrawerOpen}
+        likes={override?.likes ?? story?.likes ?? []}
+        onClose={() => setLikesDrawerOpen(false)}
       />
 
       <CommentsModal

@@ -71,6 +71,16 @@ export type StoryAuthor = {
   id?: string;
 };
 
+// Flat user shape returned in Story.likes[] by GET /api/stories/thread/:id.
+// Not wrapped in { user: {...} } — read fields directly.
+export type StoryLike = {
+  _id: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  profilePicture?: string | null;
+  likedAt?: string;
+};
+
 export type StoryMedia = {
   _id?: string;
   type?: "image" | "video" | "audio" | string;
@@ -93,6 +103,8 @@ export type Story = {
   imageUrl?: string | null;
   media?: StoryMedia[];
   likesCount?: number;
+  totalLikes?: number;
+  likes?: StoryLike[];
   commentsCount?: number;
   isLikedByMe?: boolean;
   isPrivate?: boolean;

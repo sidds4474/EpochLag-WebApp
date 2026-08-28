@@ -898,10 +898,10 @@ export default function ThreadViewer({
 
       <ConfirmationModal
         open={deleteConfirmOpen}
-        title={isSent ? "Delete this story?" : "Remove from your feed?"}
+        title={isSent ? "Delete Lag" : "Remove from your feed"}
         body={
           isSent
-            ? "This story will be permanently removed for everyone on this thread."
+            ? "Deleted stories are stored for 30 days"
             : "You'll no longer see this story. Others on the thread will still see it."
         }
         confirmLabel={isSent ? "Delete" : "Remove"}

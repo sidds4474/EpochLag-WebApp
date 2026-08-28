@@ -9,7 +9,28 @@
 export type Section =
   | { kind: "definition"; pronunciation: string; body: string[] }
   | { kind: "heading"; text: string }
-  | { kind: "paragraph"; text: string }
+  | { kind: "paragraph"; text: string; align?: "left" | "center" }
+  | {
+      kind: "linkParagraph";
+      prefix: string;
+      linkText: string;
+      linkHref: string;
+      suffix?: string;
+    }
+  | { kind: "divider" }
+  | { kind: "socials" }
+  | {
+      kind: "hero";
+      image: { src: string; alt: string };
+      headline: string;
+      checklist: string[];
+      showAppBadges?: boolean;
+    }
+  | {
+      kind: "duo";
+      left: { title: string; body: string[] };
+      right: { title: string; body: string[] };
+    }
   | {
       kind: "prompt";
       question: string;
@@ -23,11 +44,20 @@ export type Section =
       image?: { src: string; alt: string };
     }
   | { kind: "image"; src: string; alt: string }
+  | { kind: "gallery"; images: { src: string; alt: string }[] }
+  | { kind: "steps"; items: string[] }
   | {
       kind: "split";
       image: { src: string; alt: string };
       imageSide: "left" | "right";
       body: string[];
+      imageWidth?: "sm" | "md";
+    }
+  | {
+      kind: "opportunitiesHero";
+      image: { src: string; alt: string };
+      title: string;
+      items: { blurb: string; label: string; href: string }[];
     }
   | { kind: "opportunities"; items: { label: string; href: string; blurb: string }[] };
 
@@ -80,56 +110,6 @@ const definition: Section = {
 };
 
 export const ARCHIVE: Issue[] = [
-  {
-    slug: "issue-05",
-    number: 5,
-    date: "September 2, 2026",
-    dateISO: "2026-09-02",
-    title: "Create a Lag — and cook up a memory",
-    teaser:
-      "How to create your first Lag, what a Lag actually is, and this week’s cookbook challenge.",
-    cover: "/newsletters/issue-04/story.png",
-    sections: [
-      definition,
-      { kind: "paragraph", text: "Slow down. Cook something. Share the story behind it." },
-      { kind: "heading", text: "What’s New This Week" },
-      { kind: "heading", text: "Create a Lag" },
-      {
-        kind: "paragraph",
-        text: "We just simplified the Create a Lag flow so it takes seconds. A Lag is any moment worth holding onto — a story, a photo, a recipe, a voice note — saved in one place and, if you want, shared with the people it belongs to.",
-      },
-      {
-        kind: "paragraph",
-        text: "Open the app, tap the + button, and pick “Create a Lag.” Give it a title, add a photo or a few words, and tag anyone you want to share it with. That’s it — it lives in your Library forever, and everyone tagged gets their own copy too.",
-      },
-      { kind: "heading", text: "What is a Lag?" },
-      {
-        kind: "paragraph",
-        text: "A Lag is the pause between eras — the intentional beat before you rush into the next thing. In the app, a Lag is a memory you’ve chosen to sit with. Not a post. Not a story that disappears. A quiet, kept thing you can come back to.",
-      },
-      {
-        kind: "paragraph",
-        text: "Some Lags are big — a wedding, a move, the last summer at your grandparents’ house. Some are small — the way your kid mispronounced a word, a recipe your mom finally wrote down. All of them count.",
-      },
-      { kind: "heading", text: "This Week’s Highlight: The Cookbook Challenge" },
-      {
-        kind: "paragraph",
-        text: "This week, we’re inviting the whole community into a Cookbook Challenge. Pick one family recipe — the messier the story, the better — and turn it into a Lag.",
-      },
-      {
-        kind: "paragraph",
-        text: "Snap a photo of the dish (or the handwritten card it came from). Write a few sentences about who taught it to you, or when you first remember eating it. Tag a family member so they get a copy too. Over a year, you’ll have a shared cookbook that reads like a family.",
-      },
-      { kind: "heading", text: "A Prompt Worth Sending This Week" },
-      {
-        kind: "prompt",
-        question: "What’s a dish that always tastes like home?",
-        followup: "Send it to a parent, a sibling, or the person who first made it for you. Answer it yourself, and start your cookbook.",
-      },
-      { kind: "heading", text: "Other Opportunities" },
-      opportunities(),
-    ],
-  },
   {
     slug: "issue-04",
     number: 4,
@@ -291,6 +271,153 @@ export const ARCHIVE: Issue[] = [
       },
       { kind: "heading", text: "Other Opportunities" },
       opportunities(),
+    ],
+  },
+  {
+    slug: "issue-01",
+    number: 1,
+    date: "July 10, 2026",
+    dateISO: "2026-07-10",
+    title: "Your family’s whole story, in one private place",
+    teaser:
+      "Three new prompt categories, how to send your first story in about 60 seconds, and a family’s story about an old oak tree.",
+    cover: "/newsletters/issue-01/opportunities-cropped.jpg",
+    sections: [
+      {
+        kind: "hero",
+        image: { src: "/newsletters/issue-01/Inspiration.png", alt: "Epoch Lag Inspiration tab" },
+        headline: "Your family’s whole story, in one private place.",
+        checklist: [
+          "Private and secure by default",
+          "Gentle prompts that inspire storytelling",
+          "Photos, videos, voice, and text capabilities",
+          "Memories to share with your family",
+        ],
+        showAppBadges: true,
+      },
+      { kind: "divider" },
+      {
+        kind: "prompt",
+        question: "When was the last time you asked someone you love to tell you a story?",
+        followup:
+          "Not “how was your day” or “how are the kids.” A real story. One with a beginning, with an end, and containing a truth.",
+      },
+      {
+        kind: "paragraph",
+        text: "Most of us can’t remember. And that’s exactly why we’re here.",
+      },
+      { kind: "heading", text: "What’s New This Month" },
+      {
+        kind: "split",
+        imageSide: "right",
+        image: {
+          src: "/newsletters/issue-01/image2.png",
+          alt: "Kindness prompt on the Epoch Lag Inspiration tab",
+        },
+        body: [
+          "We just launched our three newest prompt categories: Milestones, Loss, and Gratitude. Twenty-one new questions designed to open conversations that actually go somewhere.",
+          "A few of our favorites from the batch:",
+          "“Tell me about someone you wish you could have one more conversation with.”",
+          "“What is a kindness someone showed you that you have never forgotten?”",
+          "“What is something you finished that you once thought you never could?”",
+          "They live in the Inspiration tab now. Browse by category or let the app surface one for you.",
+        ],
+      },
+      { kind: "heading", text: "This Week’s How-To" },
+      {
+        kind: "paragraph",
+        text: "If you haven’t sent a story yet, here’s how it works in about 60 seconds.",
+      },
+      {
+        kind: "gallery",
+        images: [
+          { src: "/newsletters/issue-01/Homescreen.png", alt: "Home screen with the + button expanded" },
+          { src: "/newsletters/issue-01/New story.png", alt: "New Story — title and cover picker" },
+          { src: "/newsletters/issue-01/New story content.png", alt: "New Story — content editor" },
+        ],
+      },
+      {
+        kind: "steps",
+        items: [
+          "Tap the + button on your home screen.",
+          "Choose “Tell a Story.”",
+          "Write the title of your story and choose a cover image.",
+        ],
+      },
+      {
+        kind: "gallery",
+        images: [
+          {
+            src: "/newsletters/issue-01/New story full content.png",
+            alt: "Story editor with photos, audio, and text",
+          },
+          { src: "/newsletters/issue-01/Success Screen.png", alt: "Story Created success screen" },
+          { src: "/newsletters/issue-01/multiple selections.png", alt: "Send story to contacts" },
+        ],
+      },
+      {
+        kind: "steps",
+        items: [
+          "Tell the story you’ve been waiting to tell, forgot about, or would like to share with family and friends.",
+          "Choose someone to send it to, add a personal note if you want.",
+        ],
+      },
+      {
+        kind: "paragraph",
+        text: "That’s it. When they respond, their story saves automatically to your shared Library. No chasing, no losing it in a thread somewhere.",
+      },
+      {
+        kind: "linkParagraph",
+        prefix: "Get started on our ",
+        linkText: "website",
+        linkHref: "https://epochlag.com",
+        suffix: ".",
+      },
+      {
+        kind: "opportunitiesHero",
+        image: {
+          src: "/newsletters/issue-01/opportunities-cropped.jpg",
+          alt: "A field of daisies",
+        },
+        title: "Other Opportunities:",
+        items: [
+          {
+            blurb: "If you would like to provide feedback for the Epoch Lag app, please click below:",
+            label: "Feedback Survey",
+            href: FEEDBACK_FORM,
+          },
+          {
+            blurb: "If you would be willing to participate in a focus group for Epoch Lag, please click below:",
+            label: "Focus Group Survey",
+            href: FOCUS_GROUP_FORM,
+          },
+        ],
+      },
+      { kind: "socials" },
+      {
+        kind: "duo",
+        left: {
+          title: "Prompt worth sending this week",
+          body: [
+            "“What is something about where you grew up that you are grateful for today?”",
+            "Send it to a parent. Send it to an old friend. Answer it yourself, and share your story with friends and family.",
+          ],
+        },
+        right: {
+          title: "A story we heard this week",
+          body: [
+            "One of our users sent their family a story on a beautiful old oak tree using text, pictures, and audio. A way to memorialize the old family oak tree before it has to be taken down. A story the family is cherishing and will for a long time to come.",
+            "That’s the whole point.",
+          ],
+        },
+      },
+      { kind: "divider" },
+      {
+        kind: "paragraph",
+        align: "center",
+        text: "Thank you for reading and for your support of what we are building at Epoch Lag. Your support and feedback are invaluable as we continue to build and improve the experience we offer.",
+      },
+      { kind: "divider" },
     ],
   },
 ];

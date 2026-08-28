@@ -257,6 +257,12 @@ export default function ThreadViewer({
     setCommentsOpen(false);
   }, [storyId]);
 
+  // Warm the /add-story chunk so the "Add Story" tap navigates instantly
+  // instead of waiting on the composer's JS to download at click time.
+  useEffect(() => {
+    router.prefetch("/add-story");
+  }, [router]);
+
   const prompt = data.thread.prompt;
   const participants: ThreadParticipant[] = data.thread.participants ?? [];
   const threadId = data.thread._id;
@@ -268,11 +274,30 @@ export default function ThreadViewer({
   const canShare = isSent || !isPrivateThread;
 
   function handleAddStory() {
-    if (!promptId) {
-      toast.error("Missing prompt");
+    if (!threadId) {
+      toast.error("Missing thread");
       return;
     }
-    router.push(`/reply/${promptId}?thread=${threadId}`);
+    // Pass what we already know via query so the /add-story page renders
+    // the composer immediately without a second thread fetch.
+    if (!promptId) {
+      router.push(`/add-story/${threadId}`);
+      return;
+    }
+    const firstStory = data.stories?.[0];
+    const cover =
+      prompt?.imageUrl ??
+      firstStory?.coverImage ??
+      firstStory?.cover ??
+      firstStory?.imageUrl ??
+      null;
+    const isAnswer = prompt?.isTitleAvailable === false;
+    const params = new URLSearchParams({
+      p: promptId,
+      answer: isAnswer ? "1" : "0",
+    });
+    if (cover) params.set("cover", cover);
+    router.push(`/add-story/${threadId}?${params.toString()}`);
   }
 
   function handleEdit() {

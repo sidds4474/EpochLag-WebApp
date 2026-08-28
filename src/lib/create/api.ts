@@ -69,9 +69,13 @@ export async function createStory(input: {
 
 // BE Joi schema for /publish rejects unknown fields (returns 422
 // "isPrivate not allowed"). Privacy is set via /privacy AFTER publish.
+// Reply flow (Add Story to existing thread): pass an EMPTY object. BE
+// derives the recipients from the thread's participant list and auto-shares
+// — calling POST /api/stories/:id/share on a reply returns 403. See the
+// mobile PublishOrchestrator.js:405-448 for the same branch.
 export async function publishStory(
   storyId: string,
-  input: { shareWith: string[]; sendSeparately: boolean }
+  input: { shareWith: string[]; sendSeparately: boolean } | Record<string, never>
 ): Promise<PublishedStory> {
   const res = await api.put<Envelope<PublishedStory>>(
     `/api/stories/${storyId}/publish`,

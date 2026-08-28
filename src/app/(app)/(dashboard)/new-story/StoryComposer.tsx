@@ -267,6 +267,18 @@ type Props = {
    *  edits (would clobber other answerers). Locks the cover picker. */
   isInspoEdit?: boolean;
   onSaved?: () => void;
+  /** Reply flow (Add Story to an existing thread). When set, the composer:
+   *   - locks the cover to `replyThreadCoverUrl` (no picker)
+   *   - creates the story draft with `threadId` bound so BE appends it to
+   *     the existing thread and reuses its participants
+   *   - publishes with an EMPTY body (BE auto-shares — see api.ts note)
+   *   - hides the share/privacy controls (thread already owns them)
+   *   - primary button reads "Finish" */
+  replyThreadId?: string | null;
+  replyThreadCoverUrl?: string | null;
+  /** Tell-a-Story reply — hide the prompt strip. The prompt id is still
+   *  needed for createStory but there's nothing to render at the top. */
+  hidePromptStrip?: boolean;
 };
 
 export default function StoryComposer({
@@ -289,8 +301,12 @@ export default function StoryComposer({
   existingStoryStatus,
   isInspoEdit = false,
   onSaved,
+  replyThreadId = null,
+  replyThreadCoverUrl = null,
+  hidePromptStrip = false,
 }: Props) {
   const isEdit = mode === "edit";
+  const isReplyFlow = !isEdit && !!replyThreadId;
   const router = useRouter();
   const { user } = useAuth();
   const [prompt, setPrompt] = useState<UserCard | null>(() =>
@@ -377,6 +393,15 @@ export default function StoryComposer({
         file: null,
         imageUrl: initialCoverImageUrl,
         preview: initialCoverImageUrl,
+      };
+    }
+    // Reply flow: thread's cover is inherited and locked. Never sent to BE
+    // on publish — /api/stories/:id/publish reuses the thread cover.
+    if (replyThreadId && replyThreadCoverUrl) {
+      return {
+        file: null,
+        imageUrl: replyThreadCoverUrl,
+        preview: replyThreadCoverUrl,
       };
     }
     if (initialDraft?.coverImageUrl) {
@@ -792,6 +817,10 @@ export default function StoryComposer({
         content: "",
         status: "draft",
         promptId,
+        // Reply flow: bind the draft to the existing thread so BE appends
+        // the new story into it (reusing cover + participants). No BE
+        // /reply endpoint exists — this single field is what routes it.
+        threadId: replyThreadId ?? undefined,
       });
       storyId = story._id;
       storyIdRef.current = storyId;
@@ -841,8 +870,9 @@ export default function StoryComposer({
       toast.error("Add some text or media to your story");
       return;
     }
-    // Answering a prompt inherits the source cover — don't force a pick.
-    if (!replyPromptId && !cover.file && !cover.imageUrl) {
+    // Answering a prompt or adding to an existing thread inherits the
+    // source cover — don't force a pick.
+    if (!replyPromptId && !isReplyFlow && !cover.file && !cover.imageUrl) {
       toast.error("Choose a cover image");
       return;
     }
@@ -856,11 +886,11 @@ export default function StoryComposer({
 
       // Cover attach — file wins over imageUrl. Only fire when we're
       // publishing against a *fresh* prompt we just minted. In Answer-a-Prompt
-      // (replyPromptId set), the promptId points to the source prompt the
-      // author doesn't own — hitting `PUT /api/user-card/:id` returns
-      // "Card not found" (403 masked as 404). Answering a prompt inherits
-      // the source cover, so skip the attach entirely.
-      if (!replyPromptId) {
+      // (replyPromptId set) or an Add-Story reply (replyThreadId set), the
+      // promptId points to a card the author doesn't own — hitting
+      // `PUT /api/user-card/:id` returns "Card not found" (403 masked as
+      // 404). Both flows inherit the source/thread cover, so skip attach.
+      if (!replyPromptId && !isReplyFlow) {
         if (cover.file) {
           await updateUserCard(promptId, { file: cover.file });
         } else if (cover.imageUrl) {
@@ -940,15 +970,18 @@ export default function StoryComposer({
         music: music ?? null,
       });
 
-      const published = await publishStory(storyId, {
-        shareWith: [],
-        sendSeparately: false,
-      });
+      // Reply flow publishes with an empty body — BE auto-fans out to the
+      // thread's existing participants. Non-reply keeps the old contract.
+      const published = await publishStory(
+        storyId,
+        isReplyFlow ? {} : { shareWith: [], sendSeparately: false }
+      );
       const threadId = published.storyThread ?? published._id ?? null;
 
       // /publish rejects isPrivate. BE default is private → only call
-      // /privacy when user opted in.
-      if (threadId && allowShare) {
+      // /privacy when user opted in. Reply flow inherits thread privacy
+      // — the thread already owns that setting.
+      if (!isReplyFlow && threadId && allowShare) {
         try {
           await setThreadPrivacy(threadId, { isPrivate: false });
         } catch {
@@ -965,6 +998,13 @@ export default function StoryComposer({
       // Nuke all persisted media Blobs — the story is now on the server so
       // the composer's local copies are dead weight.
       void clearAllMedia();
+      // Reply flow skips the StoryCreated celebration (which drives a share
+      // step). BE already fanned out to thread participants — route straight
+      // back to the thread the user was replying into.
+      if (isReplyFlow) {
+        router.replace(`/thread/${replyThreadId}`);
+        return;
+      }
       setCreatedStory({ storyId, threadId, taggedPeopleIds });
     } catch (err) {
       const message =
@@ -1668,10 +1708,14 @@ export default function StoryComposer({
             {submitting
               ? isEdit
                 ? "Saving…"
-                : "Creating…"
+                : isReplyFlow
+                  ? "Finishing…"
+                  : "Creating…"
               : isEdit
                 ? "Save"
-                : "Create Story"}
+                : isReplyFlow
+                  ? "Finish"
+                  : "Create Story"}
           </button>
         </div>
       </div>
@@ -1682,7 +1726,7 @@ export default function StoryComposer({
       <div className="hidden lg:flex flex-1 min-h-0 flex-row gap-[32px] px-[40px] pt-[20px] pb-[120px]">
         {/* MAIN COLUMN */}
         <div className="flex-1 min-w-0 flex flex-col gap-[16px]">
-          {prompt && <PromptStrip prompt={prompt} />}
+          {prompt && !hidePromptStrip && <PromptStrip prompt={prompt} />}
           <TitleInput value={title} onChange={setTitle} />
           {isPureEmptyState ? (
             <EmptyStateGrid
@@ -1738,12 +1782,18 @@ export default function StoryComposer({
 
           <div>
             <p className="font-montserrat font-medium text-primary-blue text-[15px] mb-[10px]">
-              Add Cover image
+              {isReplyFlow ? "Thread Cover" : "Add Cover image"}
             </p>
             <button
               type="button"
-              onClick={() => setShowCoverModal(true)}
-              className="cursor-pointer relative w-full aspect-square rounded-[16px] bg-[#ffefdc] overflow-hidden flex items-center justify-center hover:brightness-[0.98] transition-[filter]"
+              onClick={() => {
+                if (isReplyFlow) return;
+                setShowCoverModal(true);
+              }}
+              disabled={isReplyFlow}
+              className={`relative w-full aspect-square rounded-[16px] bg-[#ffefdc] overflow-hidden flex items-center justify-center transition-[filter] ${
+                isReplyFlow ? "cursor-default" : "cursor-pointer hover:brightness-[0.98]"
+              }`}
             >
               {cover.preview ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -1761,30 +1811,39 @@ export default function StoryComposer({
                 </div>
               )}
             </button>
+            {isReplyFlow && (
+              <p className="mt-[8px] font-montserrat text-primary-blue/60 text-[12px] leading-[16px]">
+                Reusing the thread cover.
+              </p>
+            )}
           </div>
 
-          <div className="flex items-center justify-between">
-            <span className="font-montserrat font-medium text-primary-blue text-[15px]">
-              Allow others to share
-            </span>
-            <ToggleSwitch
-              checked={allowShare}
-              onChange={handleAllowShareChange}
-              ariaLabel="Allow others to share"
-            />
-          </div>
+          {!isReplyFlow && (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="font-montserrat font-medium text-primary-blue text-[15px]">
+                  Allow others to share
+                </span>
+                <ToggleSwitch
+                  checked={allowShare}
+                  onChange={handleAllowShareChange}
+                  ariaLabel="Allow others to share"
+                />
+              </div>
 
-          <div className="bg-white border border-black/[0.06] rounded-[16px] shadow-[0_0_8.9px_rgba(0,0,0,0.15)] p-[16px] flex items-start gap-[12px]">
-            <LockIcon />
-            <div>
-              <p className="font-montserrat font-semibold text-primary-blue text-[14px]">
-                Secure and Private
-              </p>
-              <p className="mt-[4px] font-montserrat text-primary-blue text-[13px] leading-[18px]">
-                Only you can add people to this thread
-              </p>
-            </div>
-          </div>
+              <div className="bg-white border border-black/[0.06] rounded-[16px] shadow-[0_0_8.9px_rgba(0,0,0,0.15)] p-[16px] flex items-start gap-[12px]">
+                <LockIcon />
+                <div>
+                  <p className="font-montserrat font-semibold text-primary-blue text-[14px]">
+                    Secure and Private
+                  </p>
+                  <p className="mt-[4px] font-montserrat text-primary-blue text-[13px] leading-[18px]">
+                    Only you can add people to this thread
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="h-[40px] shrink-0" aria-hidden />
         </div>
@@ -1794,7 +1853,7 @@ export default function StoryComposer({
       <div className="lg:hidden flex-1 min-h-0 flex flex-col gap-[16px] px-[16px] md:px-[24px] pt-[16px] pb-[160px]">
         {mobileStep === "content" ? (
           <>
-            {prompt && <PromptStrip prompt={prompt} />}
+            {prompt && !hidePromptStrip && <PromptStrip prompt={prompt} />}
             <TitleInput value={title} onChange={setTitle} />
             <MobileMetaChipRow
               location={location}
@@ -1894,6 +1953,11 @@ export default function StoryComposer({
               void handleSaveEdit();
               return;
             }
+            // Reply flow skips the cover step — jump straight to publish.
+            if (isReplyFlow) {
+              void handlePublish();
+              return;
+            }
             if (mobileStep === "content") setMobileStep("cover");
             else void handlePublish();
           }}
@@ -1904,11 +1968,15 @@ export default function StoryComposer({
             ? submitting
               ? "Saving…"
               : "Save"
-            : mobileStep === "content"
-              ? "Next"
-              : submitting
-                ? "Creating…"
-                : "Create Story"}
+            : isReplyFlow
+              ? submitting
+                ? "Finishing…"
+                : "Finish"
+              : mobileStep === "content"
+                ? "Next"
+                : submitting
+                  ? "Creating…"
+                  : "Create Story"}
         </button>
       </div>
 

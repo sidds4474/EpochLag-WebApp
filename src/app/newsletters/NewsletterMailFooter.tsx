@@ -23,42 +23,42 @@ const LinkedInIcon = ({ className }: { className?: string }) => (
 const NewsletterMailFooter = () => {
   return (
     <footer className="w-full bg-primary-blue">
-      <div className="px-[16px] md:px-[24px] lg:px-[64px] 2xl:px-[95px] 6xl:px-[145px] py-[32px] md:py-[44px] flex flex-col md:flex-row items-center md:items-center justify-between gap-[20px] md:gap-[16px]">
+      <div className="px-[16px] md:px-[24px] lg:px-[64px] 2xl:px-[95px] 6xl:px-[145px] py-[24px] sm:py-[32px] md:py-[44px] flex flex-col sm:flex-row items-center justify-between gap-[16px] sm:gap-[16px]">
         <Link href="/" aria-label="Epoch Lag" className="shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={LogoLight.src}
             alt="Epoch Lag"
-            className="w-[150px] md:w-[180px] h-auto object-contain"
+            className="w-[130px] sm:w-[150px] md:w-[180px] h-auto object-contain"
           />
         </Link>
-        <div className="flex items-center gap-[12px] text-white">
+        <div className="flex items-center gap-[10px] md:gap-[12px] text-white">
           <a
             href="https://www.instagram.com/epoch_lag"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Instagram"
-            className="w-[40px] h-[40px] rounded-[8px] border border-white/40 flex items-center justify-center hover:bg-white/10 transition-colors"
+            className="w-[38px] h-[38px] md:w-[40px] md:h-[40px] rounded-[8px] border border-white/40 flex items-center justify-center hover:bg-white/10 transition-colors"
           >
-            <InstagramIcon className="w-[18px] h-[18px]" />
+            <InstagramIcon className="w-[17px] h-[17px] md:w-[18px] md:h-[18px]" />
           </a>
           <a
             href="https://www.linkedin.com/company/epoch-lag/"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="LinkedIn"
-            className="w-[40px] h-[40px] rounded-[8px] border border-white/40 flex items-center justify-center hover:bg-white/10 transition-colors"
+            className="w-[38px] h-[38px] md:w-[40px] md:h-[40px] rounded-[8px] border border-white/40 flex items-center justify-center hover:bg-white/10 transition-colors"
           >
-            <LinkedInIcon className="w-[18px] h-[18px]" />
+            <LinkedInIcon className="w-[17px] h-[17px] md:w-[18px] md:h-[18px]" />
           </a>
           <a
             href="https://www.facebook.com/profile.php?id=61580265058728"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Facebook"
-            className="w-[40px] h-[40px] rounded-[8px] border border-white/40 flex items-center justify-center hover:bg-white/10 transition-colors"
+            className="w-[38px] h-[38px] md:w-[40px] md:h-[40px] rounded-[8px] border border-white/40 flex items-center justify-center hover:bg-white/10 transition-colors"
           >
-            <FacebookIcon className="w-[18px] h-[18px]" />
+            <FacebookIcon className="w-[17px] h-[17px] md:w-[18px] md:h-[18px]" />
           </a>
         </div>
       </div>

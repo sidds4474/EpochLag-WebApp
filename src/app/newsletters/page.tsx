@@ -20,16 +20,16 @@ export default function NewsletterArchivePage() {
           <p className="font-montserrat uppercase tracking-[0.14em] text-primary-orange text-[12px] md:text-[13px]">
             The Newsletter
           </p>
-          <h1 className="mt-[12px] font-ivy font-bold text-primary-blue text-[40px] md:text-[56px] lg:text-[64px] leading-[110%]">
+          <h1 className="mt-[12px] font-ivy font-bold text-primary-blue text-[32px] sm:text-[40px] md:text-[56px] lg:text-[64px] leading-[110%]">
             Past issues, worth revisiting
           </h1>
-          <p className="mt-[16px] font-montserrat text-primary-blue/80 text-[15px] md:text-[16px] leading-[160%] max-w-[620px] mx-auto">
+          <p className="mt-[14px] md:mt-[16px] font-montserrat text-primary-blue/80 text-[14px] md:text-[16px] leading-[160%] max-w-[620px] mx-auto">
             Prompts, stories, and product updates from the Epoch Lag team.
             Sent now and then — never spam.
           </p>
         </header>
 
-        <section className="mt-[48px] md:mt-[64px] max-w-[1120px] mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[20px] md:gap-[24px]">
+        <section className="mt-[40px] md:mt-[64px] max-w-[1120px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[16px] md:gap-[24px]">
           {ARCHIVE.map((issue) => (
             <Link
               key={issue.slug}
@@ -45,21 +45,21 @@ export default function NewsletterArchivePage() {
                   loading="lazy"
                 />
               </div>
-              <div className="p-[20px] md:p-[24px]">
-                <div className="flex items-center gap-[10px] text-primary-blue/60 font-montserrat text-[12px]">
+              <div className="p-[18px] sm:p-[20px] md:p-[24px]">
+                <div className="flex flex-wrap items-center gap-x-[10px] gap-y-[2px] text-primary-blue/60 font-montserrat text-[11px] md:text-[12px]">
                   <span className="uppercase tracking-[0.12em]">
                     Issue {String(issue.number).padStart(2, "0")}
                   </span>
                   <span aria-hidden="true">·</span>
                   <time dateTime={issue.dateISO}>{issue.date}</time>
                 </div>
-                <h2 className="mt-[10px] font-ivy font-bold text-primary-blue text-[22px] md:text-[24px] leading-[120%]">
+                <h2 className="mt-[10px] font-ivy font-bold text-primary-blue text-[20px] sm:text-[22px] md:text-[24px] leading-[120%]">
                   {issue.title}
                 </h2>
-                <p className="mt-[10px] font-montserrat text-primary-blue/75 text-[14px] leading-[160%]">
+                <p className="mt-[10px] font-montserrat text-primary-blue/75 text-[13px] md:text-[14px] leading-[160%]">
                   {issue.teaser}
                 </p>
-                <span className="mt-[16px] inline-flex items-center gap-[6px] font-montserrat font-semibold text-primary-orange text-[14px] group-hover:gap-[10px] transition-all">
+                <span className="mt-[14px] md:mt-[16px] inline-flex items-center gap-[6px] font-montserrat font-semibold text-primary-orange text-[13px] md:text-[14px] group-hover:gap-[10px] transition-all">
                   Read issue
                   <span aria-hidden="true">→</span>
                 </span>
@@ -68,7 +68,7 @@ export default function NewsletterArchivePage() {
           ))}
         </section>
 
-        <div className="mt-[64px] md:mt-[96px]">
+        <div className="mt-[48px] md:mt-[96px]">
           <ArchiveSubscribeCTA />
         </div>
       </main>

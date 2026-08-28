@@ -42,32 +42,32 @@ const ArchiveSubscribeCTA = ({ source = "archive_footer" }: Props) => {
   }
 
   return (
-    <section className="bg-[#FDE6C9] rounded-[24px] px-[20px] md:px-[40px] py-[36px] md:py-[48px] max-w-[880px] mx-auto text-center">
+    <section className="bg-[#FDE6C9] rounded-[20px] md:rounded-[24px] px-[18px] sm:px-[28px] md:px-[40px] py-[28px] sm:py-[36px] md:py-[48px] max-w-[880px] mx-auto text-center">
       {status === "success" ? (
         <div className="flex flex-col items-center gap-[12px]">
-          <span className="w-[48px] h-[48px] rounded-full bg-primary-orange flex items-center justify-center">
+          <span className="w-[44px] h-[44px] md:w-[48px] md:h-[48px] rounded-full bg-primary-orange flex items-center justify-center">
             <svg width="20" height="16" viewBox="0 0 25 18" fill="none" aria-hidden="true">
               <path d="M1.5 8L9 15.5L23 1.5" stroke="white" strokeWidth="3" strokeLinecap="round" />
             </svg>
           </span>
-          <h2 className="font-ivy font-bold text-primary-blue text-[28px] md:text-[32px] leading-[110%]">
+          <h2 className="font-ivy font-bold text-primary-blue text-[24px] sm:text-[28px] md:text-[32px] leading-[110%]">
             You&rsquo;re on the list
           </h2>
-          <p className="font-montserrat text-primary-blue text-[14px] leading-[160%] max-w-[420px]">
+          <p className="font-montserrat text-primary-blue text-[13px] md:text-[14px] leading-[160%] max-w-[420px]">
             See you in your inbox soon.
           </p>
         </div>
       ) : (
         <>
-          <h2 className="font-ivy font-bold text-primary-blue text-[28px] md:text-[36px] leading-[110%]">
+          <h2 className="font-ivy font-bold text-primary-blue text-[24px] sm:text-[28px] md:text-[36px] leading-[110%]">
             Get the next issue
           </h2>
-          <p className="mt-[10px] font-montserrat text-primary-blue/80 text-[14px] md:text-[15px] leading-[160%] max-w-[520px] mx-auto">
+          <p className="mt-[8px] md:mt-[10px] font-montserrat text-primary-blue/80 text-[13px] md:text-[15px] leading-[160%] max-w-[520px] mx-auto">
             Prompts, stories, and updates delivered now and then — no spam,
             unsubscribe anytime.
           </p>
-          <form onSubmit={handleSubmit} className="mt-[24px] max-w-[560px] mx-auto">
-            <div className="bg-white rounded-full h-[54px] pl-[20px] pr-[6px] flex items-center gap-[8px] shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
+          <form onSubmit={handleSubmit} className="mt-[20px] md:mt-[24px] max-w-[560px] mx-auto">
+            <div className="bg-white rounded-full h-[50px] sm:h-[54px] pl-[14px] sm:pl-[20px] pr-[4px] sm:pr-[6px] flex items-center gap-[6px] sm:gap-[8px] shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
               <input
                 type="email"
                 value={email}
@@ -82,12 +82,12 @@ const ArchiveSubscribeCTA = ({ source = "archive_footer" }: Props) => {
                 autoComplete="email"
                 disabled={status === "submitting"}
                 aria-label="Email address"
-                className="flex-1 min-w-0 bg-transparent outline-none font-montserrat text-[14px] md:text-[15px] text-primary-blue placeholder:text-primary-blue/40 disabled:opacity-50"
+                className="flex-1 min-w-0 bg-transparent outline-none font-montserrat text-[13px] sm:text-[14px] md:text-[15px] text-primary-blue placeholder:text-primary-blue/40 disabled:opacity-50"
               />
               <button
                 type="submit"
                 disabled={status === "submitting"}
-                className="cursor-pointer bg-primary-orange text-white rounded-full h-[42px] px-[22px] md:px-[28px] font-montserrat font-semibold text-[14px] hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
+                className="cursor-pointer bg-primary-orange text-white rounded-full h-[40px] sm:h-[42px] px-[16px] sm:px-[22px] md:px-[28px] font-montserrat font-semibold text-[13px] sm:text-[14px] hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity shrink-0"
               >
                 {status === "submitting" ? "…" : "Subscribe"}
               </button>

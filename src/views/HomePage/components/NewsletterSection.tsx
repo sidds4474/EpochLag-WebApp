@@ -144,15 +144,13 @@ const NewsletterSection = () => {
             )}
           </form>
 
-          {/* TODO: enable "View our newsletters" link once the archive page exists.
           <a
             href="/newsletters"
-            className="mt-[16px] inline-flex items-center gap-[6px] font-montserrat text-primary-blue text-[14px] hover:opacity-80 transition-opacity"
+            className="mt-[24px] inline-flex items-center gap-[6px] font-montserrat text-primary-blue text-[14px] hover:opacity-80 transition-opacity"
           >
             View our newsletters
             <span aria-hidden="true">→</span>
           </a>
-          */}
         </motion.div>
       )}
     </section>

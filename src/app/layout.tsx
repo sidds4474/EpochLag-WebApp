@@ -1,6 +1,7 @@
 import Script from "next/script";
 import ToastProvider from "../components/ToastProvider/ToastProvider";
 import { AuthProvider } from "../lib/auth/AuthProvider";
+import { OnboardingStoreProvider } from "../lib/onboarding/OnboardingStoreProvider";
 import "./globals.css";
 import LogoDark from "../assets/images/logo-dark.webp";
 import MobileApp from "../assets/images/mobile-app.webp";
@@ -114,7 +115,9 @@ export default function RootLayout({
           />
         </noscript>
         <ToastProvider />
-        <AuthProvider>{children}</AuthProvider>
+        <OnboardingStoreProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </OnboardingStoreProvider>
       </body>
     </html>
   );

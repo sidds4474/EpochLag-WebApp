@@ -80,7 +80,7 @@ export default function LagPreviewPage() {
   const goNext = () => {
     dispatch(setLastStep(4));
     apiSaveAnonDraft({ screensReached: 4 }).catch(() => {});
-    router.push(urlForScreen("LoginScreen"));
+    router.push(urlForScreen("SignupScreen"));
   };
 
   const card = (

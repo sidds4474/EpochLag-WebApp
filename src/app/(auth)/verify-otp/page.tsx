@@ -101,9 +101,10 @@ function VerifyOtpContent() {
     [applyAuth, dispatch, mode, router]
   );
 
-  const submit = async () => {
+  const submit = async (override?: string) => {
     if (submitting) return;
-    if (code.length !== otpLength) {
+    const value = override ?? code;
+    if (value.length !== otpLength) {
       setError("Please enter the full code");
       return;
     }
@@ -111,7 +112,7 @@ function VerifyOtpContent() {
     setError(null);
     try {
       if (mode === "email") {
-        const { token, user } = await verifyEmailOtp(email, code);
+        const { token, user } = await verifyEmailOtp(email, value);
         applyAuth(token, user);
         await postLoginSync({ profile: user });
         trackOnboarding("otp_verified", { mode });
@@ -128,7 +129,7 @@ function VerifyOtpContent() {
       }
 
       // Phone / social-finalize both call phoneVerify first.
-      const res = await phoneVerify(countryCode, phone, code);
+      const res = await phoneVerify(countryCode, phone, value);
 
       if (mode === "phone") {
         if (res.kind === "existing") {
@@ -182,9 +183,21 @@ function VerifyOtpContent() {
           // so newly-attached phone/DOB show up in the profile.
           updateUser(finalizedUser);
           trackOnboarding("social_finalize_completed");
+          let socialMergeResult: Awaited<
+            ReturnType<ReturnType<typeof runAnonMergeSync>>
+          > = null;
           try {
-            await dispatch(runAnonMergeSync({ source: "google" }));
+            socialMergeResult = await dispatch(
+              runAnonMergeSync({ source: "google" })
+            );
           } catch {}
+          if (!socialMergeResult) {
+            try {
+              await dispatch(
+                queueAnonMergeIfNeeded({ source: "VerifyOtp/social-finalize" })
+              );
+            } catch {}
+          }
           if (referralCode) clearStoredReferralCode();
           router.replace("/home");
         }
@@ -249,9 +262,10 @@ function VerifyOtpContent() {
   };
 
   const handleLogInInstead = () => {
-    // Sign out of prior social auth, go to LoginScreen. signOut already
-    // clears storage + resets Redux auth state + navigates to /login.
+    // Sign out of prior social auth, then land explicitly on LoginScreen
+    // (default signOut destination is ValueProp1).
     signOut();
+    router.replace("/login");
   };
 
   const handleUseDifferentNumber = () => {
@@ -272,7 +286,7 @@ function VerifyOtpContent() {
           length={otpLength}
           value={code}
           onChange={setCode}
-          onComplete={() => submit()}
+          onComplete={(v) => submit(v)}
         />
       </div>
 
@@ -319,7 +333,7 @@ function VerifyOtpContent() {
 
       <button
         type="button"
-        onClick={submit}
+        onClick={() => submit()}
         disabled={submitting || code.length !== otpLength}
         className="mt-[20px] w-full h-[50px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
       >

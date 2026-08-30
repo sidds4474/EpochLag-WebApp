@@ -1,314 +1,33 @@
 "use client";
 
-import {
-  Suspense,
-  useEffect,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ClipboardEvent,
-} from "react";
-import Link from "next/link";
-import Image from "next/image";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion } from "motion/react";
-import FamilyPhoto from "../../../assets/images/auth/family.jpg";
-import FormError from "../../../components/FormError/FormError";
-import { useAuth } from "../../../lib/auth/AuthProvider";
+import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
+import { OtpInput } from "../../../components/auth/OtpInput";
 import { ApiError } from "../../../lib/api/client";
+import { useAuth } from "../../../lib/auth/AuthProvider";
+import {
+  phoneStart,
+  phoneVerify,
+  socialFinalize,
+  verifyOtp as verifyEmailOtp,
+  resendOtp,
+  redeemReferralCode,
+} from "../../../lib/auth/api";
+import { peekAnonId } from "../../../lib/onboarding/storage/localStore";
+import {
+  getStoredReferralCode,
+  clearStoredReferralCode,
+} from "../../../lib/onboarding/storage/localStore";
+import { postLoginSync } from "../../../lib/auth/postLoginSync";
+import { trackOnboarding } from "../../../lib/analytics/track";
+import { useAppDispatch } from "../../../lib/onboarding/store";
+import { runAnonMergeSync } from "../../../lib/onboarding/merge/runAnonMergeSync";
+import { queueAnonMergeIfNeeded } from "../../../lib/onboarding/merge/queueAnonMergeIfNeeded";
 
-const OTP_LENGTH = 5;
-const RESEND_SECONDS = 15;
+type Mode = "phone" | "email" | "social-finalize";
 
-function VerifyOtpContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { status, verifyOtpAndSignIn } = useAuth();
-  const emailFromQuery = searchParams?.get("email") || "";
-
-  const [digits, setDigits] = useState<string[]>(() => Array(OTP_LENGTH).fill(""));
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [resendNotice, setResendNotice] = useState<string | null>(null);
-  const verifiedHereRef = useRef(false);
-  const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
-
-  useEffect(() => {
-    // Only auto-redirect when the user is ALREADY signed in on landing.
-    // If they became authenticated via the submit on this page, our explicit
-    // router.replace("/onboarding/birthday") below handles the routing.
-    if (status === "authenticated" && !verifiedHereRef.current) {
-      router.replace("/home");
-    }
-  }, [status, router]);
-
-  useEffect(() => {
-    if (!emailFromQuery) router.replace("/signup");
-  }, [emailFromQuery, router]);
-
-  useEffect(() => {
-    inputsRef.current[0]?.focus();
-  }, []);
-
-  useEffect(() => {
-    if (secondsLeft <= 0) return;
-    const id = window.setInterval(() => {
-      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [secondsLeft]);
-
-  const focusInput = (index: number) => {
-    const target = inputsRef.current[index];
-    if (target) {
-      target.focus();
-      target.select();
-    }
-  };
-
-  const updateDigit = (index: number, value: string) => {
-    if (formError) setFormError(null);
-    const clean = value.replace(/\D/g, "");
-    if (!clean) {
-      setDigits((prev) => {
-        const next = [...prev];
-        next[index] = "";
-        return next;
-      });
-      return;
-    }
-    setDigits((prev) => {
-      const next = [...prev];
-      // Spread multi-char input across remaining slots (handles autofill / paste-into-single-box)
-      const chars = clean.split("");
-      let writeIndex = index;
-      for (const char of chars) {
-        if (writeIndex >= OTP_LENGTH) break;
-        next[writeIndex] = char;
-        writeIndex += 1;
-      }
-      return next;
-    });
-    const lastWritten = Math.min(index + clean.length - 1, OTP_LENGTH - 1);
-    const advanceTo = Math.min(lastWritten + 1, OTP_LENGTH - 1);
-    focusInput(advanceTo);
-  };
-
-  const handleKeyDown = (
-    e: KeyboardEvent<HTMLInputElement>,
-    index: number
-  ) => {
-    if (e.key === "Backspace") {
-      if (digits[index]) {
-        setDigits((prev) => {
-          const next = [...prev];
-          next[index] = "";
-          return next;
-        });
-      } else if (index > 0) {
-        e.preventDefault();
-        setDigits((prev) => {
-          const next = [...prev];
-          next[index - 1] = "";
-          return next;
-        });
-        focusInput(index - 1);
-      }
-    } else if (e.key === "ArrowLeft" && index > 0) {
-      e.preventDefault();
-      focusInput(index - 1);
-    } else if (e.key === "ArrowRight" && index < OTP_LENGTH - 1) {
-      e.preventDefault();
-      focusInput(index + 1);
-    }
-  };
-
-  const handlePaste = (e: ClipboardEvent<HTMLInputElement>, index: number) => {
-    const text = e.clipboardData.getData("text").replace(/\D/g, "");
-    if (!text) return;
-    e.preventDefault();
-    updateDigit(index, text.slice(0, OTP_LENGTH - index));
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setFormError(null);
-    setResendNotice(null);
-    const code = digits.join("");
-    if (code.length !== OTP_LENGTH) {
-      setFormError("Please enter the full code from your email.");
-      return;
-    }
-    setIsSubmitting(true);
-    verifiedHereRef.current = true;
-    try {
-      await verifyOtpAndSignIn(emailFromQuery, code, false);
-      router.replace("/onboarding/birthday");
-      // Stay in "Verifying…" until /onboarding/birthday renders.
-    } catch (err) {
-      verifiedHereRef.current = false;
-      const message =
-        err instanceof ApiError ? err.message : "Verification failed.";
-      setFormError(message);
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleResend = () => {
-    if (secondsLeft > 0) return;
-    setResendNotice(
-      "Resend isn't wired up yet — go back to Sign up to request a new code."
-    );
-    setSecondsLeft(RESEND_SECONDS);
-  };
-
-  const formatTimer = (seconds: number) => {
-    const m = Math.floor(seconds / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = (seconds % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-  };
-
-  const codeComplete = digits.every((d) => d !== "");
-
-  return (
-    <main className="min-h-screen w-full flex bg-warm-cream items-stretch">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="hidden md:block sticky top-0 self-start relative md:w-[42%] lg:w-[44%] xl:w-[46%] h-screen overflow-hidden"
-      >
-        <Image
-          src={FamilyPhoto}
-          alt=""
-          fill
-          priority
-          placeholder="blur"
-          sizes="(min-width: 1280px) 46vw, (min-width: 1024px) 44vw, (min-width: 768px) 42vw, 0vw"
-          className="object-cover object-center"
-        />
-      </motion.div>
-
-      <section className="relative flex-1 bg-warm-cream md:rounded-l-[48px] md:-ml-[48px] flex items-center justify-center px-[20px] md:px-[40px] py-[40px] md:py-[64px]">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
-          className="w-full max-w-[485px] flex flex-col items-center"
-        >
-          <motion.h1
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
-            className="text-center font-montserrat font-bold text-primary-blue text-[24px] md:text-[26px] lg:text-[28px] xl:text-[32px] leading-[110%] whitespace-nowrap"
-          >
-            Welcome to Epoch Lag!
-          </motion.h1>
-
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
-            className="mt-[40px] md:mt-[56px] text-center w-full"
-          >
-            <p className="font-montserrat font-bold text-primary-blue text-[20px]">
-              Email Verification
-            </p>
-            <p className="mt-[10px] font-montserrat font-normal text-primary-blue text-[16px] leading-[20px]">
-              Enter the OTP sent to your email
-            </p>
-          </motion.div>
-
-          <motion.form
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut", delay: 0.4 }}
-            onSubmit={handleSubmit}
-            className="mt-[28px] md:mt-[32px] w-full flex flex-col items-center"
-          >
-            <div className="flex items-start justify-center gap-[5px]">
-              {Array.from({ length: OTP_LENGTH }).map((_, i) => (
-                <input
-                  key={i}
-                  ref={(el) => {
-                    inputsRef.current[i] = el;
-                  }}
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete={i === 0 ? "one-time-code" : "off"}
-                  maxLength={1}
-                  value={digits[i]}
-                  onChange={(e) => updateDigit(i, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(e, i)}
-                  onPaste={(e) => handlePaste(e, i)}
-                  onFocus={(e) => e.currentTarget.select()}
-                  disabled={isSubmitting}
-                  className="bg-primary-white text-center font-montserrat font-bold text-primary-blue text-[28px] md:text-[32px] w-[54px] h-[70px] md:w-[68px] md:h-[90px] rounded-[18px] md:rounded-[22px] focus:outline-none focus:ring-2 focus:ring-primary-blue/30 disabled:opacity-60"
-                  aria-label={`Digit ${i + 1}`}
-                />
-              ))}
-            </div>
-
-            {formError && (
-              <div className="mt-[12px]">
-                <FormError message={formError} />
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isSubmitting || !codeComplete}
-              className="cursor-pointer mt-[24px] md:mt-[34px] w-full bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[14px] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? "Verifying…" : "Submit"}
-            </button>
-
-            <div className="mt-[18px] flex items-center justify-center gap-[6px] font-montserrat text-[16px] leading-[20px]">
-              <span className="text-primary-black tabular-nums">
-                {formatTimer(secondsLeft)}
-              </span>
-              <button
-                type="button"
-                onClick={handleResend}
-                disabled={secondsLeft > 0}
-                className={`text-primary-black/30 transition-colors ${
-                  secondsLeft > 0
-                    ? "cursor-not-allowed"
-                    : "hover:text-primary-orange cursor-pointer"
-                }`}
-              >
-                Send another code
-              </button>
-            </div>
-            {resendNotice && (
-              <p className="mt-[8px] font-montserrat text-primary-blue/70 text-[13px] text-center">
-                {resendNotice}
-              </p>
-            )}
-          </motion.form>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, ease: "easeOut", delay: 0.6 }}
-            className="mt-[20px] text-center font-montserrat text-primary-black text-[14px] md:text-[15px]"
-          >
-            Wrong email?{" "}
-            <Link
-              href="/signup"
-              className="font-medium text-primary-orange underline underline-offset-2 hover:opacity-80"
-            >
-              Go back
-            </Link>
-          </motion.p>
-        </motion.div>
-      </section>
-    </main>
-  );
-}
+const RESEND_SECONDS = 60;
 
 export default function VerifyOtpPage() {
   return (
@@ -316,4 +35,369 @@ export default function VerifyOtpPage() {
       <VerifyOtpContent />
     </Suspense>
   );
+}
+
+function VerifyOtpContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const dispatch = useAppDispatch();
+  const { applyAuth } = useAuth();
+
+  const mode = (searchParams?.get("mode") || "email") as Mode;
+  const phone = searchParams?.get("phone") || "";
+  const countryCode = searchParams?.get("countryCode") || "";
+  const email = searchParams?.get("email") || "";
+  const dateOfBirth = searchParams?.get("dateOfBirth") || "";
+
+  const otpLength = mode === "email" ? 5 : 6;
+  const identifierLabel =
+    mode === "email" ? email : `${countryCode} ${phone}`;
+
+  const [code, setCode] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [resendTimer, setResendTimer] = useState(RESEND_SECONDS);
+  const [phoneTaken, setPhoneTaken] = useState(false);
+
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+    const t = window.setTimeout(() => setResendTimer((s) => s - 1), 1000);
+    return () => window.clearTimeout(t);
+  }, [resendTimer]);
+
+  useEffect(() => {
+    setCode("");
+    setError(null);
+    setPhoneTaken(false);
+  }, [mode, phone, countryCode, email]);
+
+  const finishAsAuthedUser = useCallback(
+    async (token: string, user: import("../../../types/user").User) => {
+      applyAuth(token, user);
+      await postLoginSync({ profile: user });
+      trackOnboarding("otp_verified", { mode });
+      // Kick anon merge inline; fall back to deferred on failure.
+      let mergeResult: Awaited<
+        ReturnType<ReturnType<typeof runAnonMergeSync>>
+      > = null;
+      try {
+        mergeResult = await dispatch(
+          runAnonMergeSync({
+            source: mode === "email" ? "email" : "phone",
+          })
+        );
+      } catch {}
+      if (!mergeResult) {
+        try {
+          await dispatch(
+            queueAnonMergeIfNeeded({ source: `VerifyOtp/${mode}` })
+          );
+        } catch {}
+      }
+      // ShareLag / AddRelationship not yet on web — land at /home for now.
+      router.replace("/home");
+    },
+    [applyAuth, dispatch, mode, router]
+  );
+
+  const submit = async () => {
+    if (submitting) return;
+    if (code.length !== otpLength) {
+      setError("Please enter the full code");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      if (mode === "email") {
+        const { token, user } = await verifyEmailOtp(email, code);
+        applyAuth(token, user);
+        await postLoginSync({ profile: user });
+        trackOnboarding("otp_verified", { mode });
+        // v4 email path: redeem referral silently, then go to AddRelationship.
+        const storedRef = getStoredReferralCode();
+        if (storedRef) {
+          try {
+            await redeemReferralCode(storedRef);
+          } catch {}
+          clearStoredReferralCode();
+        }
+        router.replace("/home");
+        return;
+      }
+
+      // Phone / social-finalize both call phoneVerify first.
+      const res = await phoneVerify(countryCode, phone, code);
+
+      if (mode === "phone") {
+        if (res.kind === "existing") {
+          await finishAsAuthedUser(res.token, res.user);
+          return;
+        }
+        if (res.kind === "new") {
+          const params = new URLSearchParams({
+            mode: "phone",
+            phone,
+            countryCode,
+            phoneVerifyToken: res.phoneVerifyToken,
+          });
+          router.replace(`/onboarding/create-account?${params.toString()}`);
+          return;
+        }
+        if (res.kind === "archived") {
+          setError(
+            "This account was deleted. Contact support if you believe this is an error."
+          );
+          setTimeout(() => router.replace("/login"), 3000);
+          return;
+        }
+      }
+
+      // Social-finalize mode.
+      if (mode === "social-finalize") {
+        if (res.kind === "existing") {
+          setPhoneTaken(true);
+          return;
+        }
+        if (res.kind === "archived") {
+          setError(
+            "This account was deleted. Contact support if you believe this is an error."
+          );
+          setTimeout(() => router.replace("/login"), 3000);
+          return;
+        }
+        if (res.kind === "new") {
+          const anonId = peekAnonId() || undefined;
+          const referralCode = getStoredReferralCode() || undefined;
+          const user = await socialFinalize({
+            countryCode,
+            phone,
+            dateOfBirth,
+            phoneVerifyToken: res.phoneVerifyToken,
+            anonId,
+            referralCode,
+          });
+          // We're already authed from earlier Google/Apple callback — just
+          // update the cached user.
+          // (Token is untouched.)
+          trackOnboarding("social_finalize_completed");
+          // Best-effort merge.
+          try {
+            await dispatch(
+              runAnonMergeSync({ source: "google" })
+            );
+          } catch {}
+          if (referralCode) clearStoredReferralCode();
+          // Refresh cached user via applyAuth using a re-fetch? For now
+          // just route home.
+          void user;
+          router.replace("/home");
+        }
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const bodyCode =
+          (err.data as { code?: string } | null)?.code || undefined;
+        if (bodyCode === "PHONE_VERIFY_TOKEN_INVALID") {
+          // Auto-resend inline rather than kick back to CreateAccount.
+          try {
+            await phoneStart(countryCode, phone);
+            setResendTimer(RESEND_SECONDS);
+            setNotice("Sent a fresh code");
+            setCode("");
+          } catch {
+            setError("Session expired. Please try again.");
+          }
+          return;
+        }
+        if (bodyCode === "PHONE_ALREADY_REGISTERED") {
+          setPhoneTaken(true);
+          return;
+        }
+        if (
+          err.status === 400 ||
+          err.status === 401 ||
+          /invalid|incorrect|expired|already used/i.test(err.message)
+        ) {
+          setError("Incorrect or expired code. Try again or send a new one.");
+          return;
+        }
+        setError(err.message || "Something went wrong. Please try again.");
+        return;
+      }
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendTimer > 0) return;
+    setError(null);
+    setNotice(null);
+    try {
+      if (mode === "email") {
+        await resendOtp(email);
+      } else {
+        await phoneStart(countryCode, phone);
+      }
+      setResendTimer(RESEND_SECONDS);
+      setNotice("Sent a new code");
+      setCode("");
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : "Couldn't send a new code. Try again in a moment.";
+      setError(msg);
+    }
+  };
+
+  const handleLogInInstead = () => {
+    // Sign out of prior social auth, go to LoginScreen.
+    try {
+      window.localStorage.removeItem("epochlag.token");
+      window.localStorage.removeItem("epochlag.user");
+    } catch {}
+    router.replace("/login");
+  };
+
+  const handleUseDifferentNumber = () => {
+    router.replace("/onboarding/create-account?mode=social");
+  };
+
+  const content = (
+    <div className="w-full flex flex-col items-center max-w-[420px]">
+      <h1 className="font-montserrat font-bold text-[22px] text-primary-blue text-center">
+        {mode === "email" ? "Verify Email" : "Verify Phone Number"}
+      </h1>
+      <p className="mt-[6px] font-montserrat text-[14px] text-primary-blue/80 text-center">
+        Enter the OTP sent to <strong>{identifierLabel}</strong>
+      </p>
+
+      <div className="mt-[28px]">
+        <OtpInput
+          length={otpLength}
+          value={code}
+          onChange={setCode}
+          onComplete={() => submit()}
+        />
+      </div>
+
+      {phoneTaken && (
+        <div
+          className="mt-[20px] w-full rounded-[16px] p-[16px]"
+          style={{ backgroundColor: "#F8E2C6" }}
+        >
+          <p className="font-montserrat font-semibold text-[14px] text-primary-blue text-center leading-[150%]">
+            This number is already registered
+            <br />
+            to another account.
+          </p>
+          <div className="mt-[12px] flex flex-col items-center gap-[8px]">
+            <button
+              type="button"
+              onClick={handleLogInInstead}
+              className="font-montserrat font-bold text-[14px] text-primary-blue underline cursor-pointer"
+            >
+              Log in instead
+            </button>
+            <button
+              type="button"
+              onClick={handleUseDifferentNumber}
+              className="font-montserrat text-[14px] text-primary-blue underline cursor-pointer"
+            >
+              Use a different number
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <p className="mt-[12px] font-montserrat text-[13px] text-[#C0392B] text-center">
+          {error}
+        </p>
+      )}
+
+      {notice && !error && (
+        <p className="mt-[12px] font-montserrat text-[13px] text-primary-blue/70 text-center">
+          {notice}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={submit}
+        disabled={submitting || code.length !== otpLength}
+        className="mt-[20px] w-full h-[50px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {submitting ? "Verifying…" : "Submit"}
+      </button>
+
+      <p className="mt-[16px] font-montserrat text-[13px] text-primary-blue/70 text-center">
+        Didn&apos;t get it?{" "}
+        {resendTimer > 0 ? (
+          <span className="text-primary-blue/40">
+            Send a new code ({formatTimer(resendTimer)})
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={handleResend}
+            className="text-primary-blue font-semibold underline cursor-pointer"
+          >
+            Send a new code
+          </button>
+        )}
+      </p>
+    </div>
+  );
+
+  return (
+    <OnboardingShell
+      hideDesktopNext
+      hideMobileNext
+      desktopContent={
+        <div className="w-full flex flex-col items-center justify-center min-h-[78vh] lg:min-h-0">
+          {content}
+        </div>
+      }
+      mobileContent={
+        <div className="flex flex-col min-h-screen px-[24px] pt-[24px] pb-[48px] text-primary-blue">
+          <BackChip onClick={() => router.back()} />
+          <div className="flex-1 flex flex-col items-center justify-center">
+            {content}
+          </div>
+        </div>
+      }
+    />
+  );
+}
+
+function BackChip({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Back"
+      className="self-start h-[40px] w-[40px] rounded-full bg-primary-white flex items-center justify-center text-primary-blue shadow-[0_2px_8px_rgba(9,46,74,0.08)] cursor-pointer hover:bg-primary-white/85"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M15 6l-6 6 6 6"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  );
+}
+
+function formatTimer(s: number): string {
+  const mm = Math.floor(s / 60);
+  const ss = s % 60;
+  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
 }

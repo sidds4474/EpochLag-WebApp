@@ -1,245 +1,191 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
-import { motion } from "motion/react";
-import FamilyPhoto from "../../../assets/images/auth/family.jpg";
-import LegalModal from "../../../components/LegalModal/LegalModal";
-import { TERMS_OF_SERVICE_MARKDOWN } from "../../../components/LegalModal/termsContent";
-import FormError from "../../../components/FormError/FormError";
-import { useAuth } from "../../../lib/auth/AuthProvider";
+import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
+import { CountryPicker } from "../../../components/auth/CountryPicker";
 import { ApiError } from "../../../lib/api/client";
+import { useAuth } from "../../../lib/auth/AuthProvider";
 import {
-  validateConfirmPassword,
-  validateEmail,
-  validateFirstName,
-  validateLastName,
-  validatePassword,
-  validatePhone,
-} from "../../../lib/auth/validators";
+  phoneStart,
+  loginWithGoogle,
+} from "../../../lib/auth/api";
+import { parsePhoneInput } from "../../../lib/auth/parsePhoneInput";
+import { postLoginSync } from "../../../lib/auth/postLoginSync";
+import { trackOnboarding } from "../../../lib/analytics/track";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+const TITLE_LINES = ["Create an account to", "save your Lag"];
 
-const FieldError = FormError;
+type GoogleCredentialResponse = { credential: string };
 
-function EyeToggle({
-  visible,
-  onClick,
-}: {
-  visible: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={visible ? "Hide password" : "Show password"}
-      className="cursor-pointer absolute right-[16px] top-1/2 -translate-y-1/2 text-primary-blue/70 hover:text-primary-blue"
-    >
-      {visible ? (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-          <line x1="1" y1="1" x2="23" y2="23" />
-        </svg>
-      ) : (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-          <circle cx="12" cy="12" r="3" />
-        </svg>
-      )}
-    </button>
-  );
+function decodeJwtPayload(jwt: string): {
+  email?: string;
+  given_name?: string;
+  family_name?: string;
+} | null {
+  const parts = jwt.split(".");
+  if (parts.length < 2) return null;
+  try {
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const json =
+      typeof window === "undefined"
+        ? Buffer.from(padded, "base64").toString("utf-8")
+        : decodeURIComponent(
+            atob(padded)
+              .split("")
+              .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+              .join("")
+          );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
 }
 
-const inputClass =
-  "bg-primary-white rounded-full py-[12px] font-montserrat text-primary-blue text-[16px] placeholder:text-[#a5a5a5] focus:outline-none focus:ring-2 focus:ring-primary-blue/20 disabled:opacity-60";
-
-type FieldKey =
-  | "firstName"
-  | "lastName"
-  | "email"
-  | "phone"
-  | "password"
-  | "confirmPassword";
-
-export default function SignUpPage() {
+export default function SignupPage() {
   const router = useRouter();
-  const { status, register, signInWithGoogleCredential } = useAuth();
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
+  const { status, applyAuth } = useAuth();
   const [countryCode, setCountryCode] = useState("+1");
   const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [agreed, setAgreed] = useState(false);
-  const [errors, setErrors] = useState<Record<FieldKey, string | null>>({
-    firstName: null,
-    lastName: null,
-    email: null,
-    phone: null,
-    password: null,
-    confirmPassword: null,
-  });
-  const [touched, setTouched] = useState<Record<FieldKey, boolean>>({
-    firstName: false,
-    lastName: false,
-    email: false,
-    phone: false,
-    password: false,
-    confirmPassword: false,
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [termsOpen, setTermsOpen] = useState(false);
-  const [agreedError, setAgreedError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
-  const googleButtonRef = useRef<HTMLDivElement | null>(null);
-  const fieldRefs = useRef<Record<FieldKey, HTMLInputElement | null>>({
-    firstName: null,
-    lastName: null,
-    email: null,
-    phone: null,
-    password: null,
-    confirmPassword: null,
-  });
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const hiddenGoogleBtnRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (status === "authenticated") router.replace("/home");
   }, [status, router]);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.google) {
-      setGoogleReady(true);
-    }
+    trackOnboarding("signup_screen_viewed");
+  }, []);
+
+  const handleGoogleCredential = useCallback(
+    async ({ credential }: GoogleCredentialResponse) => {
+      setError(null);
+      setGoogleBusy(true);
+      try {
+        const decoded = decodeJwtPayload(credential);
+        const { token, user, newRegistration } = await loginWithGoogle({
+          idToken: credential,
+          email: decoded?.email,
+          firstName: decoded?.given_name,
+          lastName: decoded?.family_name,
+        });
+        if (newRegistration) {
+          // New Google signup — need DOB + phone in social mode.
+          if (user.dateOfBirth) {
+            applyAuth(token, user);
+            router.replace("/onboarding/add-relationship");
+          } else {
+            applyAuth(token, user);
+            router.replace("/onboarding/create-account?mode=social");
+          }
+          return;
+        }
+        await postLoginSync({ profile: user });
+        applyAuth(token, user);
+        router.replace("/home");
+      } catch (err) {
+        const msg =
+          err instanceof ApiError ? err.message : "Google sign-in failed.";
+        setError(msg);
+      } finally {
+        setGoogleBusy(false);
+      }
+    },
+    [applyAuth, router]
+  );
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.google) setGoogleReady(true);
   }, []);
 
   useEffect(() => {
-    if (!googleReady || !googleButtonRef.current || !window.google) return;
+    if (!googleReady || !hiddenGoogleBtnRef.current || !window.google) return;
     if (!GOOGLE_CLIENT_ID) return;
-
     window.google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
-      callback: async (response) => {
-        setFormError(null);
-        try {
-          await signInWithGoogleCredential(response.credential);
-          router.replace("/home");
-        } catch (err) {
-          const message =
-            err instanceof ApiError ? err.message : "Google sign-in failed.";
-          setFormError(message);
-        }
-      },
+      callback: handleGoogleCredential,
     });
-
-    googleButtonRef.current.innerHTML = "";
-    window.google.accounts.id.renderButton(googleButtonRef.current, {
+    hiddenGoogleBtnRef.current.innerHTML = "";
+    window.google.accounts.id.renderButton(hiddenGoogleBtnRef.current, {
       theme: "outline",
       size: "large",
       type: "standard",
-      shape: "pill",
+      shape: "rectangular",
       text: "signup_with",
-      logo_alignment: "left",
-      width: 400,
+      width: 240,
     });
-  }, [googleReady, signInWithGoogleCredential, router]);
+  }, [googleReady, handleGoogleCredential]);
 
-  const setError = (key: FieldKey, message: string | null) =>
-    setErrors((prev) => ({ ...prev, [key]: message }));
-
-  const setTouchedKey = (key: FieldKey) =>
-    setTouched((prev) => ({ ...prev, [key]: true }));
-
-  const validateField = (key: FieldKey): string | null => {
-    switch (key) {
-      case "firstName":
-        return validateFirstName(firstName);
-      case "lastName":
-        return validateLastName(lastName);
-      case "email":
-        return validateEmail(email);
-      case "phone":
-        return validatePhone(phone);
-      case "password":
-        return validatePassword(password);
-      case "confirmPassword":
-        return validateConfirmPassword(password, confirmPassword);
-    }
+  const triggerGoogle = () => {
+    const btn = hiddenGoogleBtnRef.current?.querySelector<HTMLElement>(
+      'div[role="button"]'
+    );
+    btn?.click();
   };
 
-  const FIELD_ORDER: FieldKey[] = [
-    "firstName",
-    "lastName",
-    "email",
-    "phone",
-    "password",
-    "confirmPassword",
-  ];
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setFormError(null);
-    setAgreedError(null);
-
-    let firstInvalid: FieldKey | null = null;
-    let firstError: string | null = null;
-    for (const key of FIELD_ORDER) {
-      const err = validateField(key);
-      if (err && !firstInvalid) {
-        firstInvalid = key;
-        firstError = err;
-      }
-    }
-
-    if (firstInvalid) {
-      setTouchedKey(firstInvalid);
-      setError(firstInvalid, firstError);
-      fieldRefs.current[firstInvalid]?.focus({ preventScroll: true });
+  const handleSubmit = async () => {
+    setError(null);
+    const raw = phone.trim();
+    if (!raw) {
+      setError("Please enter your phone number");
       return;
     }
-
-    if (!agreed) {
-      setAgreedError("Please accept the terms to continue.");
+    // parsePhoneInput takes priority: if user pasted "+CC number", parsed CC wins.
+    let cc = countryCode;
+    let digits: string;
+    const parsed = parsePhoneInput(raw);
+    if (parsed) {
+      cc = parsed.countryCode;
+      digits = parsed.phone;
+    } else {
+      digits = raw.replace(/[\s\-().]/g, "");
+    }
+    if (!/^\d{6,15}$/.test(digits)) {
+      setError("Please enter a valid phone number");
       return;
     }
-
-    setIsSubmitting(true);
+    setSubmitting(true);
     try {
-      await register({
-        firstName,
-        lastName,
-        email,
-        password,
-        countryCode: countryCode.trim() || "+1",
-        phone: phone.trim() ? phone : undefined,
+      await phoneStart(cc, digits);
+      trackOnboarding("phone_otp_requested", { countryCode: cc });
+      const params = new URLSearchParams({
+        mode: "phone",
+        phone: digits,
+        countryCode: cc,
       });
-      router.push(`/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}`);
-      // Stay in "Creating account…" until /verify-otp renders.
+      router.push(`/verify-otp?${params.toString()}`);
     } catch (err) {
-      const message =
-        err instanceof ApiError ? err.message : "Something went wrong.";
-      const lower = message.toLowerCase();
-      if (
-        lower.includes("already exists") ||
-        lower.includes("already registered") ||
-        lower.includes("email is taken") ||
-        lower.includes("email taken")
-      ) {
-        setError("email", message);
-        setTouchedKey("email");
-        fieldRefs.current.email?.focus({ preventScroll: true });
-      } else {
-        setFormError(message);
-      }
-      setIsSubmitting(false);
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : "Couldn't send the code. Please try again.";
+      setError(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
+
+  const content = (
+    <FormBody
+      countryCode={countryCode}
+      onCountryCode={setCountryCode}
+      phone={phone}
+      onPhone={setPhone}
+      error={error}
+      submitting={submitting}
+      googleBusy={googleBusy}
+      googleReady={googleReady && !!GOOGLE_CLIENT_ID}
+      onSubmit={handleSubmit}
+      onGoogle={triggerGoogle}
+    />
+  );
 
   return (
     <>
@@ -248,347 +194,193 @@ export default function SignUpPage() {
         strategy="afterInteractive"
         onLoad={() => setGoogleReady(true)}
       />
-      <main className="min-h-screen w-full flex bg-warm-cream items-stretch">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="hidden md:block sticky top-0 self-start relative md:w-[42%] lg:w-[44%] xl:w-[46%] h-screen overflow-hidden"
-        >
-          <Image
-            src={FamilyPhoto}
-            alt=""
-            fill
-            priority
-            placeholder="blur"
-            sizes="(min-width: 1280px) 46vw, (min-width: 1024px) 44vw, (min-width: 768px) 42vw, 0vw"
-            className="object-cover object-center"
-          />
-        </motion.div>
-
-        <section className="relative flex-1 bg-warm-cream md:rounded-l-[48px] md:-ml-[48px] flex items-start md:items-center justify-center px-[20px] md:px-[40px] py-[24px] md:py-[32px]">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
-            className="w-full max-w-[485px] flex flex-col items-center"
-          >
-            <motion.h1
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
-              className="text-center font-montserrat font-bold text-primary-blue text-[24px] md:text-[26px] lg:text-[28px] xl:text-[32px] leading-[110%] whitespace-nowrap"
-            >
-              Welcome to Epoch Lag!
-            </motion.h1>
-
-            <motion.form
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut", delay: 0.35 }}
-              onSubmit={handleSubmit}
-              noValidate
-              className="mt-[20px] md:mt-[24px] w-full flex flex-col gap-[8px]"
-            >
-              <div>
-                <input
-                  ref={(el) => {
-                    fieldRefs.current.firstName = el;
-                  }}
-                  type="text"
-                  placeholder="First Name"
-                  autoComplete="given-name"
-                  value={firstName}
-                  onChange={(e) => {
-                    setFirstName(e.target.value);
-                    if (touched.firstName)
-                      setError("firstName", validateFirstName(e.target.value));
-                  }}
-                  onBlur={() => {
-                    setTouchedKey("firstName");
-                    setError("firstName", validateFirstName(firstName));
-                  }}
-                  disabled={isSubmitting}
-                  className={`${inputClass} w-full px-[20px]`}
-                />
-                {touched.firstName && errors.firstName && (
-                  <FieldError message={errors.firstName} />
-                )}
-              </div>
-
-              <div>
-                <input
-                  ref={(el) => {
-                    fieldRefs.current.lastName = el;
-                  }}
-                  type="text"
-                  placeholder="Last Name"
-                  autoComplete="family-name"
-                  value={lastName}
-                  onChange={(e) => {
-                    setLastName(e.target.value);
-                    if (touched.lastName)
-                      setError("lastName", validateLastName(e.target.value));
-                  }}
-                  onBlur={() => {
-                    setTouchedKey("lastName");
-                    setError("lastName", validateLastName(lastName));
-                  }}
-                  disabled={isSubmitting}
-                  className={`${inputClass} w-full px-[20px]`}
-                />
-                {touched.lastName && errors.lastName && (
-                  <FieldError message={errors.lastName} />
-                )}
-              </div>
-
-              <div>
-                <input
-                  ref={(el) => {
-                    fieldRefs.current.email = el;
-                  }}
-                  type="email"
-                  inputMode="email"
-                  placeholder="Email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (touched.email)
-                      setError("email", validateEmail(e.target.value));
-                  }}
-                  onBlur={() => {
-                    setTouchedKey("email");
-                    setError("email", validateEmail(email));
-                  }}
-                  disabled={isSubmitting}
-                  className={`${inputClass} w-full px-[20px]`}
-                />
-                {touched.email && errors.email && (
-                  <FieldError message={errors.email} />
-                )}
-              </div>
-
-              <div>
-                <div className="flex gap-[8px] w-full">
-                  <input
-                    type="text"
-                    placeholder="+1"
-                    inputMode="tel"
-                    value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
-                    disabled={isSubmitting}
-                    className={`${inputClass} w-[76px] shrink-0 grow-0 basis-[76px] text-center px-[12px]`}
-                  />
-                  <input
-                    ref={(el) => {
-                      fieldRefs.current.phone = el;
-                    }}
-                    type="tel"
-                    inputMode="tel"
-                    placeholder="123 456 8998"
-                    autoComplete="tel-national"
-                    value={phone}
-                    onChange={(e) => {
-                      setPhone(e.target.value);
-                      if (touched.phone)
-                        setError("phone", validatePhone(e.target.value));
-                    }}
-                    onBlur={() => {
-                      setTouchedKey("phone");
-                      setError("phone", validatePhone(phone));
-                    }}
-                    disabled={isSubmitting}
-                    className={`${inputClass} flex-1 min-w-0 px-[20px]`}
-                  />
-                </div>
-                {touched.phone && errors.phone && (
-                  <FieldError message={errors.phone} />
-                )}
-              </div>
-
-              <div>
-                <div className="relative w-full">
-                  <input
-                    ref={(el) => {
-                      fieldRefs.current.password = el;
-                    }}
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      if (touched.password)
-                        setError("password", validatePassword(e.target.value));
-                      if (
-                        touched.confirmPassword &&
-                        confirmPassword === e.target.value
-                      ) {
-                        setError("confirmPassword", null);
-                      }
-                    }}
-                    onBlur={() => {
-                      setTouchedKey("password");
-                      setError("password", validatePassword(password));
-                    }}
-                    disabled={isSubmitting}
-                    className={`${inputClass} w-full pl-[20px] pr-[48px]`}
-                  />
-                  <EyeToggle
-                    visible={showPassword}
-                    onClick={() => setShowPassword((s) => !s)}
-                  />
-                </div>
-                {touched.password && errors.password && (
-                  <FieldError message={errors.password} />
-                )}
-              </div>
-
-              <div>
-                <div className="relative w-full">
-                  <input
-                    ref={(el) => {
-                      fieldRefs.current.confirmPassword = el;
-                    }}
-                    type={showConfirmPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    placeholder="Confirm Password"
-                    value={confirmPassword}
-                    onChange={(e) => {
-                      setConfirmPassword(e.target.value);
-                      if (touched.confirmPassword)
-                        setError(
-                          "confirmPassword",
-                          validateConfirmPassword(password, e.target.value)
-                        );
-                    }}
-                    onBlur={() => {
-                      setTouchedKey("confirmPassword");
-                      setError(
-                        "confirmPassword",
-                        validateConfirmPassword(password, confirmPassword)
-                      );
-                    }}
-                    disabled={isSubmitting}
-                    className={`${inputClass} w-full pl-[20px] pr-[48px]`}
-                  />
-                  <EyeToggle
-                    visible={showConfirmPassword}
-                    onClick={() => setShowConfirmPassword((s) => !s)}
-                  />
-                </div>
-                {touched.confirmPassword && errors.confirmPassword && (
-                  <FieldError message={errors.confirmPassword} />
-                )}
-              </div>
-
-              <label className="mt-[8px] flex items-start gap-[10px] cursor-pointer select-none">
-                <button
-                  type="button"
-                  role="checkbox"
-                  aria-checked={agreed}
-                  onClick={() => {
-                    setAgreed((a) => !a);
-                    if (agreedError) setAgreedError(null);
-                  }}
-                  className={`cursor-pointer mt-[2px] shrink-0 w-[16px] h-[16px] rounded-[3px] border border-[#797979] flex items-center justify-center transition-colors ${
-                    agreed ? "bg-primary-orange border-primary-orange" : "bg-white"
-                  }`}
-                >
-                  {agreed && (
-                    <svg
-                      width="10"
-                      height="10"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="white"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M4.5 12.75 10.5 18.75 19.5 5.25" />
-                    </svg>
-                  )}
-                </button>
-                <span className="font-montserrat font-medium text-primary-blue text-[14px] leading-[140%]">
-                  I agree to the{" "}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setTermsOpen(true);
-                    }}
-                    className="cursor-pointer underline underline-offset-2 hover:opacity-80"
-                  >
-                    Terms of Service
-                  </button>{" "}
-                  and{" "}
-                  <Link
-                    href="/privacy-policy"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline underline-offset-2 hover:opacity-80"
-                  >
-                    Privacy Policy
-                  </Link>
-                </span>
-              </label>
-              {agreedError && <FormError message={agreedError} />}
-
-              {formError && (
-                <div className="mt-[8px]">
-                  <FormError message={formError} />
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="cursor-pointer mt-[18px] w-full bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[14px] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? "Creating account…" : "Sign Up"}
-              </button>
-
-              <div
-                ref={googleButtonRef}
-                className="mt-[6px] w-full flex justify-center min-h-[44px]"
-              />
-              {!GOOGLE_CLIENT_ID && (
-                <p className="text-center text-[12px] font-montserrat text-primary-blue/60">
-                  Google sign-in unavailable — missing client ID.
-                </p>
-              )}
-            </motion.form>
-
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, ease: "easeOut", delay: 0.55 }}
-              className="mt-[14px] text-center font-montserrat text-primary-black text-[14px] md:text-[16px]"
-            >
-              Already have an account?{" "}
-              <Link
-                href="/login"
-                className="font-medium text-primary-orange underline underline-offset-2 hover:opacity-80"
-              >
-                Sign in
-              </Link>
-            </motion.p>
-          </motion.div>
-        </section>
-      </main>
-      <LegalModal
-        isOpen={termsOpen}
-        title="Terms of Service"
-        markdown={TERMS_OF_SERVICE_MARKDOWN}
-        onClose={() => setTermsOpen(false)}
-        onAgree={() => {
-          setAgreed(true);
-          setTermsOpen(false);
+      <div
+        ref={hiddenGoogleBtnRef}
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: "-9999px",
+          top: "-9999px",
+          opacity: 0,
+          pointerEvents: "none",
         }}
       />
+      <OnboardingShell
+        hideDesktopNext
+        hideMobileNext
+        desktopContent={
+          <div className="relative w-full flex flex-col items-center justify-center min-h-[78vh] lg:min-h-0">
+            <BackChip onClick={() => router.back()} />
+            <div className="w-full max-w-[400px] flex flex-col items-center">
+              {content}
+            </div>
+          </div>
+        }
+        mobileContent={
+          <div className="flex flex-col min-h-screen px-[24px] pt-[24px] pb-[48px] text-primary-blue">
+            <BackChip onClick={() => router.back()} inline />
+            <div className="flex-1 flex flex-col items-center justify-center">
+              <div className="w-full max-w-[420px] flex flex-col items-center">
+                {content}
+              </div>
+            </div>
+          </div>
+        }
+      />
     </>
+  );
+}
+
+function FormBody({
+  countryCode,
+  onCountryCode,
+  phone,
+  onPhone,
+  error,
+  submitting,
+  googleBusy,
+  googleReady,
+  onSubmit,
+  onGoogle,
+}: {
+  countryCode: string;
+  onCountryCode: (v: string) => void;
+  phone: string;
+  onPhone: (v: string) => void;
+  error: string | null;
+  submitting: boolean;
+  googleBusy: boolean;
+  googleReady: boolean;
+  onSubmit: () => void;
+  onGoogle: () => void;
+}) {
+  return (
+    <>
+      <RingDot />
+      <h1 className="mt-[24px] font-montserrat font-bold text-[24px] text-primary-blue text-center leading-[130%]">
+        {TITLE_LINES[0]}
+        <br />
+        {TITLE_LINES[1]}
+      </h1>
+
+      <div className="mt-[32px] w-full flex items-center gap-[10px]">
+        <CountryPicker
+          value={countryCode}
+          onChange={onCountryCode}
+          showChevron={false}
+        />
+        <input
+          type="tel"
+          inputMode="tel"
+          value={phone}
+          onChange={(e) => onPhone(e.target.value)}
+          placeholder="Phone number"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onSubmit();
+          }}
+          className="flex-1 bg-primary-white rounded-full h-[48px] px-[18px] font-montserrat text-[15px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_4px_14px_rgba(9,46,74,0.05)]"
+        />
+      </div>
+
+      {error && (
+        <p className="mt-[10px] w-full font-montserrat text-[12px] text-[#C0392B] text-left">
+          {error}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={onSubmit}
+        disabled={submitting}
+        className="mt-[16px] w-full h-[50px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {submitting ? "Sending code…" : "Submit"}
+      </button>
+
+      <div className="mt-[24px] w-full flex items-center gap-[12px]">
+        <div className="flex-1 h-px bg-primary-blue/15" />
+        <span className="font-montserrat text-[14px] text-primary-blue/60">
+          or
+        </span>
+        <div className="flex-1 h-px bg-primary-blue/15" />
+      </div>
+
+      <button
+        type="button"
+        onClick={onGoogle}
+        disabled={!googleReady || googleBusy}
+        aria-label="Continue with Google"
+        className="mt-[16px] h-[56px] w-[56px] bg-primary-white rounded-[14px] flex items-center justify-center shadow-[0_4px_14px_rgba(9,46,74,0.06)] cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <GoogleGlyph />
+      </button>
+    </>
+  );
+}
+
+function BackChip({
+  onClick,
+  inline = false,
+}: {
+  onClick: () => void;
+  inline?: boolean;
+}) {
+  const positionClass = inline
+    ? "self-start"
+    : "absolute top-[16px] left-[16px]";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Back"
+      className={`${positionClass} h-[40px] w-[40px] rounded-full bg-primary-white flex items-center justify-center text-primary-blue shadow-[0_2px_8px_rgba(9,46,74,0.08)] cursor-pointer hover:bg-primary-white/85`}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M15 6l-6 6 6 6"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  );
+}
+
+function RingDot() {
+  return (
+    <span
+      className="relative block h-[64px] w-[64px] rounded-full"
+      style={{ backgroundColor: "#FCD6A5" }}
+    >
+      <span
+        className="absolute inset-[12px] rounded-full"
+        style={{ backgroundColor: "#D95F3B" }}
+      />
+    </span>
+  );
+}
+
+function GoogleGlyph() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 24 24">
+      <path
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.75h3.57c2.08-1.92 3.28-4.74 3.28-8.07z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.75c-.99.66-2.26 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        fill="#34A853"
+      />
+      <path
+        d="M5.84 14.12c-.22-.66-.35-1.36-.35-2.12s.13-1.46.35-2.12V7.04H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.96l3.66-2.84z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.04l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"
+        fill="#EA4335"
+      />
+    </svg>
   );
 }

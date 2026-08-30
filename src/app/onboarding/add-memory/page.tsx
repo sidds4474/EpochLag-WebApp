@@ -545,7 +545,11 @@ function EditorBack({
   }, [value]);
   return (
     <div className="w-full h-full bg-primary-white rounded-[20px] p-[16px] flex flex-col shadow-[0_10px_30px_rgba(9,46,74,0.10)]">
-      <div className="flex-1 w-full rounded-[14px] bg-[#E6E6E6] p-[16px] overflow-y-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+      <div
+        onClick={() => textareaRef.current?.focus()}
+        className="flex-1 w-full rounded-[14px] bg-[#E6E6E6] p-[16px] overflow-y-auto cursor-text [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: "none" }}
+      >
         <textarea
           ref={textareaRef}
           value={value}

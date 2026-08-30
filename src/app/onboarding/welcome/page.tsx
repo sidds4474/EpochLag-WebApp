@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { OnboardingShell, MobileLogo } from "../../../lib/onboarding/components/OnboardingShell";
 import { urlForScreen } from "../../../lib/onboarding";
@@ -13,7 +14,29 @@ export default function WelcomePage() {
   const goNext = () => router.push(urlForScreen("WhyEpochLag"));
 
   return (
-    <OnboardingShell
+    <>
+      <Link
+        href="/login"
+        className="fixed top-[24px] right-[24px] z-40 font-montserrat text-[15px] underline underline-offset-[4px] cursor-pointer hover:opacity-90 text-primary-white md:hidden"
+      >
+        Log in
+      </Link>
+      <Link
+        href="/login"
+        className="hidden md:inline-flex fixed top-[28px] right-[32px] z-40 h-[30px] items-center gap-[8px] rounded-full bg-primary-white border border-primary-blue/10 px-[16px] font-montserrat font-semibold text-[13px] text-primary-blue shadow-[0_6px_20px_rgba(9,46,74,0.08)] hover:bg-warm-cream cursor-pointer transition-colors"
+      >
+        Log in
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M5 12h14M13 5l7 7-7 7"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </Link>
+      <OnboardingShell
       onNext={goNext}
       mobileTheme="dark"
       hideMobileNext
@@ -68,6 +91,7 @@ export default function WelcomePage() {
           </div>
         </div>
       }
-    />
+      />
+    </>
   );
 }

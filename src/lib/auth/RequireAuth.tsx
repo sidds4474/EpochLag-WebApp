@@ -9,7 +9,7 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useAuth();
 
   useEffect(() => {
-    if (status === "unauthenticated") router.replace("/login");
+    if (status === "unauthenticated") router.replace("/onboarding/welcome");
   }, [status, router]);
 
   if (status !== "authenticated") {

@@ -10,7 +10,8 @@ const NavBar = () => {
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { status } = useAuth();
-  const signInHref = status === "authenticated" ? "/home" : "/login";
+  const signInHref =
+    status === "authenticated" ? "/home" : "/onboarding/welcome";
 
   return (
     <>

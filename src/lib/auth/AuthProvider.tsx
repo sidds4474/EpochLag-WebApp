@@ -17,6 +17,7 @@ import {
   setStoredAuth,
 } from "./storage";
 import { setOnUnauthorized } from "../api/client";
+import { setAuthTokenGetter } from "../onboarding/api/httpClient";
 import {
   fetchMe,
   loginWithEmailPassword,
@@ -98,6 +99,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setOnUnauthorized(signOut);
   }, [signOut]);
+
+  // Bridge the auth token into the onboarding HTTP client so authed endpoints
+  // (merge, upload token, etc.) attach a Bearer without needing to route
+  // through the legacy api/client wrapper.
+  useEffect(() => {
+    setAuthTokenGetter(() => getStoredToken());
+    return () => setAuthTokenGetter(null);
+  }, []);
 
   const applyAuth = useCallback(
     (token: string, next: User) => {

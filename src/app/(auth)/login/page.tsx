@@ -16,6 +16,8 @@ import {
 import { parsePhoneInput } from "../../../lib/auth/parsePhoneInput";
 import { postLoginSync } from "../../../lib/auth/postLoginSync";
 import { trackOnboarding } from "../../../lib/analytics/track";
+import { useAppDispatch } from "../../../lib/onboarding/store";
+import { queueAnonMergeIfNeeded } from "../../../lib/onboarding/merge/queueAnonMergeIfNeeded";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 const PROBE_PASSWORD = "___probe___";
@@ -52,6 +54,7 @@ function decodeJwtPayload(jwt: string): {
 
 export default function LoginPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const { status, applyAuth } = useAuth();
   const [authMode, setAuthMode] = useState<AuthMode>("phone");
   const [countryCode, setCountryCode] = useState("+1");
@@ -96,6 +99,9 @@ export default function LoginPage() {
         }
         await postLoginSync({ profile: user });
         applyAuth(token, user);
+        try {
+          await dispatch(queueAnonMergeIfNeeded({ source: "LoginScreen/google" }));
+        } catch {}
         router.replace("/home");
       } catch (err) {
         const msg =
@@ -105,7 +111,7 @@ export default function LoginPage() {
         setGoogleBusy(false);
       }
     },
-    [applyAuth, router]
+    [applyAuth, dispatch, router]
   );
 
   useEffect(() => {
@@ -241,6 +247,9 @@ export default function LoginPage() {
       );
       await postLoginSync({ profile: user });
       applyAuth(token, user);
+      try {
+        await dispatch(queueAnonMergeIfNeeded({ source: "LoginScreen/email" }));
+      } catch {}
       router.replace("/home");
     } catch (err) {
       const msg =

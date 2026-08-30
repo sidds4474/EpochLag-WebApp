@@ -25,6 +25,11 @@ import {
   verifyOtp,
   type RegisterPayload,
 } from "./api";
+import { useAppDispatch } from "../onboarding/store";
+import {
+  resetAuth as resetOnboardingAuth,
+  saveToken as saveOnboardingToken,
+} from "../onboarding/store/slices/authSlice";
 
 type GoogleCredentialPayload = {
   email?: string;
@@ -78,19 +83,31 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [user, setUser] = useState<User | null>(null);
 
   const signOut = useCallback(() => {
     clearStoredAuth();
+    dispatch(resetOnboardingAuth());
     setUser(null);
     setStatus("unauthenticated");
     router.replace("/login");
-  }, [router]);
+  }, [router, dispatch]);
 
   useEffect(() => {
     setOnUnauthorized(signOut);
   }, [signOut]);
+
+  const applyAuth = useCallback(
+    (token: string, next: User) => {
+      setStoredAuth(token, next);
+      dispatch(saveOnboardingToken(token));
+      setUser(next);
+      setStatus("authenticated");
+    },
+    [dispatch]
+  );
 
   useEffect(() => {
     const token = getStoredToken();
@@ -100,23 +117,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (cachedUser) {
-      setUser(cachedUser);
-      setStatus("authenticated");
+      // Rehydrate onboarding auth slice so orchestrators can fire.
+      applyAuth(token, cachedUser);
     }
     fetchMe()
       .then((fresh) => {
-        setUser(fresh);
-        setStoredAuth(token, fresh);
-        setStatus("authenticated");
+        applyAuth(token, fresh);
       })
       .catch(() => {
-        // 401 already handled via setOnUnauthorized; other errors keep cached user.
         if (!cachedUser) {
           clearStoredAuth();
           setStatus("unauthenticated");
         }
       });
-  }, []);
+  }, [applyAuth]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -124,25 +138,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password
       );
-      setStoredAuth(token, freshUser);
-      setUser(freshUser);
-      setStatus("authenticated");
+      applyAuth(token, freshUser);
     },
-    []
+    [applyAuth]
   );
 
-  const signInWithGoogleCredential = useCallback(async (credential: string) => {
-    const decoded = decodeJwtPayload(credential);
-    const { token, user: freshUser } = await loginWithGoogle({
-      idToken: credential,
-      email: decoded?.email,
-      firstName: decoded?.given_name,
-      lastName: decoded?.family_name,
-    });
-    setStoredAuth(token, freshUser);
-    setUser(freshUser);
-    setStatus("authenticated");
-  }, []);
+  const signInWithGoogleCredential = useCallback(
+    async (credential: string) => {
+      const decoded = decodeJwtPayload(credential);
+      const { token, user: freshUser } = await loginWithGoogle({
+        idToken: credential,
+        email: decoded?.email,
+        firstName: decoded?.given_name,
+        lastName: decoded?.family_name,
+      });
+      applyAuth(token, freshUser);
+    },
+    [applyAuth]
+  );
 
   const register = useCallback(async (payload: RegisterPayload) => {
     // Legacy email-signup path. Returns void because email register response
@@ -159,23 +172,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         otp,
         isPasswordReset
       );
-      setStoredAuth(token, freshUser);
-      setUser(freshUser);
-      setStatus("authenticated");
+      applyAuth(token, freshUser);
     },
-    []
+    [applyAuth]
   );
 
   const updateUser = useCallback((next: User) => {
     setUser(next);
     const token = getStoredToken();
     if (token) setStoredAuth(token, next);
-  }, []);
-
-  const applyAuth = useCallback((token: string, next: User) => {
-    setStoredAuth(token, next);
-    setUser(next);
-    setStatus("authenticated");
   }, []);
 
   return (

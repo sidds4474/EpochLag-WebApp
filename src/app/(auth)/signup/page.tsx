@@ -14,6 +14,8 @@ import {
 import { parsePhoneInput } from "../../../lib/auth/parsePhoneInput";
 import { postLoginSync } from "../../../lib/auth/postLoginSync";
 import { trackOnboarding } from "../../../lib/analytics/track";
+import { useAppDispatch } from "../../../lib/onboarding/store";
+import { queueAnonMergeIfNeeded } from "../../../lib/onboarding/merge/queueAnonMergeIfNeeded";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 const TITLE_LINES = ["Create an account to", "save your Lag"];
@@ -47,6 +49,7 @@ function decodeJwtPayload(jwt: string): {
 
 export default function SignupPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const { status, applyAuth } = useAuth();
   const [countryCode, setCountryCode] = useState("+1");
   const [phone, setPhone] = useState("");
@@ -89,6 +92,9 @@ export default function SignupPage() {
         }
         await postLoginSync({ profile: user });
         applyAuth(token, user);
+        try {
+          await dispatch(queueAnonMergeIfNeeded({ source: "SignupScreen/google" }));
+        } catch {}
         router.replace("/home");
       } catch (err) {
         const msg =
@@ -98,7 +104,7 @@ export default function SignupPage() {
         setGoogleBusy(false);
       }
     },
-    [applyAuth, router]
+    [applyAuth, dispatch, router]
   );
 
   useEffect(() => {

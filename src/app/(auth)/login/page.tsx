@@ -1,122 +1,286 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Script from "next/script";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
-import LogoDark from "../../../assets/images/logo-dark.webp";
-import FamilyPhoto from "../../../assets/images/auth/family.jpg";
-import FormError from "../../../components/FormError/FormError";
-import { useAuth } from "../../../lib/auth/AuthProvider";
+import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
+import { CountryPicker } from "../../../components/auth/CountryPicker";
 import { ApiError } from "../../../lib/api/client";
+import { useAuth } from "../../../lib/auth/AuthProvider";
+import {
+  loginWithEmailPassword,
+  loginWithGoogle,
+  phoneStart,
+} from "../../../lib/auth/api";
+import { parsePhoneInput } from "../../../lib/auth/parsePhoneInput";
+import { postLoginSync } from "../../../lib/auth/postLoginSync";
+import { trackOnboarding } from "../../../lib/analytics/track";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+const PROBE_PASSWORD = "___probe___";
 
-function LoginContent() {
+type AuthMode = "phone" | "email";
+type EmailStep = "probe" | "password";
+
+type GoogleCredentialResponse = { credential: string };
+
+function decodeJwtPayload(jwt: string): {
+  email?: string;
+  given_name?: string;
+  family_name?: string;
+} | null {
+  const parts = jwt.split(".");
+  if (parts.length < 2) return null;
+  try {
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const json =
+      typeof window === "undefined"
+        ? Buffer.from(padded, "base64").toString("utf-8")
+        : decodeURIComponent(
+            atob(padded)
+              .split("")
+              .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+              .join("")
+          );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { status, signIn, signInWithGoogleCredential } = useAuth();
+  const { status, applyAuth } = useAuth();
+  const [authMode, setAuthMode] = useState<AuthMode>("phone");
+  const [countryCode, setCountryCode] = useState("+1");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [emailStep, setEmailStep] = useState<EmailStep>("probe");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
-  const googleButtonRef = useRef<HTMLDivElement | null>(null);
-
-  const next = searchParams?.get("next") || "/home";
-
-  useEffect(() => {
-    if (status === "authenticated") router.replace(next);
-  }, [status, router, next]);
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const hiddenGoogleBtnRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.google?.accounts?.id) {
-      setGoogleReady(true);
-    }
+    if (status === "authenticated") router.replace("/home");
+  }, [status, router]);
+
+  useEffect(() => {
+    trackOnboarding("login_screen_viewed");
+  }, []);
+
+  const handleGoogleCredential = useCallback(
+    async ({ credential }: GoogleCredentialResponse) => {
+      setError(null);
+      setGoogleBusy(true);
+      try {
+        const decoded = decodeJwtPayload(credential);
+        const { token, user, newRegistration } = await loginWithGoogle({
+          idToken: credential,
+          email: decoded?.email,
+          firstName: decoded?.given_name,
+          lastName: decoded?.family_name,
+        });
+        if (newRegistration) {
+          applyAuth(token, user);
+          router.replace(
+            user.dateOfBirth
+              ? "/home"
+              : "/onboarding/create-account?mode=social"
+          );
+          return;
+        }
+        await postLoginSync({ profile: user });
+        applyAuth(token, user);
+        router.replace("/home");
+      } catch (err) {
+        const msg =
+          err instanceof ApiError ? err.message : "Google sign-in failed.";
+        setError(msg);
+      } finally {
+        setGoogleBusy(false);
+      }
+    },
+    [applyAuth, router]
+  );
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.google) setGoogleReady(true);
   }, []);
 
   useEffect(() => {
-    if (!googleReady || !googleButtonRef.current) return;
-    if (!window.google?.accounts?.id) return;
+    if (!googleReady || !hiddenGoogleBtnRef.current || !window.google) return;
     if (!GOOGLE_CLIENT_ID) return;
-
     window.google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
-      callback: async (response) => {
-        setFormError(null);
-        try {
-          await signInWithGoogleCredential(response.credential);
-          router.replace(next);
-        } catch (err) {
-          const message =
-            err instanceof ApiError ? err.message : "Google sign-in failed.";
-          setFormError(message);
-        }
-      },
+      callback: handleGoogleCredential,
     });
-
-    googleButtonRef.current.innerHTML = "";
-    window.google.accounts.id.renderButton(googleButtonRef.current, {
+    hiddenGoogleBtnRef.current.innerHTML = "";
+    window.google.accounts.id.renderButton(hiddenGoogleBtnRef.current, {
       theme: "outline",
       size: "large",
       type: "standard",
-      shape: "pill",
+      shape: "rectangular",
       text: "signin_with",
-      logo_alignment: "left",
-      width: 400,
+      width: 240,
     });
-  }, [googleReady, signInWithGoogleCredential, router, next]);
+  }, [googleReady, handleGoogleCredential]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setFormError(null);
-    let hasError = false;
-    if (!email.trim()) {
-      setEmailError("Please enter your email.");
-      hasError = true;
-    }
-    if (!password) {
-      setPasswordError("Please enter your password.");
-      hasError = true;
-    }
-    if (hasError) return;
+  const triggerGoogle = () => {
+    const btn = hiddenGoogleBtnRef.current?.querySelector<HTMLElement>(
+      'div[role="button"]'
+    );
+    btn?.click();
+  };
 
-    setIsSubmitting(true);
+  const switchMode = (next: AuthMode) => {
+    if (next === authMode) return;
+    setAuthMode(next);
+    setError(null);
+    setEmailStep("probe");
+    setPassword("");
+  };
+
+  const submitPhone = async () => {
+    setError(null);
+    const raw = phone.trim();
+    if (!raw) {
+      setError("Please enter your phone number");
+      return;
+    }
+    let cc = countryCode;
+    let digits: string;
+    const parsed = parsePhoneInput(raw);
+    if (parsed) {
+      cc = parsed.countryCode;
+      digits = parsed.phone;
+    } else if (raw.startsWith("+")) {
+      setError("Include a valid country code (e.g. +1, +91, +44).");
+      return;
+    } else {
+      digits = raw.replace(/[\s\-().]/g, "");
+    }
+    if (!/^\d{6,15}$/.test(digits)) {
+      setError("Please enter a valid phone number");
+      return;
+    }
+    setSubmitting(true);
     try {
-      await signIn(email, password);
-      router.replace(next);
-      // Don't reset isSubmitting here — we're navigating away. Keeping the
-      // button in its "Signing in…" state until the new page renders avoids
-      // a confusing flash back to "Sign in" while Next.js loads /home.
+      await phoneStart(cc, digits);
+      trackOnboarding("phone_otp_requested", { countryCode: cc });
+      const params = new URLSearchParams({
+        mode: "phone",
+        phone: digits,
+        countryCode: cc,
+      });
+      router.push(`/verify-otp?${params.toString()}`);
     } catch (err) {
-      const message =
-        err instanceof ApiError ? err.message : "Something went wrong.";
-      const lower = message.toLowerCase();
-      if (
-        lower.includes("password") ||
-        lower.includes("credentials") ||
-        lower.includes("incorrect")
-      ) {
-        setPasswordError(message);
-      } else if (
-        lower.includes("not found") ||
-        lower.includes("no account") ||
-        (lower.includes("email") && !lower.includes("valid"))
-      ) {
-        setEmailError(message);
+      if (err instanceof ApiError) {
+        if (err.status === 429)
+          setError("Too many attempts. Wait a minute and try again.");
+        else if (err.status === 503)
+          setError("Verification is temporarily unavailable. Try again shortly.");
+        else if (err.status === 422)
+          setError("Please include your country code (e.g. +1, +91, +44).");
+        else setError(err.message || "Couldn't send the code. Please try again.");
       } else {
-        setFormError(message);
+        setError("Couldn't send the code. Please try again.");
       }
-      setIsSubmitting(false);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  if (status !== "unauthenticated") return null;
+  const submitEmailProbe = async () => {
+    setError(null);
+    const cleaned = email.trim().toLowerCase();
+    if (!cleaned || !/.+@.+\..+/.test(cleaned)) {
+      setError("Please enter a valid email");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      // Login-probe: bogus password. 401 => account exists (prompt for password).
+      await loginWithEmailPassword(cleaned, PROBE_PASSWORD);
+      setEmailStep("password");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 404 || /not found/i.test(err.message)) {
+          setError("No account with that email. Try signing up instead.");
+          setTimeout(() => router.push("/onboarding/welcome"), 1200);
+          return;
+        }
+        if (err.status === 401 || /credential|password/i.test(err.message)) {
+          setEmailStep("password");
+          return;
+        }
+        setError(err.message || "Unable to continue");
+      } else {
+        setError("Unable to continue");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submitEmailPassword = async () => {
+    setError(null);
+    if (!password) {
+      setError("Please enter your password");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { token, user } = await loginWithEmailPassword(
+        email.trim().toLowerCase(),
+        password
+      );
+      await postLoginSync({ profile: user });
+      applyAuth(token, user);
+      router.replace("/home");
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message || "Incorrect password"
+          : "Incorrect password";
+      setError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submitEmail = () => {
+    if (emailStep === "probe") submitEmailProbe();
+    else submitEmailPassword();
+  };
+
+  const onSubmit = () => (authMode === "phone" ? submitPhone() : submitEmail());
+
+  const content = (
+    <FormBody
+      authMode={authMode}
+      onSwitchMode={switchMode}
+      countryCode={countryCode}
+      onCountryCode={setCountryCode}
+      phone={phone}
+      onPhone={setPhone}
+      email={email}
+      onEmail={setEmail}
+      emailStep={emailStep}
+      password={password}
+      onPassword={setPassword}
+      error={error}
+      submitting={submitting}
+      googleBusy={googleBusy}
+      googleReady={googleReady && !!GOOGLE_CLIENT_ID}
+      onSubmit={onSubmit}
+      onGoogle={triggerGoogle}
+    />
+  );
 
   return (
     <>
@@ -125,164 +289,279 @@ function LoginContent() {
         strategy="afterInteractive"
         onLoad={() => setGoogleReady(true)}
       />
-      <main className="min-h-screen w-full flex bg-warm-cream items-stretch">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="hidden md:block sticky top-0 self-start relative md:w-[42%] lg:w-[44%] xl:w-[46%] h-screen overflow-hidden"
-        >
-          <Image
-            src={FamilyPhoto}
-            alt=""
-            fill
-            priority
-            placeholder="blur"
-            sizes="(min-width: 1280px) 46vw, (min-width: 1024px) 44vw, (min-width: 768px) 42vw, 0vw"
-            className="object-cover object-center"
-          />
-        </motion.div>
-        <section className="relative flex-1 bg-warm-cream md:rounded-l-[48px] md:-ml-[48px] flex items-center justify-center px-[20px] md:px-[40px] py-[40px] md:py-[64px]">
+      <div
+        ref={hiddenGoogleBtnRef}
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: "-9999px",
+          top: "-9999px",
+          opacity: 0,
+          pointerEvents: "none",
+        }}
+      />
+      <OnboardingShell
+        hideDesktopNext
+        hideMobileNext
+        desktopContent={
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
-            className="w-full max-w-[485px] flex flex-col items-center"
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="relative w-full flex flex-col items-center justify-center min-h-[78vh] lg:min-h-0"
           >
-            <Link href="/" className="block cursor-pointer">
-              <img
-                src={LogoDark.src}
-                alt="Epoch Lag"
-                className="w-[150px] md:w-[170px] h-auto object-contain"
-              />
-            </Link>
-            <motion.h1
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut", delay: 0.25 }}
-              className="mt-[28px] md:mt-[40px] text-center font-montserrat font-bold text-primary-blue text-[28px] md:text-[36px] lg:text-[40px] leading-[110%]"
-            >
-              Welcome to Epoch Lag
-            </motion.h1>
-
-            <motion.form
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut", delay: 0.4 }}
-              onSubmit={handleSubmit}
-              className="mt-[28px] md:mt-[36px] w-full flex flex-col gap-[10px]"
-            >
-              <div>
-                <input
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (emailError) setEmailError(null);
-                    if (formError) setFormError(null);
-                  }}
-                  disabled={isSubmitting}
-                  className="w-full bg-primary-white rounded-full px-[20px] py-[14px] font-montserrat text-primary-blue text-[16px] placeholder:text-[#a5a5a5] focus:outline-none focus:ring-2 focus:ring-primary-blue/20 disabled:opacity-60"
-                />
-                {emailError && <FormError message={emailError} />}
-              </div>
-              <div className="relative w-full">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (passwordError) setPasswordError(null);
-                    if (formError) setFormError(null);
-                  }}
-                  disabled={isSubmitting}
-                  className="w-full bg-primary-white rounded-full pl-[20px] pr-[48px] py-[14px] font-montserrat text-primary-blue text-[16px] placeholder:text-[#a5a5a5] focus:outline-none focus:ring-2 focus:ring-primary-blue/20 disabled:opacity-60"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((s) => !s)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="cursor-pointer absolute right-[16px] top-1/2 -translate-y-1/2 text-primary-blue/70 hover:text-primary-blue"
-                >
-                  {showPassword ? (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
-                    </svg>
-                  ) : (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              {passwordError && <FormError message={passwordError} />}
-
-              <div className="self-start mt-[2px]">
-                <Link
-                  href="/forgot-password"
-                  className="font-montserrat text-primary-blue text-[14px] md:text-[15px] underline underline-offset-2 hover:opacity-80"
-                >
-                  Forgot Password?
-                </Link>
-              </div>
-
-              {formError && (
-                <div className="mt-[12px]">
-                  <FormError message={formError} />
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="cursor-pointer mt-[16px] md:mt-[24px] w-full bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[14px] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? "Signing in…" : "Sign in"}
-              </button>
-
-              <div
-                ref={googleButtonRef}
-                className="mt-[6px] w-full flex justify-center min-h-[44px]"
-              />
-              {!GOOGLE_CLIENT_ID && (
-                <p className="text-center text-[12px] font-montserrat text-primary-blue/60">
-                  Google sign-in unavailable — missing client ID.
-                </p>
-              )}
-            </motion.form>
-
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, ease: "easeOut", delay: 0.6 }}
-              className="mt-[24px] text-center font-montserrat text-primary-black text-[14px] md:text-[16px]"
-            >
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/signup"
-                className="font-medium text-primary-orange underline underline-offset-2 hover:opacity-80"
-              >
-                Sign up
-              </Link>
-            </motion.p>
+            <BackChip onClick={() => router.back()} />
+            <div className="w-full max-w-[400px] flex flex-col items-center">
+              {content}
+            </div>
           </motion.div>
-        </section>
-      </main>
+        }
+        mobileContent={
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="flex flex-col min-h-screen px-[24px] pt-[24px] pb-[48px] text-primary-blue"
+          >
+            <BackChip onClick={() => router.back()} inline />
+            <div className="flex-1 flex flex-col items-center justify-center">
+              <div className="w-full max-w-[420px] flex flex-col items-center">
+                {content}
+              </div>
+            </div>
+          </motion.div>
+        }
+      />
     </>
   );
 }
 
-export default function LoginPage() {
+function FormBody({
+  authMode,
+  onSwitchMode,
+  countryCode,
+  onCountryCode,
+  phone,
+  onPhone,
+  email,
+  onEmail,
+  emailStep,
+  password,
+  onPassword,
+  error,
+  submitting,
+  googleBusy,
+  googleReady,
+  onSubmit,
+  onGoogle,
+}: {
+  authMode: AuthMode;
+  onSwitchMode: (m: AuthMode) => void;
+  countryCode: string;
+  onCountryCode: (v: string) => void;
+  phone: string;
+  onPhone: (v: string) => void;
+  email: string;
+  onEmail: (v: string) => void;
+  emailStep: EmailStep;
+  password: string;
+  onPassword: (v: string) => void;
+  error: string | null;
+  submitting: boolean;
+  googleBusy: boolean;
+  googleReady: boolean;
+  onSubmit: () => void;
+  onGoogle: () => void;
+}) {
   return (
-    <Suspense fallback={null}>
-      <LoginContent />
-    </Suspense>
+    <>
+      <RingDot />
+      <h1 className="mt-[24px] font-montserrat font-bold text-[24px] text-primary-blue text-center leading-[130%]">
+        Log in to your account
+      </h1>
+
+      <div className="mt-[24px]">
+        <SegmentedControl value={authMode} onChange={onSwitchMode} />
+      </div>
+
+      <div className="mt-[20px] w-full flex items-center gap-[10px]">
+        {authMode === "phone" ? (
+          <>
+            <CountryPicker value={countryCode} onChange={onCountryCode} />
+            <input
+              type="tel"
+              inputMode="tel"
+              value={phone}
+              onChange={(e) => onPhone(e.target.value)}
+              placeholder="Phone number"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onSubmit();
+              }}
+              className="flex-1 bg-primary-white rounded-full h-[48px] px-[18px] font-montserrat text-[15px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_4px_14px_rgba(9,46,74,0.05)]"
+            />
+          </>
+        ) : (
+          <input
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => onEmail(e.target.value)}
+            placeholder="Email address"
+            disabled={emailStep === "password"}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onSubmit();
+            }}
+            className="flex-1 bg-primary-white rounded-full h-[48px] px-[18px] font-montserrat text-[15px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_4px_14px_rgba(9,46,74,0.05)] disabled:opacity-70"
+          />
+        )}
+      </div>
+
+      {authMode === "email" && emailStep === "password" && (
+        <input
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => onPassword(e.target.value)}
+          placeholder="Password"
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onSubmit();
+          }}
+          className="mt-[10px] w-full bg-primary-white rounded-full h-[48px] px-[18px] font-montserrat text-[15px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_4px_14px_rgba(9,46,74,0.05)]"
+        />
+      )}
+
+      {error && (
+        <p className="mt-[10px] w-full font-montserrat text-[12px] text-[#C0392B] text-left">
+          {error}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={onSubmit}
+        disabled={submitting}
+        className="mt-[16px] w-full h-[50px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {submitting ? "Working…" : "Submit"}
+      </button>
+
+      <div className="mt-[24px] w-full flex items-center gap-[12px]">
+        <div className="flex-1 h-px bg-primary-blue/15" />
+        <span className="font-montserrat text-[14px] text-primary-blue/60">
+          or
+        </span>
+        <div className="flex-1 h-px bg-primary-blue/15" />
+      </div>
+
+      <button
+        type="button"
+        onClick={onGoogle}
+        disabled={!googleReady || googleBusy}
+        aria-label="Sign in with Google"
+        className="mt-[16px] h-[56px] w-[56px] bg-primary-white rounded-[14px] flex items-center justify-center shadow-[0_4px_14px_rgba(9,46,74,0.06)] cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <GoogleGlyph />
+      </button>
+    </>
+  );
+}
+
+function SegmentedControl({
+  value,
+  onChange,
+}: {
+  value: AuthMode;
+  onChange: (v: AuthMode) => void;
+}) {
+  return (
+    <div className="relative inline-flex bg-primary-white rounded-full p-[4px] shadow-[0_2px_8px_rgba(9,46,74,0.06)]">
+      <motion.span
+        layout
+        transition={{ type: "spring", stiffness: 500, damping: 40 }}
+        className="absolute top-[4px] bottom-[4px] w-[calc(50%-4px)] bg-primary-orange rounded-full"
+        style={{ left: value === "phone" ? 4 : "50%" }}
+      />
+      {(["phone", "email"] as const).map((m) => (
+        <button
+          key={m}
+          type="button"
+          onClick={() => onChange(m)}
+          className={`relative z-10 h-[36px] w-[104px] rounded-full font-montserrat text-[14px] font-semibold cursor-pointer ${
+            value === m ? "text-primary-white" : "text-primary-blue"
+          }`}
+        >
+          {m === "phone" ? "Phone" : "Email"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function BackChip({
+  onClick,
+  inline = false,
+}: {
+  onClick: () => void;
+  inline?: boolean;
+}) {
+  const positionClass = inline
+    ? "self-start"
+    : "absolute top-[16px] left-[16px]";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Back"
+      className={`${positionClass} h-[40px] w-[40px] rounded-full bg-primary-white flex items-center justify-center text-primary-blue shadow-[0_2px_8px_rgba(9,46,74,0.08)] cursor-pointer hover:bg-primary-white/85`}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M15 6l-6 6 6 6"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  );
+}
+
+function RingDot() {
+  return (
+    <span
+      className="relative block h-[72px] w-[72px] rounded-full"
+      style={{ backgroundColor: "#FCD6A5" }}
+    >
+      <span
+        className="absolute inset-[14px] rounded-full"
+        style={{ backgroundColor: "#D95F3B" }}
+      />
+    </span>
+  );
+}
+
+function GoogleGlyph() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 24 24">
+      <path
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.75h3.57c2.08-1.92 3.28-4.74 3.28-8.07z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.75c-.99.66-2.26 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        fill="#34A853"
+      />
+      <path
+        d="M5.84 14.12c-.22-.66-.35-1.36-.35-2.12s.13-1.46.35-2.12V7.04H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.96l3.66-2.84z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.04l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"
+        fill="#EA4335"
+      />
+    </svg>
   );
 }

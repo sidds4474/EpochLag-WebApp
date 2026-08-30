@@ -210,24 +210,19 @@ export default function LoginPage() {
     }
     setSubmitting(true);
     try {
-      // Login-probe: bogus password. 401 => account exists (prompt for password).
+      // Login-probe: bogus password. Expected outcome is an error (401 for
+      // "wrong password" on an existing account, or "no account" if not).
+      // We show the password field on any error so the real password submit
+      // can surface an accurate reason — this avoids dead-ending a user who
+      // typed an email the BE couldn't disambiguate.
       await loginWithEmailPassword(cleaned, PROBE_PASSWORD);
       setEmailStep("password");
     } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.status === 404 || /not found/i.test(err.message)) {
-          setError("No account with that email. Try signing up instead.");
-          setTimeout(() => router.push("/onboarding/welcome"), 1200);
-          return;
-        }
-        if (err.status === 401 || /credential|password/i.test(err.message)) {
-          setEmailStep("password");
-          return;
-        }
-        setError(err.message || "Unable to continue");
-      } else {
-        setError("Unable to continue");
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.log("[LoginProbe] response", err);
       }
+      setEmailStep("password");
     } finally {
       setSubmitting(false);
     }
@@ -252,11 +247,19 @@ export default function LoginPage() {
       } catch {}
       router.replace("/home");
     } catch (err) {
-      const msg =
-        err instanceof ApiError
-          ? err.message || "Incorrect password"
-          : "Incorrect password";
-      setError(msg);
+      if (err instanceof ApiError) {
+        if (
+          err.status === 404 ||
+          /no account|not found|does not exist/i.test(err.message || "")
+        ) {
+          setError("No account with that email. Try signing up instead.");
+          setTimeout(() => router.push("/onboarding/welcome"), 1500);
+          return;
+        }
+        setError(err.message || "Incorrect password");
+      } else {
+        setError("Incorrect password");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -418,7 +421,10 @@ function FormBody({
             placeholder="Email address"
             disabled={emailStep === "password"}
             onKeyDown={(e) => {
-              if (e.key === "Enter") onSubmit();
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onSubmit();
+              }
             }}
             className="flex-1 bg-primary-white rounded-full h-[48px] px-[18px] font-montserrat text-[15px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_4px_14px_rgba(9,46,74,0.05)] disabled:opacity-70"
           />

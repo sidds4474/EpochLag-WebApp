@@ -69,12 +69,6 @@ async function request<T = unknown>(
     throw new ApiError("Network error. Please try again.", 0, null);
   }
 
-  if (res.status === 401) {
-    clearStoredAuth();
-    onUnauthorized?.();
-    throw new ApiError("Session expired. Please sign in again.", 401, null);
-  }
-
   let data: unknown = null;
   const text = await res.text();
   if (text) {
@@ -83,6 +77,15 @@ async function request<T = unknown>(
     } catch {
       data = text;
     }
+  }
+
+  // 401 on an authed request => session expired: sign the user out. 401 on
+  // an unauthenticated request (login probe, phone-verify, etc.) is a normal
+  // auth failure — surface it as an ApiError so the caller can react.
+  if (res.status === 401 && auth) {
+    clearStoredAuth();
+    onUnauthorized?.();
+    throw new ApiError("Session expired. Please sign in again.", 401, data);
   }
 
   if (!res.ok) {

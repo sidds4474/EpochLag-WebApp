@@ -128,10 +128,15 @@ function CreateAccountContent() {
           phoneVerifyToken,
           anonId,
         });
-        if (token && registered) {
-          applyAuth(token, registered);
-          await postLoginSync({ profile: registered });
+        if (!token || !registered) {
+          setError(
+            "Account created but sign-in failed. Please log in with your phone."
+          );
+          setTimeout(() => router.replace("/login"), 1500);
+          return;
         }
+        applyAuth(token, registered);
+        await postLoginSync({ profile: registered });
         trackOnboarding("phone_signup_completed");
 
         // Redeem referral silently (phone/email path pattern — not inline).
@@ -143,10 +148,16 @@ function CreateAccountContent() {
           clearStoredReferralCode();
         }
 
-        // Fire merge inline, fall back to deferred queue.
+        // Fire merge inline. runAnonMergeSync returns null on failure (not
+        // throw), so check the return value and queue for the deferred
+        // orchestrator to retry when possible.
+        let mergeResult: Awaited<
+          ReturnType<ReturnType<typeof runAnonMergeSync>>
+        > = null;
         try {
-          await dispatch(runAnonMergeSync({ source: "phone" }));
-        } catch {
+          mergeResult = await dispatch(runAnonMergeSync({ source: "phone" }));
+        } catch {}
+        if (!mergeResult) {
           try {
             await dispatch(
               queueAnonMergeIfNeeded({ source: "CreateAccount/phone" })

@@ -52,7 +52,15 @@ export function runAnonMergeSync({ source }: { source: MergeSyncSource }) {
   ): Promise<MergeSyncResult> => {
     // 1. Read draftToken.
     const draftToken = await getDraftToken();
-    if (!draftToken) return null;
+    if (!draftToken) {
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.warn("[MergeSync] no draftToken in storage — skipping merge", {
+          source,
+        });
+      }
+      return null;
+    }
 
     // 2. Snapshot candidateMedia BEFORE anything mutates createALag.
     const candidateMedia = collectCandidateMedia(getState().createALag);
@@ -116,6 +124,10 @@ export function runAnonMergeSync({ source }: { source: MergeSyncSource }) {
       return { storyId, threadId, publicCode, seededLateCount };
     } catch (e) {
       const message = e instanceof Error ? e.message : "merge failed";
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.error("[MergeSync] merge failed", { source, error: e });
+      }
       dispatch(markMergeFailed({ error: message }));
       return null;
     }

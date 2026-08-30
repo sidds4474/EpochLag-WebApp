@@ -319,7 +319,6 @@ export default function LoginPage() {
             transition={{ duration: 0.5, ease: "easeOut" }}
             className="relative w-full flex flex-col items-center justify-center min-h-[78vh] lg:min-h-0"
           >
-            <BackChip onClick={() => router.back()} />
             <div className="w-full max-w-[400px] flex flex-col items-center">
               {content}
             </div>

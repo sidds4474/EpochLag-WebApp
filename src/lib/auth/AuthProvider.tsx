@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     dispatch(resetOnboardingAuth());
     setUser(null);
     setStatus("unauthenticated");
-    router.replace("/login");
+    router.replace("/onboarding/welcome");
   }, [router, dispatch]);
 
   useEffect(() => {

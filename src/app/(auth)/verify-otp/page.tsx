@@ -41,7 +41,7 @@ function VerifyOtpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
-  const { applyAuth } = useAuth();
+  const { applyAuth, updateUser, signOut } = useAuth();
 
   const mode = (searchParams?.get("mode") || "email") as Mode;
   const phone = searchParams?.get("phone") || "";
@@ -170,7 +170,7 @@ function VerifyOtpContent() {
         if (res.kind === "new") {
           const anonId = peekAnonId() || undefined;
           const referralCode = getStoredReferralCode() || undefined;
-          const user = await socialFinalize({
+          const finalizedUser = await socialFinalize({
             countryCode,
             phone,
             dateOfBirth,
@@ -178,20 +178,14 @@ function VerifyOtpContent() {
             anonId,
             referralCode,
           });
-          // We're already authed from earlier Google/Apple callback — just
-          // update the cached user.
-          // (Token is untouched.)
+          // Already authed from earlier Google callback — refresh cached user
+          // so newly-attached phone/DOB show up in the profile.
+          updateUser(finalizedUser);
           trackOnboarding("social_finalize_completed");
-          // Best-effort merge.
           try {
-            await dispatch(
-              runAnonMergeSync({ source: "google" })
-            );
+            await dispatch(runAnonMergeSync({ source: "google" }));
           } catch {}
           if (referralCode) clearStoredReferralCode();
-          // Refresh cached user via applyAuth using a re-fetch? For now
-          // just route home.
-          void user;
           router.replace("/home");
         }
       }
@@ -255,12 +249,9 @@ function VerifyOtpContent() {
   };
 
   const handleLogInInstead = () => {
-    // Sign out of prior social auth, go to LoginScreen.
-    try {
-      window.localStorage.removeItem("epochlag.token");
-      window.localStorage.removeItem("epochlag.user");
-    } catch {}
-    router.replace("/login");
+    // Sign out of prior social auth, go to LoginScreen. signOut already
+    // clears storage + resets Redux auth state + navigates to /login.
+    signOut();
   };
 
   const handleUseDifferentNumber = () => {

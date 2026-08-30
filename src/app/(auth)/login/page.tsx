@@ -540,15 +540,11 @@ function BackChip({
 
 function RingDot() {
   return (
-    <span
-      className="relative block h-[72px] w-[72px] rounded-full"
-      style={{ backgroundColor: "#FCD6A5" }}
-    >
-      <span
-        className="absolute inset-[14px] rounded-full"
-        style={{ backgroundColor: "#D95F3B" }}
-      />
-    </span>
+    <img
+      src="/onboarding/Logo.svg"
+      alt=""
+      className="h-[72px] w-[72px] object-contain"
+    />
   );
 }
 

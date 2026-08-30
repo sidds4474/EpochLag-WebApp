@@ -80,12 +80,12 @@ export default function SignupPage() {
           lastName: decoded?.family_name,
         });
         if (newRegistration) {
-          // New Google signup — need DOB + phone in social mode.
+          applyAuth(token, user);
+          // Match mobile: skip CreateAccount only if Google gave us DOB.
+          // (Downstream lands at AddRelationship — routes to /home for now.)
           if (user.dateOfBirth) {
-            applyAuth(token, user);
-            router.replace("/onboarding/add-relationship");
+            router.replace("/home");
           } else {
-            applyAuth(token, user);
             router.replace("/onboarding/create-account?mode=social");
           }
           return;
@@ -216,7 +216,6 @@ export default function SignupPage() {
         hideMobileNext
         desktopContent={
           <div className="relative w-full flex flex-col items-center justify-center min-h-[78vh] lg:min-h-0">
-            <BackChip onClick={() => router.back()} />
             <div className="w-full max-w-[400px] flex flex-col items-center">
               {content}
             </div>
@@ -356,15 +355,11 @@ function BackChip({
 
 function RingDot() {
   return (
-    <span
-      className="relative block h-[64px] w-[64px] rounded-full"
-      style={{ backgroundColor: "#FCD6A5" }}
-    >
-      <span
-        className="absolute inset-[12px] rounded-full"
-        style={{ backgroundColor: "#D95F3B" }}
-      />
-    </span>
+    <img
+      src="/onboarding/Logo.svg"
+      alt=""
+      className="h-[64px] w-[64px] object-contain"
+    />
   );
 }
 

@@ -125,8 +125,16 @@ export function runAnonMergeSync({ source }: { source: MergeSyncSource }) {
     } catch (e) {
       const message = e instanceof Error ? e.message : "merge failed";
       if (process.env.NODE_ENV !== "production") {
+        const err = e as { status?: unknown; data?: unknown } | null;
         // eslint-disable-next-line no-console
-        console.error("[MergeSync] merge failed", { source, error: e });
+        console.error(
+          "[MergeSync] merge failed source=%s message=%s status=%o data=%o raw=%o",
+          source,
+          message,
+          err?.status,
+          err?.data,
+          e
+        );
       }
       dispatch(markMergeFailed({ error: message }));
       return null;

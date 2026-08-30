@@ -130,6 +130,10 @@ const createALagSlice = createSlice({
     setParticipants: (state, action: PayloadAction<Participant[]>) => {
       state.participants = action.payload;
     },
+    updateParticipantName: (state, action: PayloadAction<{ id: string; name: string }>) => {
+      const p = state.participants.find((x) => x.id === action.payload.id);
+      if (p) p.name = action.payload.name;
+    },
 
     setStoryDraftIds: (
       state,
@@ -240,6 +244,7 @@ export const {
   addParticipant,
   removeParticipant,
   setParticipants,
+  updateParticipantName,
   setStoryDraftIds,
   hydrateFromServerDraft,
   resetCreateALag,

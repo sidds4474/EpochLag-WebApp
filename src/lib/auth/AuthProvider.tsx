@@ -68,6 +68,10 @@ type AuthContextValue = {
   ) => Promise<void>;
   signOut: () => void;
   updateUser: (user: User) => void;
+  // Low-level: flip to authenticated with an arbitrary token+user pair.
+  // Used by new-flow screens (phone/social) that fetch their own token via
+  // dedicated endpoints and need to complete the local auth handshake.
+  applyAuth: (token: string, user: User) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -141,9 +145,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(async (payload: RegisterPayload) => {
+    // Legacy email-signup path. Returns void because email register response
+    // has no token — caller routes to /verify-otp. Phone signup uses
+    // registerUser directly (imported from ./api) since it returns
+    // { token, user } and needs the merge-then-ShareLag flow.
     await registerUser(payload);
-    // Intentionally NOT signing in here — register returns no token.
-    // Caller must route to /verify-otp.
   }, []);
 
   const verifyOtpAndSignIn = useCallback(
@@ -166,6 +172,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token) setStoredAuth(token, next);
   }, []);
 
+  const applyAuth = useCallback((token: string, next: User) => {
+    setStoredAuth(token, next);
+    setUser(next);
+    setStatus("authenticated");
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -177,6 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         verifyOtpAndSignIn,
         signOut,
         updateUser,
+        applyAuth,
       }}
     >
       {children}

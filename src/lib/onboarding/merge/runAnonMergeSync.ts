@@ -27,7 +27,6 @@ import {
 import { seedLateMedia } from "../store/slices/lateMediaSlice";
 import { clearDraftToken, getDraftToken } from "../storage/secureTokenStore";
 import { clearAnonDraftLocalState } from "../storage/localStore";
-import { resetCreateALag } from "../store/slices/createALagSlice";
 import { resetAnonDraft } from "../store/slices/anonDraftSlice";
 import {
   apiGetAnonDraft,
@@ -118,16 +117,14 @@ export function runAnonMergeSync({ source }: { source: MergeSyncSource }) {
         // ShareLag will retry on mount if publicCode is missing.
       }
 
-      // 7. Housekeeping. Nuke everything anon-scoped so the next visit
-      //    doesn't re-hydrate a stale draft:
-      //      - draftToken (IndexedDB via secureTokenStore)
-      //      - localStorage anon keys (referral, lastStep, pending merge)
-      //      - Redux createALag + anonDraft slices
+      // 7. Housekeeping. Clear draft-scoped storage so the anon flow won't
+      //    re-hydrate the same draft on next visit. We intentionally leave
+      //    the Redux createALag slice intact — ShareLag renders from it
+      //    (cover, participants) and clears it on its own Next tap.
       try {
         await clearDraftToken();
       } catch {}
       await clearAnonDraftLocalState();
-      dispatch(resetCreateALag());
       dispatch(resetAnonDraft());
 
       return { storyId, threadId, publicCode, seededLateCount };

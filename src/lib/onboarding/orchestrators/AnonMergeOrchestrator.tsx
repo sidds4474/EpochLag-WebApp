@@ -10,7 +10,6 @@ import {
 import { seedLateMedia } from "../store/slices/lateMediaSlice";
 import { clearAnonDraftLocalState } from "../storage/localStore";
 import { clearDraftToken } from "../storage/secureTokenStore";
-import { resetCreateALag } from "../store/slices/createALagSlice";
 import { resetAnonDraft } from "../store/slices/anonDraftSlice";
 import { apiGetAnonDraft, apiMerge } from "../api/anonEndpoints";
 import { findUnaccountedMedia } from "../merge/mergeUtils";
@@ -74,8 +73,13 @@ export function AnonMergeOrchestrator() {
           }
         }
 
-        // Housekeeping.
+        // Housekeeping. Clear draft-scoped state so the anon flow won't
+        // re-hydrate. Leave createALag intact so ShareLag can still render.
+        try {
+          await clearDraftToken();
+        } catch {}
         await clearAnonDraftLocalState();
+        dispatch(resetAnonDraft());
       } catch (e) {
         const message = e instanceof Error ? e.message : "merge failed";
         dispatch(markMergeFailed({ error: message }));

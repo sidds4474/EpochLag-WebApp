@@ -52,10 +52,11 @@ export type RequestOptions = {
   body?: unknown;
   headers?: Record<string, string>;
   // Auth mode:
-  //   'authed' (default) — attach Bearer from token param or getter
-  //   'draft'            — attach X-Draft-Token
-  //   'none'             — no auth headers
-  auth?: "authed" | "draft" | "none";
+  //   'authed' (default)   — attach Bearer from token param or getter
+  //   'draft'              — attach X-Draft-Token
+  //   'authed+draft'       — attach BOTH (used by merge endpoint)
+  //   'none'               — no auth headers
+  auth?: "authed" | "draft" | "authed+draft" | "none";
   // Explicit token overrides.
   token?: string | null;
   draftToken?: string | null;
@@ -101,10 +102,11 @@ export async function request<T = unknown>(
     }
   }
 
-  if (auth === "authed") {
+  if (auth === "authed" || auth === "authed+draft") {
     const t = resolveAuthToken(token);
     if (t) headers["Authorization"] = `Bearer ${t}`;
-  } else if (auth === "draft") {
+  }
+  if (auth === "draft" || auth === "authed+draft") {
     const dt = await resolveDraftToken(draftToken);
     if (dt) headers["X-Draft-Token"] = dt;
   }

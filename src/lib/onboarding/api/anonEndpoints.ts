@@ -67,6 +67,7 @@ export async function apiGetAnonDraft(
 // ---- PUT /api/onboarding/anon/draft — save-on-pick ----
 
 export type SaveAnonDraftPayload = {
+  title?: string;
   content?: string;
   screensReached?: number;
   dateOfStory?: string | null;
@@ -168,7 +169,7 @@ export async function apiMerge(draftToken: string): Promise<MergeResponse> {
   const res = await http.post<MergeEnvelope>(
     "/api/onboarding/merge",
     { draftToken },
-    { auth: "draft", draftToken }
+    { auth: "authed+draft", draftToken }
   );
   if ("data" in res && res.data) return res.data;
   return res as MergeResponse;
@@ -180,7 +181,7 @@ export async function apiMergeRetry(draftToken: string): Promise<MergeResponse> 
   const res = await http.post<MergeEnvelope>(
     "/api/onboarding/merge/retry",
     { draftToken },
-    { auth: "draft", draftToken }
+    { auth: "authed+draft", draftToken }
   );
   if ("data" in res && res.data) return res.data;
   return res as MergeResponse;

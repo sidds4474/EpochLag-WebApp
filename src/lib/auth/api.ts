@@ -227,17 +227,31 @@ type ReferralResolveEnvelope = {
 export async function resolveReferralCode(
   code: string
 ): Promise<ReferralResolveResult> {
-  const clean = code.trim().toUpperCase();
+  // Do NOT uppercase — legacy codes are case-sensitive per the referral
+  // implementation doc §3b. Server normalizes new-format codes itself.
+  const clean = code.trim();
   try {
     const res = await api.get<ReferralResolveEnvelope>(
       `/api/referral/resolve/${encodeURIComponent(clean)}`,
       { auth: false }
     );
-    return res.data || (res as ReferralResolveResult);
+    // Envelope may be `{ data: {...}, message, valid }` or flat.
+    const inner = res.data || (res as ReferralResolveResult);
+    return {
+      ...inner,
+      // Doc §3a: message is present on both branches — prefer top-level.
+      message: (res as ReferralResolveEnvelope).message ?? inner.message,
+      valid:
+        (res as ReferralResolveEnvelope).valid ?? inner.valid ?? Boolean(inner.code),
+    };
   } catch (e) {
-    if (e instanceof ApiError && e.status === 400) {
-      const body = e.data as { message?: string } | null;
-      return { valid: false, message: body?.message || "Invalid code" };
+    // Doc §3a: 404 = invalid; switch on `valid`, not HTTP status. Any
+    // non-2xx with a body containing `valid` is treated as an invalid.
+    if (e instanceof ApiError) {
+      const body = (e.data ?? {}) as { message?: string; valid?: boolean };
+      if (body.valid === false || e.status === 404 || e.status === 400) {
+        return { valid: false, message: body.message || "Invalid code" };
+      }
     }
     throw e;
   }

@@ -175,7 +175,12 @@ function VerifyOtpContent() {
         }
         if (res.kind === "new") {
           const anonId = peekAnonId() || undefined;
-          const referralCode = getStoredReferralCode() || undefined;
+          // Prefer URL-carried referral (manual entry on CreateAccount);
+          // fall back to a deep-link stored code.
+          const referralCode =
+            searchParams?.get("referralCode") ||
+            getStoredReferralCode() ||
+            undefined;
           const finalizedUser = await socialFinalize({
             countryCode,
             phone,

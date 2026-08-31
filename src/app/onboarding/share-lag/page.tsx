@@ -9,7 +9,8 @@ import {
   type Participant,
 } from "../../../lib/onboarding/store/slices/createALagSlice";
 
-const PUBLIC_HOST = "epochlag.com";
+const PUBLIC_HOST = "www.epochlag.com";
+const PUBLIC_PATH = "story";
 const DEFAULT_TITLE = "My Favorite Memory";
 
 const AVATAR_PALETTE = [
@@ -53,8 +54,8 @@ function ShareLagContent() {
   const [copied, setCopied] = useState(false);
 
   const publicUrl = useMemo(() => {
-    if (!publicCode) return `${PUBLIC_HOST}/loading…`;
-    return `${PUBLIC_HOST}/${publicCode}`;
+    if (!publicCode) return `${PUBLIC_HOST}/${PUBLIC_PATH}/loading…`;
+    return `${PUBLIC_HOST}/${PUBLIC_PATH}/${publicCode}`;
   }, [publicCode]);
 
   const handleShare = async () => {
@@ -98,9 +99,9 @@ function ShareLagContent() {
       hideMobileNext
       desktopContent={
         <div className="w-full flex flex-col items-center text-primary-blue min-h-[80vh] lg:min-h-0 justify-center">
-          <div className="w-full max-w-[380px] flex flex-col items-center">
+          <div className="w-full max-w-[300px] flex flex-col items-center">
             {card}
-            <h1 className="mt-[28px] font-montserrat font-bold text-[20px] text-center">
+            <h1 className="mt-[24px] font-montserrat font-bold text-[16px] text-center">
               Stories are better told together
             </h1>
             <div className="mt-[14px]">
@@ -168,7 +169,7 @@ function PreviewCard({
   return (
     <div className="w-full bg-primary-white rounded-[18px] p-[12px] shadow-[0_6px_24px_rgba(9,46,74,0.08)]">
       {coverUri ? (
-        <div className="relative w-full aspect-[4/3] rounded-[12px] overflow-hidden bg-primary-blue/5">
+        <div className="relative w-full aspect-[4/3] rounded-t-[12px] overflow-hidden bg-primary-blue/5">
           <img
             src={coverUri}
             alt=""
@@ -176,7 +177,7 @@ function PreviewCard({
           />
         </div>
       ) : (
-        <div className="w-full aspect-[4/3] rounded-[12px] bg-primary-blue/5" />
+        <div className="w-full aspect-[4/3] rounded-t-[12px] bg-primary-blue/5" />
       )}
       <p className="mt-[12px] pb-[6px] font-montserrat font-semibold text-[14px] text-primary-blue text-center">
         {title}

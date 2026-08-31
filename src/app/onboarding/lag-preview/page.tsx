@@ -184,16 +184,9 @@ function PreviewCard({
       )}
 
       {paragraphs.length > 0 && (
-        <div className="mt-[14px] flex flex-col gap-[10px]">
-          {paragraphs.map((p, i) => (
-            <p
-              key={i}
-              className="font-montserrat text-[13.5px] leading-[160%] text-primary-blue whitespace-pre-wrap"
-            >
-              {p}
-            </p>
-          ))}
-        </div>
+        <p className="mt-[14px] font-montserrat text-[13.5px] leading-[160%] text-primary-blue whitespace-pre-line line-clamp-8">
+          {paragraphs.join("\n\n")}
+        </p>
       )}
 
       {participants.length > 0 && (

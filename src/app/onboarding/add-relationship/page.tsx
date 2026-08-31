@@ -21,33 +21,54 @@ const TITLE_LINES = ["Who would you like", "to share Lags with?"];
 export default function AddRelationshipPage() {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [otherLabel, setOtherLabel] = useState("");
 
   const toggle = (slug: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(slug)) next.delete(slug);
-      else next.add(slug);
+      if (next.has(slug)) {
+        next.delete(slug);
+        if (slug === "other") setOtherLabel("");
+      } else {
+        next.add(slug);
+      }
       return next;
     });
   };
 
   const goNext = () => {
+    const selectedArr = Array.from(selected);
+    const trimmedOther = otherLabel.trim();
     trackOnboarding("add_relationship_completed", {
-      selected: Array.from(selected),
+      selected: selectedArr,
+      otherLabel: selected.has("other") ? trimmedOther || null : null,
     });
-    // Persist choices to BE once the endpoint contract is confirmed.
+    // Persist choices to BE once the endpoint contract is confirmed. Payload
+    // shape planned: { relationships: string[], otherLabel?: string }.
     router.replace("/onboarding/memory-tags");
   };
 
   const list = (
     <div className="w-full flex flex-col gap-[12px]">
       {RELATIONSHIPS.map((r) => (
-        <RelationshipRow
-          key={r.slug}
-          label={r.label}
-          checked={selected.has(r.slug)}
-          onToggle={() => toggle(r.slug)}
-        />
+        <div key={r.slug} className="w-full">
+          <RelationshipRow
+            label={r.label}
+            checked={selected.has(r.slug)}
+            onToggle={() => toggle(r.slug)}
+          />
+          {r.slug === "other" && selected.has("other") && (
+            <input
+              type="text"
+              value={otherLabel}
+              onChange={(e) => setOtherLabel(e.target.value)}
+              placeholder="Who else?"
+              autoFocus
+              maxLength={40}
+              className="mt-[10px] w-full bg-primary-white rounded-full h-[48px] px-[20px] font-montserrat text-[15px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_2px_8px_rgba(9,46,74,0.05)]"
+            />
+          )}
+        </div>
       ))}
     </div>
   );
@@ -105,9 +126,11 @@ function RelationshipRow({
   const base =
     "w-full flex items-center gap-[14px] rounded-full h-[52px] pl-[16px] pr-[20px] font-montserrat text-[15px] cursor-pointer transition-colors";
   const state = checked
-    ? "border border-primary-orange text-primary-blue"
+    ? "border-2 text-primary-blue"
     : "bg-primary-white text-primary-blue shadow-[0_2px_8px_rgba(9,46,74,0.05)] hover:bg-primary-white/85";
-  const activeBg = checked ? { backgroundColor: "#FBD5B4" } : undefined;
+  const activeBg = checked
+    ? { backgroundColor: "#FDE6C9", borderColor: "#EF9849" }
+    : undefined;
 
   return (
     <button
@@ -128,7 +151,7 @@ function CheckboxIcon({ checked }: { checked: boolean }) {
     <span
       className={`shrink-0 h-[24px] w-[24px] rounded-[6px] flex items-center justify-center transition-colors ${
         checked
-          ? "bg-primary-orange text-primary-white"
+          ? "bg-transparent border border-[#092E4A]"
           : "border-2 border-primary-blue/25 bg-transparent"
       }`}
     >
@@ -136,7 +159,7 @@ function CheckboxIcon({ checked }: { checked: boolean }) {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
           <path
             d="M5 12l5 5L20 7"
-            stroke="currentColor"
+            stroke="#EF9849"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"

@@ -80,8 +80,8 @@ export default function MemoryTagsPage() {
         </div>
       }
       mobileContent={
-        <div className="flex flex-col min-h-screen px-[24px] pt-[48px] pb-[120px] text-primary-blue">
-          <div className="flex-1 flex flex-col items-center">
+        <div className="flex flex-col min-h-screen px-[24px] pt-[24px] pb-[120px] text-primary-blue">
+          <div className="flex-1 flex flex-col items-center justify-center">
             {title}
             <div className="mt-[28px] w-full max-w-[360px]">{grid}</div>
           </div>
@@ -112,9 +112,11 @@ function TagChip({
   const base =
     "inline-flex items-center gap-[8px] rounded-full h-[40px] pl-[10px] pr-[16px] font-montserrat text-[14px] cursor-pointer transition-colors";
   const state = checked
-    ? "border border-primary-orange text-primary-blue"
+    ? "border-2 text-primary-blue"
     : "bg-primary-white text-primary-blue shadow-[0_2px_8px_rgba(9,46,74,0.05)] hover:bg-primary-white/85";
-  const activeBg = checked ? { backgroundColor: "#FBD5B4" } : undefined;
+  const activeBg = checked
+    ? { backgroundColor: "#FDE6C9", borderColor: "#EF9849" }
+    : undefined;
 
   return (
     <button
@@ -135,7 +137,7 @@ function CheckboxIcon({ checked }: { checked: boolean }) {
     <span
       className={`shrink-0 h-[20px] w-[20px] rounded-[5px] flex items-center justify-center transition-colors ${
         checked
-          ? "bg-primary-orange text-primary-white"
+          ? "bg-transparent border border-[#092E4A]"
           : "border-2 border-primary-blue/25 bg-transparent"
       }`}
     >
@@ -143,7 +145,7 @@ function CheckboxIcon({ checked }: { checked: boolean }) {
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
           <path
             d="M5 12l5 5L20 7"
-            stroke="currentColor"
+            stroke="#EF9849"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"

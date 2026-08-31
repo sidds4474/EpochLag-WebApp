@@ -115,7 +115,12 @@ export default function AddMemoryPage() {
         }
         // AddMemory is index 1 in PHASE_A_SCREEN_INDEX (WhatsALag=0).
         dispatch(setLastStep(1));
-        apiSaveAnonDraft({ screensReached: 1 }).catch(() => {});
+        // Seed the anon story with a default title so the server-side
+        // record doesn't ship as "Untitled" if the user leaves it blank.
+        apiSaveAnonDraft({
+          title: "My Favorite Memory",
+          screensReached: 1,
+        }).catch(() => {});
       } catch {
         // Silent — mint failures are logged upstream; UI stays usable and
         // will surface an error at upload time.

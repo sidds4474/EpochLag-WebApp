@@ -6,7 +6,6 @@ import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingSh
 import { trackOnboarding } from "../../../lib/analytics/track";
 import {
   buildReferralInviteMessage,
-  buildReferralUrl,
   mintReferralCode,
 } from "../../../lib/referral/api";
 
@@ -54,16 +53,21 @@ export default function ReferralPitchPage() {
     if (!code || sharing) return;
     setSharing(true);
     try {
-      const url = buildReferralUrl(code);
       const message = buildReferralInviteMessage(code);
+      let shared = false;
       if (typeof navigator !== "undefined" && navigator.share) {
-        await navigator.share({ title: "Epoch Lag", text: message, url });
+        await navigator.share({ title: "Epoch Lag", text: message });
+        shared = true;
       } else if (typeof navigator !== "undefined" && navigator.clipboard) {
         await navigator.clipboard.writeText(message);
         setCopied(true);
-        window.setTimeout(() => setCopied(false), 2000);
+        shared = true;
       }
       trackOnboarding("referral_pitch_shared", { code });
+      if (shared) {
+        trackOnboarding("referral_pitch_completed");
+        window.setTimeout(() => router.replace("/onboarding/complete"), 800);
+      }
     } catch {
       // silent — user cancelled share sheet
     } finally {
@@ -78,16 +82,16 @@ export default function ReferralPitchPage() {
         style={{ backgroundColor: "#F1B978", opacity: 0.85 }}
       />
       <PhotoCard
-        src="/onboarding/childhood.jpg"
+        src="/onboarding/free_trial/hero.jpg"
         rotate={-6}
-        className="absolute left-[6%] top-[6%] w-[62%] aspect-[4/3]"
+        className="absolute left-[4%] top-[4%] w-[64%] aspect-[1/1]"
       />
       <PhotoCard
-        src="/onboarding/girl-dad.png"
+        src="/onboarding/free_trial/second_image.jpg"
         rotate={6}
         className="absolute right-[8%] bottom-[6%] w-[46%] aspect-[1/1]"
       />
-      <div className="absolute right-[2%] top-[8%] h-[86px] w-[86px] rounded-full bg-primary-white shadow-[0_4px_14px_rgba(9,46,74,0.12)] flex flex-col items-center justify-center">
+      <div className="absolute right-[20%] top-[8%] h-[86px] w-[86px] rounded-full bg-primary-white shadow-[0_4px_14px_rgba(9,46,74,0.12)] flex flex-col items-center justify-center">
         <span className="font-montserrat font-bold text-primary-blue text-[18px] leading-[100%]">
           +30
         </span>
@@ -156,7 +160,7 @@ export default function ReferralPitchPage() {
       }
       mobileContent={
         <div className="flex flex-col min-h-screen px-[24px] pt-[40px] pb-[32px] text-primary-blue">
-          <div className="flex-1 flex flex-col items-center">
+          <div className="flex-1 flex flex-col items-center justify-center">
             <div className="w-full max-w-[360px] flex flex-col items-center">
               {hero}
               <div className="mt-[24px]">{copy}</div>
@@ -181,10 +185,10 @@ function PhotoCard({
 }) {
   return (
     <div
-      className={`bg-primary-white p-[6px] rounded-[8px] shadow-[0_8px_24px_rgba(9,46,74,0.15)] ${className}`}
+      className={`bg-primary-white pt-[10px] px-[10px] pb-[28px] rounded-[10px] shadow-[0_10px_28px_rgba(9,46,74,0.18)] ${className}`}
       style={{ transform: `rotate(${rotate}deg)` }}
     >
-      <div className="h-full w-full rounded-[4px] overflow-hidden bg-primary-blue/5">
+      <div className="h-full w-full rounded-t-[6px] overflow-hidden bg-primary-blue/5">
         <img src={src} alt="" className="h-full w-full object-cover" />
       </div>
     </div>

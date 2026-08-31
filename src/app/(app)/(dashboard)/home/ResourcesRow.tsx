@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { CircleArrowButton, SectionHeader } from "../../../../components/ui";
 
@@ -7,6 +8,7 @@ type Resource = {
   kicker: string;
   title: string;
   cover: string;
+  href?: string;
 };
 
 // Served from /public so Turbopack's static import graph doesn't need to
@@ -16,6 +18,7 @@ const RESOURCES: Resource[] = [
     kicker: "START HERE",
     title: "Why Epoch Lag?",
     cover: "/gradients/9.jpg",
+    href: "/why-epoch-lag",
   },
   {
     kicker: "START HERE",
@@ -40,13 +43,16 @@ export default function ResourcesRow() {
 }
 
 function ResourceTile({ resource }: { resource: Resource }) {
-  // Destination pages don't exist yet — tapping shows a "Coming soon"
-  // toast instead of dropping the user on a 404. Swap back to a Link
-  // when the content routes ship.
+  const router = useRouter();
+  // Tiles with `href` navigate; the rest still show a "Coming soon" toast
+  // until their content routes ship.
   return (
     <button
       type="button"
-      onClick={() => toast("Coming soon")}
+      onClick={() => {
+        if (resource.href) router.push(resource.href);
+        else toast("Coming soon");
+      }}
       className="cursor-pointer text-left snap-start shrink-0 w-[85%] md:w-auto relative bg-[color:var(--color-tertiary-cream)] rounded-[20px] p-[8px] flex items-stretch gap-[14px] hover:shadow-[0_2px_20px_rgba(0,0,0,0.10)] transition-shadow overflow-hidden"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}

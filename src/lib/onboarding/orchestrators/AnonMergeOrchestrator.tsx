@@ -9,6 +9,9 @@ import {
 } from "../store/slices/pendingAnonMergeSlice";
 import { seedLateMedia } from "../store/slices/lateMediaSlice";
 import { clearAnonDraftLocalState } from "../storage/localStore";
+import { clearDraftToken } from "../storage/secureTokenStore";
+import { resetCreateALag } from "../store/slices/createALagSlice";
+import { resetAnonDraft } from "../store/slices/anonDraftSlice";
 import { apiGetAnonDraft, apiMerge } from "../api/anonEndpoints";
 import { findUnaccountedMedia } from "../merge/mergeUtils";
 

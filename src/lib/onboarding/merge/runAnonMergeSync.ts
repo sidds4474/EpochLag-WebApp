@@ -25,8 +25,10 @@ import {
   queueAnonMerge,
 } from "../store/slices/pendingAnonMergeSlice";
 import { seedLateMedia } from "../store/slices/lateMediaSlice";
-import { getDraftToken } from "../storage/secureTokenStore";
+import { clearDraftToken, getDraftToken } from "../storage/secureTokenStore";
 import { clearAnonDraftLocalState } from "../storage/localStore";
+import { resetCreateALag } from "../store/slices/createALagSlice";
+import { resetAnonDraft } from "../store/slices/anonDraftSlice";
 import {
   apiGetAnonDraft,
   apiMerge,
@@ -116,10 +118,17 @@ export function runAnonMergeSync({ source }: { source: MergeSyncSource }) {
         // ShareLag will retry on mount if publicCode is missing.
       }
 
-      // 7. Housekeeping.
-      //    NOTE: setStoriesRefreshTimestamp + setPendingLiveToast belong to
-      //    features not yet ported (Home refresh, live toast). Wire in M11.
+      // 7. Housekeeping. Nuke everything anon-scoped so the next visit
+      //    doesn't re-hydrate a stale draft:
+      //      - draftToken (IndexedDB via secureTokenStore)
+      //      - localStorage anon keys (referral, lastStep, pending merge)
+      //      - Redux createALag + anonDraft slices
+      try {
+        await clearDraftToken();
+      } catch {}
       await clearAnonDraftLocalState();
+      dispatch(resetCreateALag());
+      dispatch(resetAnonDraft());
 
       return { storyId, threadId, publicCode, seededLateCount };
     } catch (e) {

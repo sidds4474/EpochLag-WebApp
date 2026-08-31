@@ -18,14 +18,14 @@ const SAMPLE_LAGS: SampleLag[] = [
     month: "May",
     title: "Michael's Wedding",
     icon: "heart",
-    image: "/onboarding/girl-dad.png",
+    image: "/onboarding/card1-gradient.jpg",
   },
   {
     day: "13",
     month: "Oct",
     title: "Dad's Birthday",
     icon: "cake",
-    image: "/onboarding/kid-cake.jpg",
+    image: "/onboarding/card2-gradient.jpg",
   },
   {
     day: "03",
@@ -61,14 +61,14 @@ export default function FreeTrialOnboardingPage() {
       hideMobileNext
       desktopContent={
         <div className="w-full flex flex-col items-center justify-center min-h-[78vh] lg:min-h-0">
-          <div className="w-full max-w-[400px] flex flex-col items-center">
+          <div className="w-full max-w-[320px] flex flex-col items-center">
             {cards}
-            <h1 className="mt-[36px] font-montserrat font-bold text-primary-blue text-center leading-[130%] text-[24px]">
+            <h1 className="mt-[28px] font-montserrat font-bold text-primary-blue text-center leading-[130%] text-[26px]">
               Your 3 months of full
               <br />
               access starts now.
             </h1>
-            <p className="mt-[10px] font-montserrat text-[13px] text-primary-blue/80 text-center">
+            <p className="mt-[8px] font-montserrat text-[12px] text-primary-blue/80 text-center">
               {SUBTITLE}
             </p>
           </div>
@@ -77,18 +77,18 @@ export default function FreeTrialOnboardingPage() {
       mobileContent={
         <div className="relative flex flex-col min-h-screen">
           <div
-            className="absolute inset-x-0 top-0 h-[58vh] bg-cover bg-center"
+            className="absolute inset-x-0 top-0 h-[68vh] bg-cover bg-center"
             style={{ backgroundImage: "url('/onboarding/coverimage.png')" }}
           />
-          <div className="absolute inset-x-0 top-0 h-[58vh] bg-black/10" />
-          <div className="relative flex-1" />
-          <div className="relative bg-warm-cream rounded-t-[28px] px-[24px] pt-[32px] pb-[24px] text-primary-blue">
-            <h1 className="font-montserrat font-bold text-[22px] text-center leading-[130%]">
+          <div className="absolute inset-x-0 top-0 h-[68vh] bg-black/10" />
+          <div className="h-[68vh] shrink-0" />
+          <div className="relative flex-1 bg-warm-cream px-[24px] pt-[40px] pb-[24px] text-primary-blue">
+            <h1 className="font-montserrat font-bold text-[30px] text-center leading-[130%]">
               Your 3 months of full
               <br />
               access starts now.
             </h1>
-            <p className="mt-[12px] font-montserrat text-[13px] text-primary-blue/80 text-center">
+            <p className="mt-[12px] font-montserrat text-[15px] text-primary-blue/80 text-center">
               {SUBTITLE}
             </p>
             <button
@@ -107,23 +107,23 @@ export default function FreeTrialOnboardingPage() {
 
 function SampleLagCard({ lag }: { lag: SampleLag }) {
   return (
-    <div className="w-full bg-primary-white rounded-[18px] pl-[16px] pr-[8px] py-[8px] flex items-center gap-[14px] shadow-[0_4px_16px_rgba(9,46,74,0.06)]">
-      <div className="flex flex-col items-center min-w-[36px]">
-        <span className="font-montserrat font-bold text-primary-blue text-[22px] leading-[110%]">
+    <div className="w-full bg-primary-white rounded-[14px] pl-[14px] pr-[6px] py-[6px] flex items-stretch gap-[10px] shadow-[0_4px_16px_rgba(9,46,74,0.06)]">
+      <div className="flex flex-col items-center justify-center min-w-[32px] py-[4px]">
+        <span className="font-montserrat font-medium text-primary-blue text-[22px] leading-[110%]">
           {lag.day}
         </span>
         <span className="font-montserrat text-primary-blue/70 text-[12px] leading-[110%] mt-[2px]">
           {lag.month}
         </span>
       </div>
-      <div className="h-[42px] w-px bg-primary-blue/10" />
-      <div className="flex-1 flex items-center gap-[10px]">
+      <div className="w-px bg-primary-blue/10 my-[6px]" />
+      <div className="flex-1 flex flex-col items-start justify-center gap-[4px] py-[6px]">
         <IconBadge kind={lag.icon} />
-        <span className="font-montserrat text-primary-blue text-[14px]">
+        <span className="font-montserrat text-primary-blue text-[12px]">
           {lag.title}
         </span>
       </div>
-      <div className="h-[56px] w-[64px] rounded-[12px] overflow-hidden bg-primary-blue/5">
+      <div className="shrink-0 w-[58px] rounded-r-[10px] overflow-hidden bg-primary-blue/5">
         <img
           src={lag.image}
           alt=""

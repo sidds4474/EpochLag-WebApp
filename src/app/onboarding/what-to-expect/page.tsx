@@ -54,7 +54,7 @@ export default function WhatToExpectPage() {
   );
 
   const heading = (
-    <h1 className="font-montserrat font-bold text-primary-blue text-center text-[20px] md:text-[22px]">
+    <h1 className="font-montserrat font-bold text-primary-blue text-center text-[30px] md:text-[22px]">
       What to expect
     </h1>
   );
@@ -73,7 +73,7 @@ export default function WhatToExpectPage() {
       }
       mobileContent={
         <div className="flex flex-col min-h-screen px-[24px] pt-[40px] pb-[120px] text-primary-blue">
-          <div className="flex-1 flex flex-col items-center">
+          <div className="flex-1 flex flex-col items-center justify-center">
             {heading}
             <div className="mt-[24px] w-full max-w-[420px]">{list}</div>
           </div>
@@ -99,7 +99,7 @@ function ExpectRow({ index, row }: { index: number; row: Row }) {
       <span className="shrink-0 mt-[2px] h-[24px] w-[24px] rounded-full bg-primary-blue text-primary-white font-montserrat font-semibold text-[11px] flex items-center justify-center">
         {num}
       </span>
-      <p className="font-montserrat text-[13px] text-primary-blue leading-[160%]">
+      <p className="font-montserrat text-[15px] md:text-[13px] text-primary-blue leading-[160%]">
         <span className="font-semibold">{row.label}</span>{" "}
         <span className="text-primary-blue/85">{row.body}</span>
       </p>

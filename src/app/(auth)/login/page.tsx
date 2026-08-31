@@ -115,11 +115,14 @@ export default function LoginPage() {
   );
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.google) setGoogleReady(true);
+    if (typeof window !== "undefined" && window.google?.accounts?.id) {
+      setGoogleReady(true);
+    }
   }, []);
 
   useEffect(() => {
-    if (!googleReady || !hiddenGoogleBtnRef.current || !window.google) return;
+    if (!googleReady || !hiddenGoogleBtnRef.current) return;
+    if (!window.google?.accounts?.id) return;
     if (!GOOGLE_CLIENT_ID) return;
     window.google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
@@ -299,7 +302,13 @@ export default function LoginPage() {
       <Script
         src="https://accounts.google.com/gsi/client"
         strategy="afterInteractive"
-        onLoad={() => setGoogleReady(true)}
+        onLoad={() => {
+          const check = () => {
+            if (window.google?.accounts?.id) setGoogleReady(true);
+            else setTimeout(check, 100);
+          };
+          check();
+        }}
       />
       <div
         ref={hiddenGoogleBtnRef}

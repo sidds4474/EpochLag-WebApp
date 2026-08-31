@@ -11,6 +11,7 @@ import { seedLateMedia } from "../store/slices/lateMediaSlice";
 import { clearAnonDraftLocalState } from "../storage/localStore";
 import { clearDraftToken } from "../storage/secureTokenStore";
 import { resetAnonDraft } from "../store/slices/anonDraftSlice";
+import { hydrateFromServerDraft } from "../store/slices/createALagSlice";
 import { apiGetAnonDraft, apiMerge } from "../api/anonEndpoints";
 import { findUnaccountedMedia } from "../merge/mergeUtils";
 
@@ -51,6 +52,9 @@ export function AnonMergeOrchestrator() {
         // Late-media diff.
         try {
           const attachedDraft = await apiGetAnonDraft(draftToken);
+          // Swap local blob: URLs for Cloudinary URLs so ShareLag survives
+          // a refresh post-merge.
+          dispatch(hydrateFromServerDraft(attachedDraft));
           const attached = attachedDraft.media || [];
           const unaccounted = findUnaccountedMedia(candidateMedia, attached);
           if (unaccounted.length > 0) {

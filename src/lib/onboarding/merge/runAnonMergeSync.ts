@@ -28,6 +28,7 @@ import { seedLateMedia } from "../store/slices/lateMediaSlice";
 import { clearDraftToken, getDraftToken } from "../storage/secureTokenStore";
 import { clearAnonDraftLocalState } from "../storage/localStore";
 import { resetAnonDraft } from "../store/slices/anonDraftSlice";
+import { hydrateFromServerDraft } from "../store/slices/createALagSlice";
 import {
   apiGetAnonDraft,
   apiMerge,
@@ -81,6 +82,9 @@ export function runAnonMergeSync({ source }: { source: MergeSyncSource }) {
       let seededLateCount = 0;
       try {
         const attachedDraft = await apiGetAnonDraft(draftToken);
+        // Swap local blob: URLs for Cloudinary URLs so ShareLag survives
+        // a refresh and the cover thumbnail keeps working post-merge.
+        dispatch(hydrateFromServerDraft(attachedDraft));
         const attached: AnonServerMedia[] = attachedDraft.media || [];
         const unaccounted = findUnaccountedMedia(candidateMedia, attached);
         if (unaccounted.length > 0) {

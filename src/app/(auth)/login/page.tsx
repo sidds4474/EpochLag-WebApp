@@ -92,7 +92,7 @@ export default function LoginPage() {
           applyAuth(token, user);
           router.replace(
             user.dateOfBirth
-              ? "/home"
+              ? "/onboarding/add-relationship"
               : "/onboarding/create-account?mode=social"
           );
           return;
@@ -255,8 +255,7 @@ export default function LoginPage() {
           err.status === 404 ||
           /no account|not found|does not exist/i.test(err.message || "")
         ) {
-          setError("No account with that email. Try signing up instead.");
-          setTimeout(() => router.push("/onboarding/welcome"), 1500);
+          setError("__NO_ACCOUNT__");
           return;
         }
         setError(err.message || "Incorrect password");
@@ -455,11 +454,23 @@ function FormBody({
         />
       )}
 
-      {error && (
+      {error === "__NO_ACCOUNT__" ? (
+        <div className="mt-[10px] w-full flex flex-col items-start gap-[8px]">
+          <p className="font-montserrat text-[12px] text-[#C0392B]">
+            We couldn&apos;t find an account with that email.
+          </p>
+          <a
+            href="/signup"
+            className="font-montserrat font-semibold text-[13px] text-primary-orange hover:opacity-80 transition-opacity"
+          >
+            Sign up instead →
+          </a>
+        </div>
+      ) : error ? (
         <p className="mt-[10px] w-full font-montserrat text-[12px] text-[#C0392B] text-left">
           {error}
         </p>
-      )}
+      ) : null}
 
       <button
         type="button"

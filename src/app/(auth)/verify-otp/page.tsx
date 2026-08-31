@@ -94,9 +94,14 @@ function VerifyOtpContent() {
             queueAnonMergeIfNeeded({ source: `VerifyOtp/${mode}` })
           );
         } catch {}
+        // No merged story to celebrate — go straight home.
+        router.replace("/home");
+        return;
       }
-      // ShareLag / AddRelationship not yet on web — land at /home for now.
-      router.replace("/home");
+      const params = new URLSearchParams({ postSignup: "1" });
+      if (mergeResult.threadId) params.set("storyThreadId", mergeResult.threadId);
+      if (mergeResult.publicCode) params.set("publicCode", mergeResult.publicCode);
+      router.replace(`/onboarding/share-lag?${params.toString()}`);
     },
     [applyAuth, dispatch, mode, router]
   );
@@ -124,7 +129,7 @@ function VerifyOtpContent() {
           } catch {}
           clearStoredReferralCode();
         }
-        router.replace("/home");
+        router.replace("/onboarding/add-relationship");
         return;
       }
 
@@ -199,7 +204,16 @@ function VerifyOtpContent() {
             } catch {}
           }
           if (referralCode) clearStoredReferralCode();
-          router.replace("/home");
+          if (socialMergeResult) {
+            const params = new URLSearchParams({ postSignup: "1" });
+            if (socialMergeResult.threadId)
+              params.set("storyThreadId", socialMergeResult.threadId);
+            if (socialMergeResult.publicCode)
+              params.set("publicCode", socialMergeResult.publicCode);
+            router.replace(`/onboarding/share-lag?${params.toString()}`);
+          } else {
+            router.replace("/onboarding/add-relationship");
+          }
         }
       }
     } catch (err) {

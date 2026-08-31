@@ -163,8 +163,15 @@ function CreateAccountContent() {
               queueAnonMergeIfNeeded({ source: "CreateAccount/phone" })
             );
           } catch {}
+          router.replace("/onboarding/add-relationship");
+          return;
         }
-        router.replace("/home");
+        const params = new URLSearchParams({ postSignup: "1" });
+        if (mergeResult.threadId)
+          params.set("storyThreadId", mergeResult.threadId);
+        if (mergeResult.publicCode)
+          params.set("publicCode", mergeResult.publicCode);
+        router.replace(`/onboarding/share-lag?${params.toString()}`);
         return;
       }
 

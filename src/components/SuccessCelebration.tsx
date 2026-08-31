@@ -58,10 +58,12 @@ type Props = {
 
 export default function SuccessCelebration({ title, titleClassName, titleMarginTop, childrenClassName, children }: Props) {
   const [tSec, setTSec] = useState(0);
+  const [mounted, setMounted] = useState(false);
   const startRef = useRef<number | null>(null);
   const reducedMotionRef = useRef(false);
 
   useEffect(() => {
+    setMounted(true);
     // Reduced-motion: skip straight to final frame. No confetti / shockwaves.
     if (typeof window !== "undefined") {
       reducedMotionRef.current = window.matchMedia(
@@ -83,6 +85,8 @@ export default function SuccessCelebration({ title, titleClassName, titleMarginT
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, []);
+
+  if (!mounted) return null;
 
   const tMs = tSec * 1000;
 
@@ -120,8 +124,8 @@ export default function SuccessCelebration({ title, titleClassName, titleMarginT
         {/* Concentric rings — nested so parent scale hides children until it grows */}
         <div
           style={{
-            width: 182,
-            height: 182,
+            width: 116,
+            height: 116,
             borderRadius: "50%",
             backgroundColor: C_HALO,
             transformOrigin: "center",
@@ -134,8 +138,8 @@ export default function SuccessCelebration({ title, titleClassName, titleMarginT
         >
           <div
             style={{
-              width: 140,
-              height: 140,
+              width: 88,
+              height: 88,
               borderRadius: "50%",
               backgroundColor: C_MID,
               transformOrigin: "center",
@@ -148,8 +152,8 @@ export default function SuccessCelebration({ title, titleClassName, titleMarginT
           >
             <div
               style={{
-                width: 88,
-                height: 88,
+                width: 56,
+                height: 56,
                 borderRadius: "50%",
                 backgroundColor: C_INNER,
                 transformOrigin: "center",
@@ -160,7 +164,7 @@ export default function SuccessCelebration({ title, titleClassName, titleMarginT
                 justifyContent: "center",
               }}
             >
-              <AnimatedCheckmark size={56} progress={checkP} />
+              <AnimatedCheckmark size={34} progress={checkP} />
             </div>
           </div>
         </div>

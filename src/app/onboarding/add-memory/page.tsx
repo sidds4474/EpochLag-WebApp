@@ -15,13 +15,20 @@ import {
   apiGetAnonDraft,
   apiSaveAnonDraft,
 } from "../../../lib/onboarding/api/anonEndpoints";
-import { setDraftToken } from "../../../lib/onboarding/storage/secureTokenStore";
+import {
+  setDraftToken,
+  clearDraftToken,
+} from "../../../lib/onboarding/storage/secureTokenStore";
+import { clearAnonDraftLocalState } from "../../../lib/onboarding/storage/localStore";
 import {
   setHasDraftToken,
   setLastStep,
+  resetAnonDraft,
 } from "../../../lib/onboarding/store/slices/anonDraftSlice";
+import { ApiError } from "../../../lib/api/client";
 import {
   hydrateFromServerDraft,
+  resetCreateALag,
   addVideo,
   removeVideoByMediaId,
   addExtraImages,
@@ -110,8 +117,25 @@ export default function AddMemoryPage() {
           dispatch(setHasDraftToken(true));
         }
         if (wasResuming) {
-          const serverDraft = await apiGetAnonDraft();
-          if (serverDraft) dispatch(hydrateFromServerDraft(serverDraft));
+          try {
+            const serverDraft = await apiGetAnonDraft();
+            if (serverDraft) dispatch(hydrateFromServerDraft(serverDraft));
+          } catch (err) {
+            // 409 = draft is closed on BE (already merged). Wipe local state
+            // and mint a fresh anon draft so the user isn't stuck editing a
+            // ghost that rejects every save.
+            if (err instanceof ApiError && err.status === 409) {
+              try { await clearDraftToken(); } catch {}
+              await clearAnonDraftLocalState();
+              dispatch(resetAnonDraft());
+              dispatch(resetCreateALag());
+              const { draftToken } = await apiCreateAnonDraft();
+              await setDraftToken(draftToken);
+              dispatch(setHasDraftToken(true));
+            } else {
+              throw err;
+            }
+          }
         }
         // AddMemory is index 1 in PHASE_A_SCREEN_INDEX (WhatsALag=0).
         dispatch(setLastStep(1));

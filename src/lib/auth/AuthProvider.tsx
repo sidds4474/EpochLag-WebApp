@@ -91,6 +91,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     clearStoredAuth();
     dispatch(resetOnboardingAuth());
+    // Wipe any residual anon-flow state so a signed-out user doesn't
+    // resume a closed draft (which would 409 on save and render stale
+    // content). Best-effort — storage failures are non-fatal.
+    (async () => {
+      try {
+        const { clearDraftToken } = await import(
+          "../onboarding/storage/secureTokenStore"
+        );
+        await clearDraftToken();
+      } catch {}
+      try {
+        const { clearAnonDraftLocalState } = await import(
+          "../onboarding/storage/localStore"
+        );
+        await clearAnonDraftLocalState();
+      } catch {}
+      try {
+        const { resetAnonDraft } = await import(
+          "../onboarding/store/slices/anonDraftSlice"
+        );
+        const { resetCreateALag } = await import(
+          "../onboarding/store/slices/createALagSlice"
+        );
+        dispatch(resetAnonDraft());
+        dispatch(resetCreateALag());
+      } catch {}
+    })();
     setUser(null);
     setStatus("unauthenticated");
     router.replace("/onboarding/welcome");

@@ -11,7 +11,9 @@ import {
   type DockingItem,
   type RecentStory,
 } from "../../../../lib/home/api";
-import ShareModal from "../new-story/ShareModal";
+import SendToDrawer from "../../../../components/share/SendToDrawer";
+import PromptPreviewCard from "../../../../components/share/PromptPreviewCard";
+import type { UserCard } from "../../../../types/home";
 import HeroGreeting from "./HeroGreeting";
 import RemindersRow from "./RemindersRow";
 import RecentStoriesRow from "./RecentStoriesRow";
@@ -53,17 +55,16 @@ export default function HomePage() {
 
   async function handleShareSend(
     userIds: string[],
-    sendSeparately: boolean,
-    _note: string,
-    _isPrivate: boolean,
-    groupIds: string[]
+    groupIds: string[],
+    _note: string
   ) {
     if (!sharePromptId) return;
     try {
       await shareUserCard(sharePromptId, {
         shareWith: userIds,
         groupIds,
-        sendSeparately,
+        // sendSeparately dropped in v1 — see share drawer migration notes.
+        sendSeparately: false,
         note: "",
       });
     } catch (err) {
@@ -71,10 +72,30 @@ export default function HomePage() {
         err instanceof ApiError
           ? err.message
           : "Could not send. Please try again.";
-      toast.error(message);
       throw new Error(message);
     }
   }
+
+  // Preview card is a minimal UserCard shape hydrated from RecentStory —
+  // author comes from the story's first person (approximation; RecentStory's
+  // promptCard doesn't carry author on its own).
+  const previewCard: UserCard | null = shareTarget?.promptCard
+    ? ({
+        _id: shareTarget.promptCard._id ?? "",
+        title: shareTarget.promptCard.title ?? null,
+        content: shareTarget.promptCard.content ?? null,
+        imageUrl:
+          shareTarget.promptCard.imageUrl ?? shareTarget.coverImage ?? null,
+        author: shareTarget.people?.[0]
+          ? {
+              _id: shareTarget.people[0]._id ?? "",
+              firstName: shareTarget.people[0].firstName ?? "",
+              lastName: shareTarget.people[0].lastName ?? "",
+              profilePicture: shareTarget.people[0].profilePicture ?? null,
+            }
+          : null,
+      } as UserCard)
+    : null;
 
   useEffect(() => {
     const key = todayKey();
@@ -126,13 +147,14 @@ export default function HomePage() {
       />
       <ResourcesRow />
 
-      <ShareModal
+      <SendToDrawer
         open={shareTarget !== null}
-        title="Send story to"
-        shareContext="story"
-        showMessageInput={false}
         onClose={() => setShareTarget(null)}
         onSend={handleShareSend}
+        shareContext="story"
+        showMessageInput={false}
+        shareTarget={shareTarget ? { kind: "story", id: shareTarget._id } : undefined}
+        previewContent={previewCard ? <PromptPreviewCard card={previewCard} /> : undefined}
       />
     </div>
   );

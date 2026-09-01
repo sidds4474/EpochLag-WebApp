@@ -29,7 +29,7 @@ import MediaLightbox, { type LightboxMediaItem } from "./MediaLightbox";
 import MusicPill from "./MusicPill";
 import StoryLikesDrawer from "./StoryLikesDrawer";
 import ManageStoryParticipantsModal from "./ManageStoryParticipantsModal";
-import ShareModal from "../../app/(app)/(dashboard)/new-story/ShareModal";
+import SendToDrawer from "../../components/share/SendToDrawer";
 import {
   ChatIcon,
   NoteIcon,
@@ -328,14 +328,13 @@ export default function ThreadViewer({
 
   async function handleShareSend(
     userIds: string[],
-    sendSeparately: boolean,
-    _note: string,
-    _isPrivate: boolean,
-    groupIds: string[]
+    groupIds: string[],
+    _note: string
   ) {
     if (!storyId) return;
     try {
-      await shareStory(storyId, { userIds, groupIds, sendSeparately });
+      // sendSeparately dropped in v1 — see share drawer migration notes.
+      await shareStory(storyId, { userIds, groupIds, sendSeparately: false });
     } catch (err) {
       const message =
         err instanceof ApiError
@@ -345,24 +344,11 @@ export default function ThreadViewer({
     }
   }
 
-  // ShareModal cardData — memoize-equivalent inline (participants list is
-  // stable per render). We shape prompt + participants so the modal excludes
-  // them from the picker + shows them in "Currently on this share".
-  const shareCardData = prompt
-    ? {
-        _id: prompt._id,
-        author: prompt.author ? { _id: prompt.author._id } : null,
-        note: prompt.note ?? null,
-      }
-    : null;
-  const existingMembers = participants
+  // Filter thread participants out of the drawer's picker so users don't
+  // re-share to people who already have the story.
+  const existingMemberIds = participants
     .filter((p) => p._id && p._id !== currentUserId)
-    .map((p) => ({
-      _id: p._id!,
-      firstName: p.firstName ?? "",
-      lastName: p.lastName ?? "",
-      profilePicture: p.profilePicture ?? null,
-    }));
+    .map((p) => p._id!);
 
   const menuItems: OptionsMenuItem[] = [];
   if (isSent && storyId) {
@@ -1017,15 +1003,14 @@ export default function ThreadViewer({
         onConfirm={handleDeleteConfirmed}
       />
 
-      <ShareModal
+      <SendToDrawer
         open={shareOpen}
-        title="Send story to"
-        shareContext="story"
-        showMessageInput={false}
-        cardData={shareCardData}
-        existingMembers={existingMembers}
         onClose={() => setShareOpen(false)}
         onSend={handleShareSend}
+        shareContext="story"
+        showMessageInput={false}
+        existingMembers={existingMemberIds}
+        shareTarget={storyId ? { kind: "story", id: storyId } : undefined}
       />
 
       <MediaLightbox

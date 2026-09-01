@@ -3017,7 +3017,7 @@ function MobileMetaChipRow({
       : `${tagPeopleDisplayName(taggedPeople[0])} + ${taggedPeople.length - 1}`;
   const peopleActive = taggedPeople.length > 0;
   return (
-    <div className="-mx-[16px] px-[16px] overflow-x-auto scrollbar-hide">
+    <div className="-mx-[16px] px-[16px] py-[6px] min-h-[48px] overflow-x-auto overflow-y-visible scrollbar-hide shrink-0">
       <div className="flex gap-[10px] w-max">
         <LocationChip value={location} onChange={onLocation} variant="compact" />
         <DateChip value={dateOfStory} onChange={onDate} variant="compact" />

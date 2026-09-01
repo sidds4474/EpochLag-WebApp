@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import { MicrophoneIcon, PauseIcon } from "../icons";
+import MicPermissionSheet, {
+  classifyMicError,
+  type MicErrorKind,
+} from "../../../../components/MicPermissionSheet";
 
 const BAR_COUNT = 32;
 // Sample every 100ms of recording — fine enough granularity to catch voice
@@ -19,6 +23,8 @@ export default function AudioRecorder({ onSave }: Props) {
   const [levels, setLevels] = useState<number[]>(() =>
     Array(BAR_COUNT).fill(0)
   );
+
+  const [micErrorKind, setMicErrorKind] = useState<MicErrorKind | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -170,11 +176,16 @@ export default function AudioRecorder({ onSave }: Props) {
 
       tickWaveform();
     } catch (err) {
-      const message =
-        err instanceof Error && err.name === "NotAllowedError"
-          ? "Microphone permission denied."
-          : "Could not start recording.";
-      toast.error(message);
+      const kind = classifyMicError(err);
+      // Only the mic-permission path opens the sheet — other failures (e.g.
+      // MediaRecorder mimeType issues after the stream was granted) fall
+      // back to the toast so we don't nag with a misleading "enable mic"
+      // sheet when the mic is fine.
+      if (kind === "denied" || kind === "insecure" || kind === "unsupported") {
+        setMicErrorKind(kind);
+      } else {
+        toast.error("Could not start recording.");
+      }
       teardown();
     }
   }
@@ -246,6 +257,15 @@ export default function AudioRecorder({ onSave }: Props) {
           Tap to record
         </p>
       )}
+      <MicPermissionSheet
+        open={micErrorKind !== null}
+        kind={micErrorKind ?? "other"}
+        onClose={() => setMicErrorKind(null)}
+        onRetry={() => {
+          setMicErrorKind(null);
+          void start();
+        }}
+      />
     </div>
   );
 }

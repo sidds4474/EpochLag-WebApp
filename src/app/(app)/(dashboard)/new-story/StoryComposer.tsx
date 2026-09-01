@@ -53,6 +53,10 @@ import ChooseCoverModal, { type CoverPick } from "./ChooseCoverModal";
 import StoryCreatedOverlay from "./StoryCreated";
 import TagPeopleSheet, { tagPeopleDisplayName } from "./TagPeopleSheet";
 import UploadMediaModal from "./UploadMediaModal";
+import MicPermissionSheet, {
+  classifyMicError,
+  type MicErrorKind,
+} from "../../../../components/MicPermissionSheet";
 import type { FriendUser } from "../../../../lib/home/api";
 import {
   DateChip,
@@ -450,6 +454,7 @@ export default function StoryComposer({
     isEdit ? (initialTaggedPeople ?? []) : []
   );
   const [showTagPeople, setShowTagPeople] = useState(false);
+  const [micErrorKind, setMicErrorKind] = useState<MicErrorKind | null>(null);
 
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -1324,8 +1329,8 @@ export default function StoryComposer({
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      toast.error("Microphone permission denied");
+    } catch (err) {
+      setMicErrorKind(classifyMicError(err));
       return;
     }
     streamRef.current = stream;
@@ -2017,6 +2022,15 @@ export default function StoryComposer({
         onConfirm={(next) => {
           setTaggedPeople(next);
           setShowTagPeople(false);
+        }}
+      />
+      <MicPermissionSheet
+        open={micErrorKind !== null}
+        kind={micErrorKind ?? "other"}
+        onClose={() => setMicErrorKind(null)}
+        onRetry={() => {
+          setMicErrorKind(null);
+          void startRecording();
         }}
       />
     </div>

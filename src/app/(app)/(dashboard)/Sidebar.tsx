@@ -42,7 +42,7 @@ const NAV_ITEMS: Array<{
   {
     href: "/inspiration",
     label: "Find Inspiration",
-    icon: <PromptIcon width={20} height={20} />,
+    icon: <PromptIcon width={26} height={26} />,
     match: (p) => p.startsWith("/inspiration"),
   },
 ];

@@ -2,11 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { CloseIcon } from "./icons";
+import { APP_STORE_URL, PLAY_STORE_URL } from "../../../utils/storeLinks";
 
 const STORAGE_KEY = "epoch:app-download-banner-dismissed";
-const APP_STORE_URL = "https://apps.apple.com/app/epoch-lag/id0000000000";
-const PLAY_STORE_URL =
-  "https://play.google.com/store/apps/details?id=com.epochlag.app";
 
 function detectStoreUrl(): string {
   if (typeof navigator === "undefined") return APP_STORE_URL;

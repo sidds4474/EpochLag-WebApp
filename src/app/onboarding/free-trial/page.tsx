@@ -1,8 +1,14 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
 import { trackOnboarding } from "../../../lib/analytics/track";
+import { startTrial } from "../../../lib/subscription/api";
+import { refreshSubscriptionState } from "../../../lib/subscription/state";
+import { useAppDispatch } from "../../../lib/onboarding/store";
+import { ApiError } from "../../../lib/api/client";
 
 type SampleLag = {
   day: string;
@@ -41,11 +47,52 @@ const SUBTITLE = "No credit card. Just keep telling stories.";
 
 export default function FreeTrialOnboardingPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  const [starting, setStarting] = useState(false);
+  // Ref-guard because setStarting is async — a fast double-tap on Continue
+  // would race the state update and fire /start-trial twice.
+  const inFlightRef = useRef(false);
 
-  const goNext = () => {
-    trackOnboarding("free_trial_onboarding_completed");
-    router.replace("/onboarding/what-to-expect");
-  };
+  useEffect(() => {
+    trackOnboarding("trial_started");
+  }, []);
+
+  const goNext = useCallback(async () => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    setStarting(true);
+    try {
+      await startTrial();
+      const reconciled = await refreshSubscriptionState(dispatch);
+      if (
+        reconciled?.plan === "free_trial" ||
+        reconciled?.plan === "unlimited"
+      ) {
+        trackOnboarding("free_trial_onboarding_completed");
+        router.replace("/onboarding/what-to-expect");
+        return;
+      }
+      // BE 200 but reconciler didn't flip — most likely a stale read; ask
+      // the user to tap once more rather than silently proceeding on a
+      // still-free plan (would immediately hit the paywall next screen).
+      toast("Trial started — give it a moment and tap again.");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 409) {
+          // Already consumed on another device. Refresh so downstream
+          // gates read truth, then continue.
+          await refreshSubscriptionState(dispatch);
+          router.replace("/onboarding/what-to-expect");
+          return;
+        }
+        if (err.isPaywallRedirect) return;
+      }
+      toast.error("Couldn't start your trial. Please try again.");
+    } finally {
+      inFlightRef.current = false;
+      setStarting(false);
+    }
+  }, [dispatch, router]);
 
   const cards = (
     <div className="w-full flex flex-col gap-[14px]">
@@ -58,6 +105,7 @@ export default function FreeTrialOnboardingPage() {
   return (
     <OnboardingShell
       onNext={goNext}
+      nextDisabled={starting}
       hideMobileNext
       desktopContent={
         <div className="w-full flex flex-col items-center justify-center min-h-[78vh] lg:min-h-0">
@@ -94,9 +142,10 @@ export default function FreeTrialOnboardingPage() {
             <button
               type="button"
               onClick={goNext}
-              className="mt-[24px] w-full cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity"
+              disabled={starting}
+              className="mt-[24px] w-full cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Continue
+              {starting ? "Starting…" : "Continue"}
             </button>
           </div>
         </div>

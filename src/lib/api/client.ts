@@ -12,6 +12,11 @@ const API_BASE =
 export class ApiError extends Error {
   status: number;
   data: unknown;
+  // Tagged by the paywall pass in request() when the server returns 403 with
+  // an upgrade-shaped message. Callers (e.g. the free-trial handler) swallow
+  // these silently so we don't stack a generic error toast on top of the
+  // BE's upgrade message. Actual paywall UI wiring lands with web billing.
+  isPaywallRedirect?: boolean;
   constructor(message: string, status: number, data: unknown) {
     super(message);
     this.status = status;
@@ -93,7 +98,11 @@ async function request<T = unknown>(
       (data && typeof data === "object" && "message" in data && typeof (data as { message: unknown }).message === "string"
         ? (data as { message: string }).message
         : null) || `Request failed with status ${res.status}`;
-    throw new ApiError(message, res.status, data);
+    const err = new ApiError(message, res.status, data);
+    if (res.status === 403 && /subscribe|upgrade|paywall|unlimited/i.test(message)) {
+      err.isPaywallRedirect = true;
+    }
+    throw err;
   }
 
   return data as T;

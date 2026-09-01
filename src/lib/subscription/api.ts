@@ -42,3 +42,27 @@ export async function fetchSubscription(): Promise<Subscription> {
     store: d.store ?? null,
   };
 }
+
+// Explicit trial activation. Idempotent per BE contract:
+//   200 → trial granted, subscription state flips to free_trial
+//   409 → hasUsedTrial was already true (previous device / mobile)
+//   403 → paywall gate (interceptor tags err.isPaywallRedirect)
+// Mirror of mobile FreeTrialOnboardingScreen.onStartTrial. `platform` is
+// accepted-and-ignored server-side but kept for parity + future gating.
+export async function startTrial(): Promise<Subscription> {
+  const res = await api.post<SubscriptionEnvelope>(
+    "/api/subscription/start-trial",
+    { platform: "web" }
+  );
+  const d = res.data ?? {};
+  return {
+    plan: (d.plan as SubscriptionPlan) ?? "free",
+    trialStartedAt: d.trialStartedAt ?? d.trialStartDate ?? null,
+    trialEndsAt: d.trialEndsAt ?? d.trialEndDate ?? null,
+    currentPeriodEnd: d.currentPeriodEnd ?? null,
+    willRenew: d.willRenew ?? false,
+    cancellationDate: d.cancellationDate ?? null,
+    hasUsedTrial: d.hasUsedTrial ?? true,
+    store: d.store ?? null,
+  };
+}

@@ -31,6 +31,11 @@ import {
   resetAuth as resetOnboardingAuth,
   saveToken as saveOnboardingToken,
 } from "../onboarding/store/slices/authSlice";
+import {
+  resetProfile,
+  saveProfile,
+} from "../onboarding/store/slices/profileSlice";
+import { postLoginSync } from "./postLoginSync";
 
 type GoogleCredentialPayload = {
   email?: string;
@@ -91,6 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     clearStoredAuth();
     dispatch(resetOnboardingAuth());
+    // Wipe subscription + profile state so the next signed-in user
+    // doesn't inherit ghost plan / hasUsedTrial from the previous session.
+    dispatch(resetProfile());
     // Wipe any residual anon-flow state so a signed-out user doesn't
     // resume a closed draft (which would 409 on save and render stale
     // content). Best-effort — storage failures are non-fatal.
@@ -139,8 +147,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (token: string, next: User) => {
       setStoredAuth(token, next);
       dispatch(saveOnboardingToken(token));
+      // Hydrate profile slice — the RequireAuth trial gate and any other
+      // consumer of `state.profile.*` reads from here, not from local
+      // component state. Do this before the async subscription refetch
+      // so a stale hasUsedTrial from the /me envelope is at least on
+      // hand while /api/subscription resolves.
+      dispatch(saveProfile(next));
       setUser(next);
       setStatus("authenticated");
+      // Fire-and-forget: refresh /api/subscription so plan + hasUsedTrial
+      // are authoritative before the app shell renders any gated UI.
+      void postLoginSync({ profile: next, dispatch });
     },
     [dispatch]
   );

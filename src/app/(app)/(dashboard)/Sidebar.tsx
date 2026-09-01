@@ -10,6 +10,7 @@ import {
   LibraryIcon,
   InteractionsIcon,
   PlusIcon,
+  PromptIcon,
 } from "./icons";
 
 // Three primary destinations only. Old routes (interactions, bookmarks, drafts)
@@ -37,6 +38,12 @@ const NAV_ITEMS: Array<{
     label: "Lags",
     icon: <LibraryIcon width={20} height={20} />,
     match: (p) => p.startsWith("/lags"),
+  },
+  {
+    href: "/inspiration",
+    label: "Find Inspiration",
+    icon: <PromptIcon width={20} height={20} />,
+    match: (p) => p.startsWith("/inspiration"),
   },
 ];
 

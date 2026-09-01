@@ -80,6 +80,7 @@ import {
   PencilIcon,
   PersonIcon,
   PlayIcon,
+  PromptIcon,
   CameraIcon,
 } from "../icons";
 
@@ -2236,26 +2237,12 @@ function PromptStrip({ prompt }: { prompt: UserCard }) {
   return (
     <div className="flex items-start gap-[10px] text-primary-blue">
       <span className="mt-[2px] shrink-0" aria-hidden>
-        <BulbIcon />
+        <PromptIcon width={22} height={22} />
       </span>
       <p className="font-montserrat font-semibold text-primary-blue text-[16px] leading-[22px]">
         {text}
       </p>
     </div>
-  );
-}
-
-function BulbIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <path
-        d="M6.5 13h5M7.25 15h3.5M9 2.25A5 5 0 0 0 5.75 10.7c.55.45.9 1.1.9 1.8H11.35c0-.7.35-1.35.9-1.8A5 5 0 0 0 9 2.25Z"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
 

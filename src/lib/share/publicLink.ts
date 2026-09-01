@@ -1,16 +1,13 @@
 import { api } from "../api/client";
 
 // Mirrors the mobile share model. BE returns { data: { publicCode } };
-// client concatenates against a static base URL. Base is staging while
-// marketing pages finalize — swap to www.epochlag.com at prod launch.
-// TEMP: pointing at staging.epochlag.com — one-line swap when marketing
-// pages ship on prod.
+// client concatenates against a static base URL.
 const PUBLIC_BASE: Record<PublicLinkKind, string> = {
-  story: "https://staging.epochlag.com/story",
-  prompt: "https://staging.epochlag.com/prompt",
-  moment: "https://staging.epochlag.com/moment",
-  // album: "https://staging.epochlag.com/album", // Album share not yet
-  // functional on web — see rollout notes.
+  story: "https://epochlag.com/story",
+  prompt: "https://epochlag.com/prompt",
+  moment: "https://epochlag.com/moment",
+  // album: "https://epochlag.com/album", // Album share not yet functional
+  // on web — see rollout notes.
 };
 
 export type PublicLinkKind = "story" | "prompt" | "moment";

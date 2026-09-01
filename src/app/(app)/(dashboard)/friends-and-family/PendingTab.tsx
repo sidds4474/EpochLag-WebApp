@@ -97,6 +97,8 @@ export default function PendingTab({ query }: { query: string }) {
             <button
               type="button"
               onClick={() => router.push(`/profile/${r._id}`)}
+              onMouseEnter={() => router.prefetch(`/profile/${r._id}`)}
+              onFocus={() => router.prefetch(`/profile/${r._id}`)}
               className="cursor-pointer flex items-center gap-[12px] flex-1 min-w-0 text-left hover:opacity-80 transition"
             >
               <div className="w-[44px] h-[44px] rounded-full overflow-hidden bg-primary-blue/15 text-primary-blue flex items-center justify-center font-montserrat font-semibold text-[15px] shrink-0">

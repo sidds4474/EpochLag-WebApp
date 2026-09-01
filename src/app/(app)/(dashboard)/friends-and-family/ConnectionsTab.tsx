@@ -182,6 +182,8 @@ export default function ConnectionsTab({
                       key={u._id}
                       type="button"
                       onClick={() => router.push(`/profile/${u._id}`)}
+                      onMouseEnter={() => router.prefetch(`/profile/${u._id}`)}
+                      onFocus={() => router.prefetch(`/profile/${u._id}`)}
                       className="cursor-pointer flex items-center gap-[12px] py-[8px] px-[4px] hover:bg-black/[0.03] rounded-[10px] transition text-left"
                     >
                       <MobileAvatar user={u} />

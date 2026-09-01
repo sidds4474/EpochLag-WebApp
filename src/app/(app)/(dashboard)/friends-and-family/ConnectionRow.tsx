@@ -31,6 +31,11 @@ export default function ConnectionRow({
     <button
       type="button"
       onClick={() => router.push(`/profile/${id}`)}
+      // Warm /profile/[id]'s chunk on hover/focus so the click feels
+      // instant. Prefetch is a background side-effect — safe to call
+      // repeatedly; Next dedupes.
+      onMouseEnter={() => router.prefetch(`/profile/${id}`)}
+      onFocus={() => router.prefetch(`/profile/${id}`)}
       className="cursor-pointer bg-[#EDEDED] rounded-[16px] p-[12px] flex items-center gap-[12px] hover:brightness-95 transition text-left w-full"
     >
       <div className="w-[48px] h-[48px] rounded-full overflow-hidden bg-primary-blue/15 text-primary-blue flex items-center justify-center font-montserrat font-semibold text-[16px] shrink-0">

@@ -156,6 +156,8 @@ export default function GroupDrawer({
                   onClose();
                   router.push(`/profile/${m._id}`);
                 }}
+                onMouseEnter={() => router.prefetch(`/profile/${m._id}`)}
+                onFocus={() => router.prefetch(`/profile/${m._id}`)}
                 className="cursor-pointer flex items-center gap-[12px] py-[10px] hover:bg-black/[0.03] rounded-[10px] transition text-left"
               >
                 <MemberAvatar member={m} />

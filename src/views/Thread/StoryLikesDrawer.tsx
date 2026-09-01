@@ -23,6 +23,16 @@ export default function StoryLikesDrawer({ open, likes, onClose }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // Warm the /profile/[id] chunk for every liker while the drawer is open,
+  // so tapping a row navigates instantly instead of stalling on a cold
+  // bundle download.
+  useEffect(() => {
+    if (!open) return;
+    for (const l of likes) {
+      if (l._id) router.prefetch(`/profile/${l._id}`);
+    }
+  }, [open, likes, router]);
+
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {

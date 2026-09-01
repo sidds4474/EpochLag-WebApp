@@ -51,12 +51,14 @@ type Props = {
   titleMarginTop?: number;
   /** Override the default children wrapper classes (spacing above, etc.). */
   childrenClassName?: string;
+  /** Scale the illustration to this height (px). Defaults to 315 (native). */
+  illustrationHeight?: number;
   /** Rendered inside the fade-up button row. Callers pass their own
    *  Done / Send / etc. so this component stays presentation-only. */
   children?: React.ReactNode;
 };
 
-export default function SuccessCelebration({ title, titleClassName, titleMarginTop, childrenClassName, children }: Props) {
+export default function SuccessCelebration({ title, titleClassName, titleMarginTop, childrenClassName, illustrationHeight, children }: Props) {
   const [tSec, setTSec] = useState(0);
   const [mounted, setMounted] = useState(false);
   const startRef = useRef<number | null>(null);
@@ -101,12 +103,36 @@ export default function SuccessCelebration({ title, titleClassName, titleMarginT
   const titleP = easeOutCubic(clamp01((tMs - TITLE_DELAY) / TITLE_DUR));
   const buttonsP = easeOutCubic(clamp01((tMs - BUTTONS_DELAY) / BUTTONS_DUR));
 
+  const scale = illustrationHeight ? illustrationHeight / 315 : 1;
+
   return (
     <div className="w-full flex flex-col items-center">
+      {/* Outer box is the *scaled* layout size so surrounding elements sit at
+          the right offset. Inner box stays at native 325×315 so the animation
+          math (baseR, dot positions, check size) all keep working; we scale
+          it once via CSS transform. `will-change` promotes the scaled inner
+          into its own compositor layer so per-frame child paints don't churn
+          the parent flow. */}
       <div
         className="relative flex items-center justify-center"
-        style={{ width: 325, height: 315, marginBottom: -40 }}
+        style={{
+          width: 325 * scale,
+          height: 315 * scale,
+          marginBottom: -40 * scale,
+        }}
       >
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{
+            width: 325,
+            height: 315,
+            left: "50%",
+            top: "50%",
+            transform: `translate(-50%, -50%) scale(${scale})`,
+            transformOrigin: "center",
+            willChange: scale === 1 ? undefined : "transform",
+          }}
+        >
         {/* Shockwaves — three rings pulse outward, formulas read t directly */}
         {[
           { delay: 0.0, baseR: 88, color: C_HALO },
@@ -167,6 +193,7 @@ export default function SuccessCelebration({ title, titleClassName, titleMarginT
               <AnimatedCheckmark size={34} progress={checkP} />
             </div>
           </div>
+        </div>
         </div>
       </div>
 

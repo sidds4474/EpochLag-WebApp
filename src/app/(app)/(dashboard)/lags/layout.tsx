@@ -7,7 +7,7 @@ import { SelectModeProvider } from "./selectMode";
 export default function LibraryLayout({ children }: { children: ReactNode }) {
   return (
     <SelectModeProvider>
-      <div className="flex flex-col h-full min-h-0 px-[24px] md:px-[32px] pt-[16px]">
+      <div className="flex flex-col h-full min-h-0 px-[12px] md:px-[32px] pt-[16px]">
         <LibraryHeading />
         <LibraryTabs />
         <LibraryContent>{children}</LibraryContent>

@@ -92,14 +92,14 @@ export default function FilteredStoriesGrid({ filter }: { filter: FilterKey }) {
   return (
     <div
       ref={scrollRef}
-      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[8px] md:px-[24px] pt-[8px] pb-[28px] scrollbar-hide"
+      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-0 md:px-[24px] pt-[8px] pb-[28px] scrollbar-hide"
     >
       {error ? (
         <p className="font-montserrat text-primary-orange text-[14px] mt-[8px]">
           {error}
         </p>
       ) : threads.length === 0 && loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-[16px] md:gap-x-[24px] gap-y-[28px] md:gap-y-[40px]">
+        <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-[10px] md:gap-x-[24px] gap-y-[18px] md:gap-y-[40px]">
           {Array.from({ length: 6 }).map((_, i) => (
             <StoryCardSkeleton key={i} />
           ))}
@@ -109,7 +109,7 @@ export default function FilteredStoriesGrid({ filter }: { filter: FilterKey }) {
           No stories to show.
         </p>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-[16px] md:gap-x-[24px] gap-y-[28px] md:gap-y-[40px]">
+        <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-[10px] md:gap-x-[24px] gap-y-[18px] md:gap-y-[40px]">
           {threads.map((t) => (
             <StoryCard key={t._id} thread={t} />
           ))}

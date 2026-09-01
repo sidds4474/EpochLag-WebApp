@@ -132,7 +132,7 @@ export default function StoryCard({
           onToggleSelect?.(thread);
         }
       }}
-      className="relative flex flex-col bg-white rounded-[22px] shadow-[0_0_18px_rgba(0,0,0,0.2)] hover:shadow-[0_0_22px_rgba(0,0,0,0.25)] transition-shadow pt-[8px] px-[8px] pb-[16px] gap-[7px]"
+      className="relative flex flex-col bg-white rounded-[22px] shadow-[0_0_18px_rgba(0,0,0,0.2)] hover:shadow-[0_0_22px_rgba(0,0,0,0.25)] transition-shadow pt-[8px] px-[8px] pb-[10px] md:pb-[16px] gap-[7px]"
     >
       <div className="relative aspect-[5/4] bg-primary-blue/10 rounded-[15px] overflow-hidden">
         {cover ? (
@@ -147,7 +147,7 @@ export default function StoryCard({
 
         {typeof daysRemaining !== "number" && (
           <div className="absolute top-[10px] left-[10px] flex items-center gap-[6px]">
-            <div className="w-[36px] h-[36px] rounded-full overflow-hidden bg-primary-blue/15 border-[2px] border-white shrink-0">
+            <div className="w-[28px] h-[28px] md:w-[36px] md:h-[36px] rounded-full overflow-hidden bg-primary-blue/15 border-[2px] border-white shrink-0">
               {avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -197,12 +197,12 @@ export default function StoryCard({
             {daysRemaining} days
           </span>
         ) : !isSelecting ? (
-          <div className="absolute top-[10px] right-[10px] flex flex-col gap-[8px]">
+          <div className="absolute top-[10px] right-[10px] flex flex-col gap-[6px] md:gap-[8px]">
             <button
               type="button"
               onClick={handleBookmarkToggle}
               aria-label={bookmarked ? "Remove bookmark" : "Bookmark"}
-              className="w-[36px] h-[36px] rounded-full bg-white border border-white shadow-[0_1px_3px_rgba(0,0,0,0.15)] flex items-center justify-center text-primary-blue hover:bg-white/95 transition-colors cursor-pointer"
+              className="w-[28px] h-[28px] md:w-[36px] md:h-[36px] rounded-full bg-white border border-white shadow-[0_1px_3px_rgba(0,0,0,0.15)] flex items-center justify-center text-primary-blue hover:bg-white/95 transition-colors cursor-pointer"
             >
               <BookmarkIcon width={15} height={17} filled={bookmarked} />
             </button>
@@ -211,7 +211,7 @@ export default function StoryCard({
                 type="button"
                 onClick={handleShare}
                 aria-label="Share link"
-                className="w-[36px] h-[36px] rounded-full bg-white border border-white shadow-[0_1px_3px_rgba(0,0,0,0.15)] flex items-center justify-center text-primary-blue hover:bg-white/95 transition-colors cursor-pointer"
+                className="w-[28px] h-[28px] md:w-[36px] md:h-[36px] rounded-full bg-white border border-white shadow-[0_1px_3px_rgba(0,0,0,0.15)] flex items-center justify-center text-primary-blue hover:bg-white/95 transition-colors cursor-pointer"
               >
                 <SendIcon width={16} height={16} />
               </button>

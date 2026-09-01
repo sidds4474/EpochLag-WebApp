@@ -119,12 +119,12 @@ function SlideIntroDesktop({ compact = false }: { compact?: boolean }) {
 
 function SlideIntroMobile({ compact: _compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex flex-col items-center text-center text-primary-blue px-[28px] pt-[72px] pb-[110px]">
+    <div className="flex flex-col items-center text-center text-primary-blue px-[28px] pt-[40px] pb-[110px]">
       <img src={LogoDark.src} alt="Epoch Lag" className="w-[140px] h-auto object-contain" />
-      <p className="mt-[24px] font-montserrat text-[14px] leading-[160%] text-primary-blue/80">
+      <p className="mt-[16px] font-montserrat text-[14px] leading-[160%] text-primary-blue/80">
         {INTRO_BODY}
       </p>
-      <p className="mt-[18px] font-montserrat font-bold text-[15px] text-primary-blue">
+      <p className="mt-[12px] font-montserrat font-bold text-[15px] text-primary-blue">
         {INTRO_TAG}
       </p>
       <PolaroidCluster mobile />
@@ -140,17 +140,17 @@ function PolaroidCluster({
   compact?: boolean;
 }) {
   const wrap = mobile
-    ? "w-full h-[420px] mt-[40px]"
+    ? "w-full h-[300px] mt-[24px]"
     : compact
       ? "w-full h-[240px] mt-[20px]"
       : "w-full h-[320px] mt-[40px]";
   const circle = mobile
-    ? "w-[300px] h-[300px] top-[8%]"
+    ? "w-[220px] h-[220px] top-[8%]"
     : compact
       ? "w-[170px] h-[170px] top-[8%]"
       : "w-[220px] h-[220px] top-[10%]";
-  const bigSize = mobile ? "xl" : compact ? "md" : "lg";
-  const smallSize = mobile ? "md" : compact ? "sm" : "sm";
+  const bigSize = mobile ? "md" : compact ? "md" : "lg";
+  const smallSize = mobile ? "sm" : compact ? "sm" : "sm";
   return (
     <div className={`relative ${wrap}`}>
       <div className={`absolute left-1/2 -translate-x-1/2 rounded-full bg-primary-orange/45 ${circle}`} />
@@ -244,13 +244,13 @@ function SlideFeaturesDesktop({ compact = false }: { compact?: boolean }) {
 
 function SlideFeaturesMobile({ compact: _compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex flex-col items-center text-primary-blue px-[28px] pt-[88px] pb-[110px]">
-      <h1 className="text-center font-montserrat font-bold text-[26px] leading-[125%]">
+    <div className="flex flex-col items-center text-primary-blue px-[28px] pt-[48px] pb-[110px]">
+      <h1 className="text-center font-montserrat font-bold text-[22px] leading-[125%]">
         Built for the stories behind the photos
       </h1>
-      <ul className="mt-[24px] flex flex-col gap-[12px] self-start max-w-[340px]">
+      <ul className="mt-[16px] flex flex-col gap-[8px] self-start max-w-[340px]">
         {FEATURE_BULLETS.map((b) => (
-          <li key={b} className="flex items-start gap-[12px] font-montserrat text-[18px] leading-[135%] text-primary-blue/90">
+          <li key={b} className="flex items-start gap-[12px] font-montserrat text-[16px] leading-[135%] text-primary-blue/90">
             <span className="pt-[2px]"><CheckDot size="md" /></span>
             <span>{b}</span>
           </li>
@@ -283,7 +283,7 @@ function Timeline({
   compact?: boolean;
 }) {
   const wrap = mobile
-    ? "mt-[100px] w-full max-w-[300px]"
+    ? "mt-[36px] w-full max-w-[300px]"
     : compact
       ? "mt-[16px] w-full max-w-[280px]"
       : "mt-[28px] w-full max-w-[280px]";
@@ -364,7 +364,7 @@ function SlidePrivacyDesktop({ compact = false }: { compact?: boolean }) {
 function SlidePrivacyMobile({ compact: _compact = false }: { compact?: boolean }) {
   return (
     <div className="flex flex-col text-primary-blue px-[24px] pt-[40px] pb-[110px]">
-      <h1 className="font-montserrat font-bold text-[24px] leading-[125%]">
+      <h1 className="font-montserrat font-bold text-[22px] leading-[125%]">
         Epoch Lag is secure and private, always.
       </h1>
       <p className="mt-[10px] font-montserrat text-[13px] leading-[160%] text-primary-blue/70">
@@ -383,13 +383,13 @@ function PrivacyCard({
   compact?: boolean;
 }) {
   const sizing = mobile
-    ? "w-full h-[560px]"
+    ? "w-full h-[360px]"
     : compact
       ? "w-full max-w-[540px] h-[300px] lg:h-[260px]"
       : "w-full max-w-[540px] h-[560px] lg:h-[340px]";
   return (
     <div
-      className={`mt-[24px] ${sizing} bg-primary-white rounded-[14px] shadow-[0_6px_24px_rgba(9,46,74,0.08)] overflow-y-auto p-[20px] text-left [&::-webkit-scrollbar]:hidden`}
+      className={`${mobile ? "mt-[16px]" : "mt-[24px]"} ${sizing} bg-primary-white rounded-[14px] shadow-[0_6px_24px_rgba(9,46,74,0.08)] overflow-y-auto p-[20px] text-left [&::-webkit-scrollbar]:hidden`}
       style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
     >
       <h3 className="font-montserrat font-bold text-[15px] text-primary-blue">Privacy Policy</h3>

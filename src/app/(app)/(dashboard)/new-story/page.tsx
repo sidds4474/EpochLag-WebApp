@@ -71,25 +71,22 @@ const MODE_CARDS: Array<{
   title: string;
   description: string;
   cover: string;
+  /** CSS `object-position` for the cover image. Defaults to "center". */
+  coverPosition?: string;
 }> = [
   {
     id: "tell",
-    title: "Tell a Story",
+    title: "Create a Lag",
     description: "Capture the stories only you can tell.",
-    cover: "/empty-state-cards/card1/coverimage-card1.png",
+    cover: "/onboarding/van_img.jpg",
+    coverPosition: "bottom",
   },
   {
     id: "ask",
     title: "Ask a Question",
     description:
       "The people you love have stories you've never heard. Ask.",
-    cover: "/empty-state-cards/card1/kid-cake.jpg",
-  },
-  {
-    id: "inspire",
-    title: "Find Inspiration",
-    description: "Browse questions that bring the stories you love to life.",
-    cover: "/empty-state-cards/card1/girl.jpg",
+    cover: "/onboarding/free_trial/second_image.jpg",
   },
 ];
 
@@ -207,10 +204,10 @@ export default function NewStoryPage() {
           Create
         </h1>
 
-        {/* Tablet + desktop (md+): 3 vertical cards in a row, image on top.
-            Cards flex to share available width — no persistent sidebar until
-            lg, so tablet has enough room for the same three-up layout. */}
-        <div className="hidden md:flex gap-[16px] lg:gap-[20px]">
+        {/* Desktop (lg+): vertical cards in a row, image on top. Cards are
+            capped so with two entries they stay centered instead of
+            stretching to fill the full width. */}
+        <div className="hidden lg:flex justify-center gap-[20px]">
           {MODE_CARDS.map((card) => (
             <LandingModeCard
               key={card.id}
@@ -220,8 +217,11 @@ export default function NewStoryPage() {
           ))}
         </div>
 
-        {/* Mobile (< md): stacked horizontal cards, image on left. */}
-        <div className="flex md:hidden flex-col gap-[8px] w-full max-w-[560px] mx-auto">
+        {/* Mobile + Tablet (< lg): mobile Figma card design — image on top,
+            bold title + description below. Mobile stacks vertically; tablet
+            switches to a 2-column grid so the cards use the extra width
+            without feeling lonely. */}
+        <div className="grid lg:hidden grid-cols-1 md:grid-cols-2 gap-[16px] md:gap-[20px] w-full max-w-[560px] md:max-w-[720px] mx-auto px-[16px]">
           {MODE_CARDS.map((card) => (
             <HorizontalModeCard
               key={card.id}
@@ -316,6 +316,7 @@ function ModeCard({
           src={card.cover}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
+          style={{ objectPosition: card.coverPosition ?? "center" }}
           loading="lazy"
         />
       </div>
@@ -349,7 +350,7 @@ function LandingModeCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex-1 min-w-0 lg:max-w-[320px] text-left cursor-pointer bg-white rounded-[20px] shadow-[0_0_12.5px_rgba(0,0,0,0.15)] p-[6px] pb-[14px] flex flex-col hover:shadow-[0_2px_16px_rgba(0,0,0,0.18)] transition-shadow"
+      className="w-[280px] lg:w-[320px] shrink-0 text-left cursor-pointer bg-white rounded-[20px] shadow-[0_0_12.5px_rgba(0,0,0,0.15)] p-[6px] pb-[14px] flex flex-col hover:shadow-[0_2px_16px_rgba(0,0,0,0.18)] transition-shadow"
     >
       <div className="relative aspect-[4/3] rounded-t-[14px] overflow-hidden bg-primary-blue/10">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -357,6 +358,7 @@ function LandingModeCard({
           src={card.cover}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
+          style={{ objectPosition: card.coverPosition ?? "center" }}
           loading="lazy"
         />
       </div>
@@ -382,6 +384,8 @@ function LandingModeCard({
 // the right, and a circular arrow pinned to the bottom-right of the text area.
 // The card width flexes to the container; the parent caps it on tablet so it
 // doesn't stretch across a wide screen.
+// Mobile-only vertical card — cover image on top, bold title + description
+// stacked below. Matches the phone Figma spec. Desktop uses LandingModeCard.
 function HorizontalModeCard({
   card,
   onClick,
@@ -393,29 +397,25 @@ function HorizontalModeCard({
     <button
       type="button"
       onClick={onClick}
-      className="w-full text-left cursor-pointer bg-white rounded-[16px] shadow-[0_0_12.5px_rgba(0,0,0,0.15)] p-[6px] flex gap-[16px] hover:shadow-[0_2px_16px_rgba(0,0,0,0.18)] transition-shadow"
+      className="w-full text-left cursor-pointer bg-white rounded-[20px] shadow-[0_0_26.821px_rgba(0,0,0,0.25)] p-[10px] pb-[16px] flex flex-col gap-[12px]"
     >
-      <div className="relative w-[120px] h-[120px] sm:w-[140px] sm:h-[140px] rounded-l-[12px] overflow-hidden bg-primary-blue/10 shrink-0">
+      <div className="relative aspect-[16/10] rounded-[14px] overflow-hidden bg-primary-blue/10">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={card.cover}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
+          style={{ objectPosition: card.coverPosition ?? "center" }}
           loading="lazy"
         />
       </div>
-      <div className="flex-1 min-w-0 flex flex-col justify-center py-[6px] pr-[8px]">
-        <p className="font-montserrat font-medium text-primary-blue text-[16px] leading-[20px]">
+      <div className="px-[6px]">
+        <p className="font-montserrat font-bold text-primary-blue text-[17px] leading-[22px]">
           {card.title}
         </p>
-        <p className="mt-[4px] font-montserrat font-medium text-primary-blue/50 text-[14px] leading-[16px]">
+        <p className="mt-[4px] font-montserrat text-primary-blue text-[14px] leading-[19px]">
           {card.description}
         </p>
-        <div className="mt-auto pt-[8px] flex justify-end">
-          <span className="w-[24px] h-[24px] rounded-full bg-[#ededed] text-primary-blue flex items-center justify-center">
-            <ArrowRightIcon width={12} height={12} />
-          </span>
-        </div>
       </div>
     </button>
   );

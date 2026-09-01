@@ -8,7 +8,8 @@ import { shareUserCard } from "../../../../lib/create/api";
 import { fetchInspirationFeed, seedUserCard } from "../../../../lib/home/api";
 import type { UserCard } from "../../../../types/home";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "../icons";
-import ShareModal from "../new-story/ShareModal";
+import SendToDrawer from "../../../../components/share/SendToDrawer";
+import PromptPreviewCard from "../../../../components/share/PromptPreviewCard";
 import InspirationCard from "./InspirationCard";
 
 export default function InspirationPage() {
@@ -101,17 +102,16 @@ export default function InspirationPage() {
 
   const handleShareSend = async (
     userIds: string[],
-    sendSeparately: boolean,
-    note: string,
-    _isPrivate: boolean,
-    groupIds: string[]
+    groupIds: string[],
+    note: string
   ) => {
     if (!shareCard) return;
     try {
       await shareUserCard(shareCard._id, {
         shareWith: userIds,
         groupIds,
-        sendSeparately,
+        // sendSeparately dropped in v1 — see share drawer migration notes.
+        sendSeparately: false,
         note,
       });
     } catch (err) {
@@ -119,7 +119,6 @@ export default function InspirationPage() {
         err instanceof ApiError
           ? err.message
           : "Could not share. Please try again.";
-      toast.error(message);
       throw new Error(message);
     }
   };
@@ -258,14 +257,14 @@ export default function InspirationPage() {
         </button>
       </div>
 
-      <ShareModal
+      <SendToDrawer
         open={shareCard !== null}
-        title="Send this prompt"
-        shareContext="prompt"
-        showMessageInput
-        cardData={shareCard}
         onClose={() => setShareCard(null)}
         onSend={handleShareSend}
+        shareContext="prompt"
+        showMessageInput
+        shareTarget={shareCard ? { kind: "prompt", id: shareCard._id } : undefined}
+        previewContent={shareCard ? <PromptPreviewCard card={shareCard} /> : undefined}
       />
     </div>
   );

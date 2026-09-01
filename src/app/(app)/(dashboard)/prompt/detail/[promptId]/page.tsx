@@ -13,7 +13,8 @@ import {
 import { shareUserCard } from "../../../../../../lib/create/api";
 import type { UserCard } from "../../../../../../types/home";
 import InspirationCard from "../../../inspiration/InspirationCard";
-import ShareModal from "../../../new-story/ShareModal";
+import SendToDrawer from "../../../../../../components/share/SendToDrawer";
+import PromptPreviewCard from "../../../../../../components/share/PromptPreviewCard";
 
 // Cover shipped by mobile for hows-life prompts that arrive with imageUrl:
 // null. Client swaps this in whenever the prompt has no cover so the flip
@@ -124,19 +125,14 @@ function PromptDetailInner({ promptId }: { promptId: string }) {
   }, [prompt, promptId, isHowsLife, challengeType, challengeCardId, router]);
 
   const handleShareSend = useCallback(
-    async (
-      userIds: string[],
-      sendSeparately: boolean,
-      note: string,
-      _isPrivate: boolean,
-      groupIds: string[]
-    ) => {
+    async (userIds: string[], groupIds: string[], note: string) => {
       if (!prompt?._id) return;
       try {
         await shareUserCard(prompt._id, {
           shareWith: userIds,
           groupIds,
-          sendSeparately,
+          // sendSeparately dropped in v1 — see share drawer migration notes.
+          sendSeparately: false,
           note,
         });
       } catch (err) {
@@ -144,7 +140,6 @@ function PromptDetailInner({ promptId }: { promptId: string }) {
           err instanceof ApiError
             ? err.message
             : "Could not share. Please try again.";
-        toast.error(message);
         throw new Error(message);
       }
     },
@@ -190,14 +185,14 @@ function PromptDetailInner({ promptId }: { promptId: string }) {
         )}
       </div>
 
-      <ShareModal
+      <SendToDrawer
         open={shareOpen}
-        title="Send prompt to"
-        shareContext="prompt"
-        showMessageInput
         onClose={() => setShareOpen(false)}
         onSend={handleShareSend}
-        cardData={prompt}
+        shareContext="prompt"
+        showMessageInput
+        shareTarget={prompt?._id ? { kind: "prompt", id: prompt._id } : undefined}
+        previewContent={prompt ? <PromptPreviewCard card={prompt} /> : undefined}
       />
     </div>
   );

@@ -37,7 +37,8 @@ import {
   MusicChip,
   type MusicValue,
 } from "./pickers";
-import ShareModal from "./ShareModal";
+import SendToDrawer from "../../../../components/share/SendToDrawer";
+import PromptPreviewCard from "../../../../components/share/PromptPreviewCard";
 import {
   AudioPill,
   ContentTypeButton,
@@ -1173,23 +1174,24 @@ function AskStep2({
     }
   }
 
+  // Drawer owns the celebration ("Prompt Sent"). On Done we hand off to
+  // onComplete which finishes the composer step.
+  const [askSentThisSession, setAskSentThisSession] = useState(false);
   async function handleShareSend(
     userIds: string[],
-    sendSeparately: boolean,
-    note: string,
-    _isPrivate: boolean,
-    groupIds: string[]
+    groupIds: string[],
+    note: string
   ) {
     if (!promptId) return;
     try {
       await shareUserCard(promptId, {
         shareWith: userIds,
         groupIds,
-        sendSeparately,
+        // sendSeparately dropped in v1 — see share drawer migration notes.
+        sendSeparately: false,
         note,
       });
-      // Auto-close is handled by the modal; navigate away after it finishes.
-      setTimeout(() => onComplete(), 1600);
+      setAskSentThisSession(true);
     } catch (err) {
       const message =
         err instanceof ApiError
@@ -1233,13 +1235,19 @@ function AskStep2({
         {creating ? "Preparing…" : "Next"}
       </button>
 
-      <ShareModal
+      <SendToDrawer
         open={modalOpen}
-        title="Send your question"
+        onClose={() => {
+          setModalOpen(false);
+          if (askSentThisSession) {
+            setAskSentThisSession(false);
+            onComplete();
+          }
+        }}
+        onSend={handleShareSend}
         shareContext="prompt"
         showMessageInput
-        onClose={() => setModalOpen(false)}
-        onSend={handleShareSend}
+        shareTarget={promptId ? { kind: "prompt", id: promptId } : undefined}
       />
     </div>
   );
@@ -1379,17 +1387,16 @@ function InspirationCarousel({ onCardTap }: { onCardTap: (id: string) => void })
 
   async function handleShareSend(
     userIds: string[],
-    sendSeparately: boolean,
-    note: string,
-    _isPrivate: boolean,
-    groupIds: string[]
+    groupIds: string[],
+    note: string
   ) {
     if (!shareCard) return;
     try {
       await shareUserCard(shareCard._id, {
         shareWith: userIds,
         groupIds,
-        sendSeparately,
+        // sendSeparately dropped in v1 — see share drawer migration notes.
+        sendSeparately: false,
         note,
       });
     } catch (err) {
@@ -1515,14 +1522,14 @@ function InspirationCarousel({ onCardTap }: { onCardTap: (id: string) => void })
         </div>
       )}
 
-      <ShareModal
+      <SendToDrawer
         open={shareCard !== null}
-        title="Send this prompt"
-        shareContext="prompt"
-        showMessageInput
-        cardData={shareCard}
         onClose={() => setShareCard(null)}
         onSend={handleShareSend}
+        shareContext="prompt"
+        showMessageInput
+        shareTarget={shareCard ? { kind: "prompt", id: shareCard._id } : undefined}
+        previewContent={shareCard ? <PromptPreviewCard card={shareCard} /> : undefined}
       />
     </div>
   );

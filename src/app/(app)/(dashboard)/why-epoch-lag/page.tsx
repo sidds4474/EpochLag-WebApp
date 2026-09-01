@@ -12,31 +12,38 @@ import { ChevronLeftIcon } from "../icons";
 // Standalone dashboard entry into the "Why Epoch Lag" carousel — mounted
 // from the home Resources tile. Reuses the same 3 slides as the onboarding
 // flow (see src/app/onboarding/why-epoch-lag/page.tsx) so any copy or
-// visual tweak lives in one place. Final-slide "Done" closes back to
-// where the user came from instead of advancing onboarding.
+// visual tweak lives in one place. Slides render in `compact` mode here
+// so the entire slide fits in the viewport without page scroll; onboarding
+// keeps its original generous sizing.
 export default function DashboardWhyEpochLagPage() {
   const router = useRouter();
   const { idx, isLast, goNext } = useWhyEpochCarousel(() => router.back());
 
   return (
-    <div className="min-h-full flex flex-col bg-primary-cream">
-      <div className="shrink-0 px-[16px] md:px-[24px] lg:px-[40px] pt-[12px] pb-[8px] flex items-center gap-[10px]">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          aria-label="Back"
-          className="cursor-pointer w-[36px] h-[36px] rounded-full text-primary-blue hover:bg-black/[0.05] flex items-center justify-center transition-colors"
-        >
-          <ChevronLeftIcon width={18} height={18} />
-        </button>
+    <div className="h-full flex flex-col bg-primary-cream overflow-hidden">
+      {/* 3-column header: back left, dots dead-centered, spacer right. */}
+      <div className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-center px-[16px] md:px-[24px] lg:px-[40px] pt-[12px] pb-[8px]">
+        <div className="justify-self-start">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            aria-label="Back"
+            className="cursor-pointer w-[36px] h-[36px] rounded-full bg-primary-white text-primary-blue shadow-[0_2px_8px_rgba(9,46,74,0.08)] hover:brightness-95 flex items-center justify-center transition-[filter]"
+          >
+            <ChevronLeftIcon width={18} height={18} />
+          </button>
+        </div>
         <SlideDots active={idx} />
+        <div className="justify-self-end" aria-hidden />
       </div>
 
-      {/* Desktop / tablet — centered stage matching the onboarding shell max-width. */}
-      <div className="hidden md:flex flex-1 min-h-0 items-start md:items-center justify-center overflow-y-auto px-[24px] pt-[8px] pb-[24px]">
+      {/* Desktop / tablet — content is capped by parent height so nothing
+          scrolls the page; individual scrollable regions (privacy card)
+          handle their own overflow. */}
+      <div className="hidden md:flex flex-1 min-h-0 items-center justify-center px-[24px] pb-[16px]">
         <div className="w-full max-w-[820px] flex flex-col items-center">
-          <WhyEpochSlideDesktop idx={idx} />
-          <div className="mt-[24px] flex justify-center">
+          <WhyEpochSlideDesktop idx={idx} compact />
+          <div className="mt-[16px] flex justify-center">
             <button
               type="button"
               onClick={goNext}
@@ -48,8 +55,9 @@ export default function DashboardWhyEpochLagPage() {
         </div>
       </div>
 
-      {/* Mobile — sticky bottom Next/Done matches the onboarding layout. */}
-      <div className="md:hidden flex-1 flex flex-col min-h-0">
+      {/* Mobile — sticky bottom Next/Done. Mobile slide sizes are unchanged
+          because the sticky button lives above the slide content. */}
+      <div className="md:hidden flex-1 flex flex-col min-h-0 overflow-y-auto">
         <WhyEpochSlideMobile idx={idx} />
         <div className="fixed bottom-[80px] left-0 right-0 z-30 px-[24px] pb-[16px] pt-[16px] bg-gradient-to-t from-primary-cream via-primary-cream to-transparent">
           <button

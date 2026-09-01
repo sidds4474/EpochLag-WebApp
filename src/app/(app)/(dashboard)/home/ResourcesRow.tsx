@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { CircleArrowButton, SectionHeader } from "../../../../components/ui";
 
@@ -28,6 +29,15 @@ const RESOURCES: Resource[] = [
 ];
 
 export default function ResourcesRow() {
+  const router = useRouter();
+  // Warm the JS chunks for any tile that has a real destination so the
+  // navigation feels instant on tap instead of stalling on cold download.
+  useEffect(() => {
+    for (const r of RESOURCES) {
+      if (r.href) router.prefetch(r.href);
+    }
+  }, [router]);
+
   return (
     <section className="mt-[24px] md:mt-[32px]">
       <SectionHeader title="Resources" />

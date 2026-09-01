@@ -18,7 +18,17 @@ export const WHY_EPOCH_SLIDE_COUNT = 3;
 
 export type WhyEpochSlideIndex = 0 | 1 | 2;
 
-export function WhyEpochSlideDesktop({ idx }: { idx: WhyEpochSlideIndex }) {
+// `compact` shrinks the desktop slide dimensions (logo, polaroid cluster,
+// timeline, privacy card height) so the dashboard entry fits in a viewport
+// without scrolling. Onboarding leaves this false and keeps its original
+// generous sizing so that flow is untouched.
+export function WhyEpochSlideDesktop({
+  idx,
+  compact = false,
+}: {
+  idx: WhyEpochSlideIndex;
+  compact?: boolean;
+}) {
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -28,15 +38,21 @@ export function WhyEpochSlideDesktop({ idx }: { idx: WhyEpochSlideIndex }) {
         exit={{ opacity: 0, y: -12 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
       >
-        {idx === 0 && <SlideIntroDesktop />}
-        {idx === 1 && <SlideFeaturesDesktop />}
-        {idx === 2 && <SlidePrivacyDesktop />}
+        {idx === 0 && <SlideIntroDesktop compact={compact} />}
+        {idx === 1 && <SlideFeaturesDesktop compact={compact} />}
+        {idx === 2 && <SlidePrivacyDesktop compact={compact} />}
       </motion.div>
     </AnimatePresence>
   );
 }
 
-export function WhyEpochSlideMobile({ idx }: { idx: WhyEpochSlideIndex }) {
+export function WhyEpochSlideMobile({
+  idx,
+  compact = false,
+}: {
+  idx: WhyEpochSlideIndex;
+  compact?: boolean;
+}) {
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -47,9 +63,9 @@ export function WhyEpochSlideMobile({ idx }: { idx: WhyEpochSlideIndex }) {
         transition={{ duration: 0.35, ease: "easeOut" }}
         className="flex-1"
       >
-        {idx === 0 && <SlideIntroMobile />}
-        {idx === 1 && <SlideFeaturesMobile />}
-        {idx === 2 && <SlidePrivacyMobile />}
+        {idx === 0 && <SlideIntroMobile compact={compact} />}
+        {idx === 1 && <SlideFeaturesMobile compact={compact} />}
+        {idx === 2 && <SlidePrivacyMobile compact={compact} />}
       </motion.div>
     </AnimatePresence>
   );
@@ -74,22 +90,34 @@ const INTRO_BODY =
   "The intentional pause between eras, not rushing into the next epoch, but lingering to absorb lessons, memories, or meaning from the last.";
 const INTRO_TAG = "Epoch Lag is about remembering and connection";
 
-function SlideIntroDesktop() {
+function SlideIntroDesktop({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex flex-col items-center text-center text-primary-blue px-[24px]">
-      <img src={LogoDark.src} alt="Epoch Lag" className="w-[160px] h-auto object-contain" />
-      <p className="mt-[20px] font-montserrat text-[14px] leading-[160%] text-primary-blue/80 max-w-[440px]">
+      <img
+        src={LogoDark.src}
+        alt="Epoch Lag"
+        className={`${compact ? "w-[120px]" : "w-[160px]"} h-auto object-contain`}
+      />
+      <p
+        className={`${
+          compact ? "mt-[12px]" : "mt-[20px]"
+        } font-montserrat text-[13px] leading-[150%] text-primary-blue/80 max-w-[440px]`}
+      >
         {INTRO_BODY}
       </p>
-      <p className="mt-[16px] font-montserrat font-bold text-[15px] text-primary-blue max-w-[300px]">
+      <p
+        className={`${
+          compact ? "mt-[10px]" : "mt-[16px]"
+        } font-montserrat font-bold text-[14px] text-primary-blue max-w-[300px]`}
+      >
         {INTRO_TAG}
       </p>
-      <PolaroidCluster />
+      <PolaroidCluster compact={compact} />
     </div>
   );
 }
 
-function SlideIntroMobile() {
+function SlideIntroMobile({ compact: _compact = false }: { compact?: boolean }) {
   return (
     <div className="flex flex-col items-center text-center text-primary-blue px-[28px] pt-[72px] pb-[110px]">
       <img src={LogoDark.src} alt="Epoch Lag" className="w-[140px] h-auto object-contain" />
@@ -104,19 +132,33 @@ function SlideIntroMobile() {
   );
 }
 
-function PolaroidCluster({ mobile = false }: { mobile?: boolean }) {
-  const wrap = mobile ? "w-full h-[420px] mt-[40px]" : "w-full h-[320px] mt-[40px]";
+function PolaroidCluster({
+  mobile = false,
+  compact = false,
+}: {
+  mobile?: boolean;
+  compact?: boolean;
+}) {
+  const wrap = mobile
+    ? "w-full h-[420px] mt-[40px]"
+    : compact
+      ? "w-full h-[240px] mt-[20px]"
+      : "w-full h-[320px] mt-[40px]";
   const circle = mobile
     ? "w-[300px] h-[300px] top-[8%]"
-    : "w-[220px] h-[220px] top-[10%]";
+    : compact
+      ? "w-[170px] h-[170px] top-[8%]"
+      : "w-[220px] h-[220px] top-[10%]";
+  const bigSize = mobile ? "xl" : compact ? "md" : "lg";
+  const smallSize = mobile ? "md" : compact ? "sm" : "sm";
   return (
     <div className={`relative ${wrap}`}>
       <div className={`absolute left-1/2 -translate-x-1/2 rounded-full bg-primary-orange/45 ${circle}`} />
       <div className="absolute left-1/2 top-[6%] -translate-x-[70%] -rotate-[6deg]">
-        <Polaroid src="/onboarding/kids-car.jpg" size={mobile ? "xl" : "lg"} />
+        <Polaroid src="/onboarding/kids-car.jpg" size={bigSize} />
       </div>
       <div className={`absolute left-1/2 ${mobile ? "top-[48%]" : "top-[52%]"} translate-x-[-6%] rotate-[8deg]`}>
-        <Polaroid src="/onboarding/van_img.jpg" size={mobile ? "md" : "sm"} objectPosition="bottom" />
+        <Polaroid src="/onboarding/van_img.jpg" size={smallSize} objectPosition="bottom" />
       </div>
     </div>
   );
@@ -178,25 +220,29 @@ const TIMELINE: TimelineItem[] = [
   { day: "14", month: "Nov", title: "Grandpa's favorite story", thumb: "/onboarding/childhood.jpg", yearLabel: "2024" },
 ];
 
-function SlideFeaturesDesktop() {
+function SlideFeaturesDesktop({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex flex-col items-center text-primary-blue">
       <h1 className="text-center font-montserrat font-bold text-[20px] lg:text-[22px] leading-[125%] max-w-[360px]">
         Built for the stories behind the photos
       </h1>
-      <ul className="mt-[20px] flex flex-col gap-[8px] self-center">
+      <ul
+        className={`${
+          compact ? "mt-[12px] gap-[6px]" : "mt-[20px] gap-[8px]"
+        } flex flex-col self-center`}
+      >
         {FEATURE_BULLETS.map((b) => (
           <li key={b} className="flex items-center gap-[10px] font-montserrat text-[12.5px] text-primary-blue/90">
             <CheckDot /> <span>{b}</span>
           </li>
         ))}
       </ul>
-      <Timeline items={TIMELINE} />
+      <Timeline items={compact ? TIMELINE.slice(0, 2) : TIMELINE} compact={compact} />
     </div>
   );
 }
 
-function SlideFeaturesMobile() {
+function SlideFeaturesMobile({ compact: _compact = false }: { compact?: boolean }) {
   return (
     <div className="flex flex-col items-center text-primary-blue px-[28px] pt-[88px] pb-[110px]">
       <h1 className="text-center font-montserrat font-bold text-[26px] leading-[125%]">
@@ -227,8 +273,20 @@ function CheckDot({ size = "sm" }: { size?: "sm" | "md" }) {
   );
 }
 
-function Timeline({ items, mobile = false }: { items: TimelineItem[]; mobile?: boolean }) {
-  const wrap = mobile ? "mt-[100px] w-full max-w-[300px]" : "mt-[28px] w-full max-w-[280px]";
+function Timeline({
+  items,
+  mobile = false,
+  compact = false,
+}: {
+  items: TimelineItem[];
+  mobile?: boolean;
+  compact?: boolean;
+}) {
+  const wrap = mobile
+    ? "mt-[100px] w-full max-w-[300px]"
+    : compact
+      ? "mt-[16px] w-full max-w-[280px]"
+      : "mt-[28px] w-full max-w-[280px]";
   return (
     <div className={`relative mx-auto ${wrap}`}>
       <div
@@ -238,7 +296,7 @@ function Timeline({ items, mobile = false }: { items: TimelineItem[]; mobile?: b
             : "left-[0px] top-[24px] w-[220px] h-[220px] lg:left-[-22px] lg:w-[260px] lg:h-[260px]"
         }`}
       />
-      <div className="relative z-10 pl-[28px] pb-[80px]">
+      <div className={`relative z-10 pl-[28px] ${compact ? "pb-[24px]" : "pb-[80px]"}`}>
         <div className="absolute left-[8px] top-0 bottom-0 w-px bg-primary-blue/70" />
         {items.map((it, i) => (
           <div key={i}>
@@ -289,7 +347,7 @@ function TimelineCard({ item, mobile = false }: { item: TimelineItem; mobile?: b
 /* Slide 3 — Privacy                                                   */
 /* ------------------------------------------------------------------ */
 
-function SlidePrivacyDesktop() {
+function SlidePrivacyDesktop({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex flex-col items-center text-primary-blue px-[16px]">
       <h1 className="text-center font-montserrat font-bold text-[22px] lg:text-[24px] leading-[125%] max-w-[340px]">
@@ -298,12 +356,12 @@ function SlidePrivacyDesktop() {
       <p className="mt-[12px] text-center font-montserrat text-[12.5px] leading-[160%] text-primary-blue/70 max-w-[340px]">
         We take your privacy seriously. We will never sell your personal data to third parties.
       </p>
-      <PrivacyCard />
+      <PrivacyCard compact={compact} />
     </div>
   );
 }
 
-function SlidePrivacyMobile() {
+function SlidePrivacyMobile({ compact: _compact = false }: { compact?: boolean }) {
   return (
     <div className="flex flex-col text-primary-blue px-[24px] pt-[40px] pb-[110px]">
       <h1 className="font-montserrat font-bold text-[24px] leading-[125%]">
@@ -317,8 +375,18 @@ function SlidePrivacyMobile() {
   );
 }
 
-function PrivacyCard({ mobile = false }: { mobile?: boolean }) {
-  const sizing = mobile ? "w-full h-[560px]" : "w-full max-w-[540px] h-[560px] lg:h-[340px]";
+function PrivacyCard({
+  mobile = false,
+  compact = false,
+}: {
+  mobile?: boolean;
+  compact?: boolean;
+}) {
+  const sizing = mobile
+    ? "w-full h-[560px]"
+    : compact
+      ? "w-full max-w-[540px] h-[300px] lg:h-[260px]"
+      : "w-full max-w-[540px] h-[560px] lg:h-[340px]";
   return (
     <div
       className={`mt-[24px] ${sizing} bg-primary-white rounded-[14px] shadow-[0_6px_24px_rgba(9,46,74,0.08)] overflow-y-auto p-[20px] text-left [&::-webkit-scrollbar]:hidden`}

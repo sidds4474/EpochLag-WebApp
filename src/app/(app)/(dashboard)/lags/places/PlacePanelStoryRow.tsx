@@ -1,13 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "react-hot-toast";
 import { bustUrl } from "../../../../../lib/images";
 import { toggleCardBookmark } from "../../../../../lib/home/api";
-import { mintPromptPublicLink } from "../../../../../lib/share/api";
+import { shareUserCard } from "../../../../../lib/create/api";
+import { ApiError } from "../../../../../lib/api/client";
 import { parseContentToBlocks } from "../../../../../lib/parseStoryContent";
 import type { LibraryThread } from "../../../../../lib/library/api";
+import type { UserCard } from "../../../../../types/home";
+import SendToDrawer from "../../../../../components/share/SendToDrawer";
+import PromptPreviewCard from "../../../../../components/share/PromptPreviewCard";
 import { BookmarkIcon, LibraryIcon, SendIcon } from "../../icons";
 
 function coverFor(t: LibraryThread): string | null {
@@ -102,46 +107,61 @@ export default function PlacePanelStoryRow({ thread }: PlacePanelStoryRowProps) 
   );
 
   const shareCardId = thread.promptCard?._id ?? null;
-  const sharePendingRef = useRef(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const handleShare = useCallback(
-    async (e: React.MouseEvent) => {
+    (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (!shareCardId || sharePendingRef.current) return;
-      sharePendingRef.current = true;
-      try {
-        const { publicCode } = await mintPromptPublicLink(shareCardId);
-        const origin =
-          typeof window !== "undefined" ? window.location.origin : "";
-        const url = `${origin}/prompt/${publicCode}`;
-        const shareData = { url, title: title || "Epoch Lag" };
-        if (
-          typeof navigator !== "undefined" &&
-          typeof navigator.share === "function" &&
-          navigator.canShare?.(shareData) !== false
-        ) {
-          try {
-            await navigator.share(shareData);
-          } catch {
-            /* user dismissed */
-          }
-        } else if (
-          typeof navigator !== "undefined" &&
-          navigator.clipboard?.writeText
-        ) {
-          await navigator.clipboard.writeText(url);
-          toast.success("Link copied");
-        } else {
-          toast.success(url);
-        }
-      } catch {
-        toast.error("Couldn't create share link");
-      } finally {
-        sharePendingRef.current = false;
-      }
+      if (!shareCardId) return;
+      setShareOpen(true);
     },
-    [shareCardId, title]
+    [shareCardId]
   );
+
+  async function handleShareSend(
+    userIds: string[],
+    groupIds: string[],
+    _note: string
+  ) {
+    if (!shareCardId) return;
+    try {
+      await shareUserCard(shareCardId, {
+        shareWith: userIds,
+        groupIds,
+        sendSeparately: false,
+        note: "",
+      });
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Could not send. Please try again.";
+      throw new Error(message);
+    }
+  }
+
+  const previewCard: UserCard | null = thread.promptCard
+    ? ({
+        _id: thread.promptCard._id ?? "",
+        title: thread.promptCard.title ?? null,
+        content: thread.promptCard.content ?? null,
+        imageUrl: thread.promptCard.imageUrl ?? cover ?? null,
+        author: thread.people?.[0]
+          ? {
+              _id: thread.people[0]._id ?? "",
+              firstName: thread.people[0].firstName ?? "",
+              lastName: thread.people[0].lastName ?? "",
+              profilePicture: thread.people[0].profilePicture ?? null,
+            }
+          : null,
+      } as UserCard)
+    : null;
+
+  // Portal-safe SSR guard.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const avatarNode = (
     <div className="w-[28px] h-[28px] rounded-full overflow-hidden bg-primary-blue/15 shrink-0">
@@ -181,6 +201,7 @@ export default function PlacePanelStoryRow({ thread }: PlacePanelStoryRowProps) 
   );
 
   return (
+    <>
     <Link
       href={`/thread/${thread._id}`}
       className="relative block bg-white rounded-[16px] md:rounded-[20px] shadow-[0_0_25px_0_rgba(0,0,0,0.20)] hover:shadow-[0_0_30px_0_rgba(0,0,0,0.25)] transition-shadow overflow-hidden"
@@ -275,5 +296,19 @@ export default function PlacePanelStoryRow({ thread }: PlacePanelStoryRowProps) 
         </div>
       </div>
     </Link>
+    {mounted &&
+      createPortal(
+        <SendToDrawer
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          onSend={handleShareSend}
+          shareContext="story"
+          showMessageInput={false}
+          shareTarget={{ kind: "story", id: thread._id }}
+          previewContent={previewCard ? <PromptPreviewCard card={previewCard} /> : undefined}
+        />,
+        document.body
+      )}
+    </>
   );
 }

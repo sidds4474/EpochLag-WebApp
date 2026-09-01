@@ -1,15 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "react-hot-toast";
 import { BookmarkIcon, PersonIcon, SendIcon } from "../icons";
 import Avatar from "../../../../components/Avatar";
+import SendToDrawer from "../../../../components/share/SendToDrawer";
+import PromptPreviewCard from "../../../../components/share/PromptPreviewCard";
 import { bustUrl } from "../../../../lib/images";
 import { parseContentToBlocks } from "../../../../lib/parseStoryContent";
 import { toggleCardBookmark } from "../../../../lib/home/api";
-import { mintPromptPublicLink } from "../../../../lib/share/api";
+import { shareUserCard } from "../../../../lib/create/api";
+import { ApiError } from "../../../../lib/api/client";
 import type { LibraryThread } from "../../../../lib/library/api";
+import type { UserCard } from "../../../../types/home";
 
 type StoryCardProps = {
   thread: LibraryThread;
@@ -79,50 +84,71 @@ export default function StoryCard({
   );
 
   const shareCardId = thread.promptCard?._id ?? null;
-  const sharePendingRef = useRef(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const handleShare = useCallback(
-    async (e: React.MouseEvent) => {
+    (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (!shareCardId || sharePendingRef.current) return;
-      sharePendingRef.current = true;
-      try {
-        const { publicCode } = await mintPromptPublicLink(shareCardId);
-        const origin =
-          typeof window !== "undefined" ? window.location.origin : "";
-        const url = `${origin}/prompt/${publicCode}`;
-        const shareData = { url, title: title || "Epoch Lag" };
-        // Web Share API on mobile/supported browsers → native share sheet.
-        // Otherwise → copy to clipboard.
-        if (
-          typeof navigator !== "undefined" &&
-          typeof navigator.share === "function" &&
-          navigator.canShare?.(shareData) !== false
-        ) {
-          try {
-            await navigator.share(shareData);
-          } catch {
-            // User dismissed the sheet — treat as no-op, don't toast.
-          }
-        } else if (
-          typeof navigator !== "undefined" &&
-          navigator.clipboard?.writeText
-        ) {
-          await navigator.clipboard.writeText(url);
-          toast.success("Link copied");
-        } else {
-          toast.success(url);
-        }
-      } catch {
-        toast.error("Couldn't create share link");
-      } finally {
-        sharePendingRef.current = false;
-      }
+      if (!shareCardId) return;
+      setShareOpen(true);
     },
-    [shareCardId, title]
+    [shareCardId]
   );
 
+  // Share targets the underlying prompt via /api/user-card/:promptId/share
+  // — same pattern as the Home Recent Stories row.
+  async function handleShareSend(
+    userIds: string[],
+    groupIds: string[],
+    _note: string
+  ) {
+    if (!shareCardId) return;
+    try {
+      await shareUserCard(shareCardId, {
+        shareWith: userIds,
+        groupIds,
+        // sendSeparately dropped in v1 — see share drawer migration notes.
+        sendSeparately: false,
+        note: "",
+      });
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Could not send. Please try again.";
+      throw new Error(message);
+    }
+  }
+
+  // Preview card synthesized from the thread — author approximated from the
+  // first person on the thread (LibraryThread's promptCard doesn't carry
+  // author on its own).
+  const previewCard: UserCard | null = thread.promptCard
+    ? ({
+        _id: thread.promptCard._id ?? "",
+        title: thread.promptCard.title ?? null,
+        content: thread.promptCard.content ?? null,
+        imageUrl: thread.promptCard.imageUrl ?? cover ?? null,
+        author: thread.people?.[0]
+          ? {
+              _id: thread.people[0]._id ?? "",
+              firstName: thread.people[0].firstName ?? "",
+              lastName: thread.people[0].lastName ?? "",
+              profilePicture: thread.people[0].profilePicture ?? null,
+            }
+          : null,
+      } as UserCard)
+    : null;
+
+  // Portal-safe SSR guard — createPortal needs document.body which doesn't
+  // exist during server rendering.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
+    <>
     <Link
       href={`/thread/${thread._id}`}
       onClick={(e) => {
@@ -227,6 +253,23 @@ export default function StoryCard({
           {title}
         </p>
       </div>
+
     </Link>
+    {/* Drawer is portaled to document.body so its click events don't bubble
+        up through the parent Link and trigger navigation. */}
+    {mounted &&
+      createPortal(
+        <SendToDrawer
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          onSend={handleShareSend}
+          shareContext="story"
+          showMessageInput={false}
+          shareTarget={{ kind: "story", id: thread._id }}
+          previewContent={previewCard ? <PromptPreviewCard card={previewCard} /> : undefined}
+        />,
+        document.body
+      )}
+    </>
   );
 }

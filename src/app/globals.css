@@ -172,15 +172,17 @@
   display: none;
 }
 
-/* Hide the main page scrollbar globally (keep scrolling functional) */
-html,
-body {
+/* Hide scrollbars on every scroll container — html/body plus any inner
+   region using overflow-y-auto (dashboard main, drawers, feeds). Scroll
+   still works, only the visual bar is suppressed. */
+* {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
-html::-webkit-scrollbar,
-body::-webkit-scrollbar {
+*::-webkit-scrollbar {
   display: none;
+  width: 0;
+  height: 0;
 }
 
 @keyframes skeleton-shimmer {

@@ -171,18 +171,18 @@ function PromptDetailInner({ promptId }: { promptId: string }) {
       </div>
 
       <div className="flex-1 flex items-center justify-center py-[16px] md:py-[24px]">
-        {cardForFlip ? (
-          <div className="w-full max-w-[320px] md:max-w-[340px] lg:max-w-[300px] h-[min(70vh,520px)] md:h-[600px] lg:h-[440px]">
+        <div className="w-full max-w-[320px] md:max-w-[340px] lg:max-w-[300px] h-[min(70vh,520px)] md:h-[600px] lg:h-[440px]">
+          {cardForFlip ? (
             <InspirationCard
               card={cardForFlip}
               onAnswer={handleAnswer}
               onShare={() => setShareOpen(true)}
               initialFlipped
             />
-          </div>
-        ) : (
-          <div className="w-full max-w-[320px] md:max-w-[340px] lg:max-w-[300px] h-[min(70vh,520px)] md:h-[600px] rounded-[32px] bg-white/60 animate-pulse" />
-        )}
+          ) : (
+            <PromptCardSkeleton />
+          )}
+        </div>
       </div>
 
       <SendToDrawer
@@ -198,6 +198,48 @@ function PromptDetailInner({ promptId }: { promptId: string }) {
   );
 }
 
+// Shimmer skeleton mirroring the flipped InspirationCard silhouette — back
+// arrow row + big prompt-text placeholder + two action buttons. Kept in
+// this file since the layout is prompt-detail-specific.
+function PromptCardSkeleton() {
+  return (
+    <div
+      className="w-full h-full bg-white rounded-[32px] shadow-[0_0_13.4px_rgba(0,0,0,0.15)] p-[20px] flex flex-col gap-[16px] opacity-0 animate-[skeleton-in_320ms_ease-out_forwards]"
+    >
+      <div className="relative flex-1 min-h-0 rounded-[20px] overflow-hidden bg-primary-blue/[0.05]">
+        <div className="absolute inset-0 animate-[skeleton-shimmer_1.4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/70 to-transparent bg-[length:200%_100%]" />
+        <div className="relative flex flex-col gap-[10px] p-[20px]">
+          <div className="h-[16px] w-[70%] rounded-full bg-primary-blue/[0.08]" />
+          <div className="h-[16px] w-[85%] rounded-full bg-primary-blue/[0.08]" />
+          <div className="h-[16px] w-[55%] rounded-full bg-primary-blue/[0.08]" />
+        </div>
+      </div>
+      <div className="flex items-center gap-[10px] pt-[4px]">
+        <div className="flex-1 h-[44px] rounded-full bg-primary-blue/[0.08]" />
+        <div className="h-[44px] w-[44px] rounded-full bg-primary-blue/[0.08]" />
+      </div>
+    </div>
+  );
+}
+
+function PromptDetailFallback() {
+  return (
+    <div className="flex flex-col h-full min-h-0 bg-primary-cream/40 lg:bg-transparent px-[16px] md:px-[32px] pt-[16px] pb-[24px] md:pb-[40px]">
+      <div className="flex items-center gap-[12px]">
+        <div className="w-[36px] h-[36px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] lg:bg-[#f0f0f0] lg:shadow-none" />
+        <h1 className="font-montserrat font-bold text-primary-blue text-[20px] md:text-[28px] leading-none">
+          Prompt
+        </h1>
+      </div>
+      <div className="flex-1 flex items-center justify-center py-[16px] md:py-[24px]">
+        <div className="w-full max-w-[320px] md:max-w-[340px] lg:max-w-[300px] h-[min(70vh,520px)] md:h-[600px] lg:h-[440px]">
+          <PromptCardSkeleton />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Next.js 15 App Router: dynamic route params are a Promise you unwrap with
 // use(). Suspense wraps the child that reads useSearchParams.
 export default function PromptDetailPage({
@@ -207,7 +249,7 @@ export default function PromptDetailPage({
 }) {
   const { promptId } = use(params);
   return (
-    <Suspense fallback={<div className="h-full" />}>
+    <Suspense fallback={<PromptDetailFallback />}>
       <PromptDetailInner promptId={promptId} />
     </Suspense>
   );

@@ -19,6 +19,7 @@ import {
   CircleArrowButton,
   SectionHeader,
 } from "../../../../components/ui";
+import { useRailScroll } from "../../../../lib/nav/useRailScroll";
 import { PlusIcon } from "../icons";
 
 // Dimensions ported from the mobile app's HomeTile (Figma node 13147-13258):
@@ -37,9 +38,17 @@ export default function RemindersRow({
   items: DockingItem[] | null;
   loading: boolean;
 }) {
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const { canLeft, canRight, scrollLeft, scrollRight } = useRailScroll(scrollerRef);
   return (
     <section className="mt-[24px] md:mt-[32px]">
-      <SectionHeader title="What's new?" />
+      <SectionHeader
+        title="What's new?"
+        onScrollLeft={scrollLeft}
+        onScrollRight={scrollRight}
+        canScrollLeft={canLeft}
+        canScrollRight={canRight}
+      />
       {loading || items === null ? (
         <ReminderSkeleton />
       ) : items.length === 0 ? (
@@ -47,7 +56,7 @@ export default function RemindersRow({
           <AddMomentCTA />
         </div>
       ) : (
-        <Carousel>
+        <Carousel scrollerRef={scrollerRef}>
           {items.map((it) => (
             <DockingTile key={it._id} item={it} />
           ))}
@@ -57,8 +66,13 @@ export default function RemindersRow({
   );
 }
 
-function Carousel({ children }: { children: ReactNode }) {
-  const scrollerRef = useRef<HTMLDivElement | null>(null);
+function Carousel({
+  children,
+  scrollerRef,
+}: {
+  children: ReactNode;
+  scrollerRef: React.RefObject<HTMLDivElement | null>;
+}) {
   const [tileCount, setTileCount] = useState(0);
   const [active, setActive] = useState(0);
 
@@ -72,7 +86,7 @@ function Carousel({ children }: { children: ReactNode }) {
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, [children]);
+  }, [children, scrollerRef]);
 
   return (
     <div>

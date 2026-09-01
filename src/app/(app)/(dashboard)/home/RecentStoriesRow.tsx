@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRef } from "react";
 import type { RecentStory } from "../../../../lib/home/api";
 import { SectionHeader } from "../../../../components/ui";
+import { useRailScroll } from "../../../../lib/nav/useRailScroll";
 import { bustUrl } from "../../../../lib/images";
 import { BookmarkIcon, PersonIcon, SendIcon } from "../icons";
 import { useBookmarkToggle } from "./useBookmarkToggle";
@@ -20,15 +22,29 @@ export default function RecentStoriesRow({
   loading: boolean;
   onShare?: (s: RecentStory) => void;
 }) {
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const { canLeft, canRight, scrollLeft, scrollRight } = useRailScroll(scrollerRef, {
+    step: CARD_WIDTH + 16,
+  });
   return (
     <section className="mt-[24px] md:mt-[32px]">
-      <SectionHeader title="Recent Lags" viewAllHref="/lags" />
+      <SectionHeader
+        title="Recent Lags"
+        viewAllHref="/lags"
+        onScrollLeft={scrollLeft}
+        onScrollRight={scrollRight}
+        canScrollLeft={canLeft}
+        canScrollRight={canRight}
+      />
       {loading || stories === null ? (
         <StoriesSkeleton />
       ) : stories.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="overflow-x-auto overflow-y-visible scrollbar-hide">
+        <div
+          ref={scrollerRef}
+          className="overflow-x-auto overflow-y-visible scrollbar-hide"
+        >
           <div className="flex gap-[16px] snap-x snap-mandatory py-[20px] px-[20px]">
             {stories.map((s) => (
               <StoryTile key={s._id} story={s} onShare={onShare} />

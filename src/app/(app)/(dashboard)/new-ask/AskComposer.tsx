@@ -11,13 +11,12 @@ import {
   type GradientCover,
 } from "../../../../lib/create/api";
 import { compressImage } from "../../../../lib/images";
-import SuccessCelebration from "../../../../components/SuccessCelebration";
-import ShareModal from "../new-story/ShareModal";
+import SendToDrawer from "../../../../components/share/SendToDrawer";
 import ChooseCoverModal, { type CoverPick } from "../new-story/ChooseCoverModal";
 import {
   ChevronLeftIcon,
-  EyeIcon,
-  HelpIcon,
+  // EyeIcon, // Preview button hidden — see header block below.
+  // HelpIcon, // Help button hidden — see header block below.
   ImageIcon,
   PencilIcon,
   UploadIcon,
@@ -61,8 +60,9 @@ export default function AskComposer({ onBack }: Props) {
   const [creating, setCreating] = useState(false);
   const [promptId, setPromptId] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
-  const [createdSuccess, setCreatedSuccess] = useState(false);
+  // Help button removed for now — leaving state stub commented so the wire-up
+  // is trivial to restore if product wants the help panel later.
+  // const [showHelp, setShowHelp] = useState(false);
   // Mobile/tablet only: below `lg`, tapping the cover area opens the shared
   // ChooseCoverModal (full-screen route-like sheet). Desktop keeps the
   // inline picker panel on the right rail.
@@ -124,25 +124,18 @@ export default function AskComposer({ onBack }: Props) {
 
   async function handleShareSubmit(
     userIds: string[],
-    sendSeparately: boolean,
-    note: string,
-    _isPrivate: boolean,
-    groupIds: string[]
+    groupIds: string[],
+    note: string
   ) {
     if (!promptId) return;
     try {
       await shareUserCard(promptId, {
         shareWith: userIds,
         groupIds,
-        sendSeparately,
+        // sendSeparately is dropped in v1 — see share drawer migration notes.
+        sendSeparately: false,
         note,
       });
-      // Let the modal's own "Sent!" confirmation play, then flip to the
-      // celebration screen. Router lands the user on Interactions afterward.
-      setTimeout(() => {
-        setShareOpen(false);
-        setCreatedSuccess(true);
-      }, 1600);
     } catch (err) {
       const message =
         err instanceof ApiError
@@ -151,6 +144,21 @@ export default function AskComposer({ onBack }: Props) {
       throw new Error(message);
     }
   }
+
+  // Drawer owns the celebration (Prompt Sent). On Done, route straight to
+  // Interactions — no second celebration screen.
+  const [sentThisSession, setSentThisSession] = useState(false);
+  const handleShareDrawerClose = () => {
+    setShareOpen(false);
+    if (sentThisSession) {
+      setSentThisSession(false);
+      router.push("/interactions?tab=sent");
+    }
+  };
+  const wrappedSend: typeof handleShareSubmit = async (u, g, n) => {
+    await handleShareSubmit(u, g, n);
+    setSentThisSession(true);
+  };
 
   function pickSuggestion(text: string) {
     setQuestion(text);
@@ -170,26 +178,6 @@ export default function AskComposer({ onBack }: Props) {
       const preview = URL.createObjectURL(file);
       setCover({ file, imageUrl: null, preview });
     }
-  }
-
-  if (createdSuccess) {
-    return (
-      <div className="fixed inset-0 z-50 bg-[#FFEFDC] lg:bg-[#f7ecd8] flex items-center justify-center px-[24px]">
-        <div className="w-full max-w-[420px] flex flex-col items-center">
-          <SuccessCelebration title="Prompt Created!">
-            <div className="w-full flex items-center gap-[12px]">
-              <button
-                type="button"
-                onClick={() => router.push("/interactions?tab=sent")}
-                className="cursor-pointer flex-1 bg-primary-orange text-primary-white font-montserrat font-semibold text-[15px] rounded-full py-[12px] hover:opacity-90 transition-opacity"
-              >
-                Done
-              </button>
-            </div>
-          </SuccessCelebration>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -219,6 +207,9 @@ export default function AskComposer({ onBack }: Props) {
           Ask a Question
         </h1>
         <div className="flex items-center gap-[8px] lg:gap-[12px] shrink-0">
+          {/* Help + Preview buttons removed for now — Help was a no-op toggle
+              (state was never read) and Preview had no onClick. Kept as
+              comments so they can be re-enabled once the panels are built.
           <button
             type="button"
             aria-label="Help"
@@ -231,8 +222,6 @@ export default function AskComposer({ onBack }: Props) {
           >
             <HelpIcon width={20} height={20} />
           </button>
-          {/* Preview is design-only for the ask flow; kept for parity so the
-              header composition matches the Tell composer visually. */}
           <button
             type="button"
             aria-label="Preview"
@@ -241,6 +230,7 @@ export default function AskComposer({ onBack }: Props) {
             <EyeIcon width={16} height={16} />
             <span>Preview</span>
           </button>
+          */}
           <button
             type="button"
             onClick={handleOpenShare}
@@ -342,13 +332,13 @@ export default function AskComposer({ onBack }: Props) {
         onChange={(e) => handleUploadFile(e.target.files?.[0])}
       />
 
-      <ShareModal
+      <SendToDrawer
         open={shareOpen}
-        title="Send your question"
+        onClose={handleShareDrawerClose}
+        onSend={wrappedSend}
         shareContext="prompt"
         showMessageInput
-        onClose={() => setShareOpen(false)}
-        onSend={handleShareSubmit}
+        shareTarget={promptId ? { kind: "prompt", id: promptId } : undefined}
       />
 
       <ChooseCoverModal

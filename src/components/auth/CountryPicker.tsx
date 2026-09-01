@@ -94,7 +94,7 @@ export function CountryPicker({
           onClick={() => setOpen(false)}
         >
           <div
-            className="w-full md:w-[420px] max-h-[80vh] bg-warm-cream rounded-t-[24px] md:rounded-[24px] flex flex-col overflow-hidden"
+            className="w-full md:w-[420px] h-[70svh] md:h-auto md:max-h-[80vh] bg-warm-cream rounded-t-[24px] md:rounded-[24px] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-[20px] pt-[20px] pb-[12px] flex items-center gap-[12px]">
@@ -104,7 +104,7 @@ export function CountryPicker({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search country or code"
-                className="flex-1 bg-primary-white rounded-full h-[44px] px-[16px] font-montserrat text-[14px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_2px_8px_rgba(9,46,74,0.05)]"
+                className="flex-1 bg-primary-white rounded-full h-[44px] px-[16px] font-montserrat text-[16px] md:text-[14px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_2px_8px_rgba(9,46,74,0.05)]"
               />
               <button
                 type="button"

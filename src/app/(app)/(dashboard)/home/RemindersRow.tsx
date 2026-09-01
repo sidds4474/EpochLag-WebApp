@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { DockingItem } from "../../../../lib/home/api";
 import {
   fetchUserCard,
@@ -38,8 +38,7 @@ export default function RemindersRow({
   items: DockingItem[] | null;
   loading: boolean;
 }) {
-  const scrollerRef = useRef<HTMLDivElement | null>(null);
-  const { canLeft, canRight, scrollLeft, scrollRight } = useRailScroll(scrollerRef);
+  const { setRef, canLeft, canRight, scrollLeft, scrollRight } = useRailScroll();
   return (
     <section className="mt-[24px] md:mt-[32px]">
       <SectionHeader
@@ -56,7 +55,7 @@ export default function RemindersRow({
           <AddMomentCTA />
         </div>
       ) : (
-        <Carousel scrollerRef={scrollerRef}>
+        <Carousel setScrollerRef={setRef}>
           {items.map((it) => (
             <DockingTile key={it._id} item={it} />
           ))}
@@ -68,16 +67,16 @@ export default function RemindersRow({
 
 function Carousel({
   children,
-  scrollerRef,
+  setScrollerRef,
 }: {
   children: ReactNode;
-  scrollerRef: React.RefObject<HTMLDivElement | null>;
+  setScrollerRef: (el: HTMLDivElement | null) => void;
 }) {
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
   const [tileCount, setTileCount] = useState(0);
   const [active, setActive] = useState(0);
 
   useEffect(() => {
-    const el = scrollerRef.current;
     if (!el) return;
     setTileCount(el.children.length);
     const onScroll = () => {
@@ -86,12 +85,20 @@ function Carousel({
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, [children, scrollerRef]);
+  }, [children, el]);
+
+  const setBothRefs = useCallback(
+    (node: HTMLDivElement | null) => {
+      setEl(node);
+      setScrollerRef(node);
+    },
+    [setScrollerRef]
+  );
 
   return (
     <div>
       <div
-        ref={scrollerRef}
+        ref={setBothRefs}
         className="flex gap-[16px] overflow-x-auto snap-x snap-mandatory scrollbar-hide py-[14px] px-[14px]"
       >
         {children}

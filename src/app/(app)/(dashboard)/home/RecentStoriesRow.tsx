@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRef } from "react";
 import type { RecentStory } from "../../../../lib/home/api";
 import { SectionHeader } from "../../../../components/ui";
 import { useRailScroll } from "../../../../lib/nav/useRailScroll";
@@ -22,8 +21,7 @@ export default function RecentStoriesRow({
   loading: boolean;
   onShare?: (s: RecentStory) => void;
 }) {
-  const scrollerRef = useRef<HTMLDivElement | null>(null);
-  const { canLeft, canRight, scrollLeft, scrollRight } = useRailScroll(scrollerRef, {
+  const { setRef, canLeft, canRight, scrollLeft, scrollRight } = useRailScroll({
     step: CARD_WIDTH + 16,
   });
   return (
@@ -42,7 +40,7 @@ export default function RecentStoriesRow({
         <EmptyState />
       ) : (
         <div
-          ref={scrollerRef}
+          ref={setRef}
           className="overflow-x-auto overflow-y-visible scrollbar-hide"
         >
           <div className="flex gap-[16px] snap-x snap-mandatory py-[20px] px-[20px]">

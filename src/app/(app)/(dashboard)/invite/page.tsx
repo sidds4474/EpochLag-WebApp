@@ -12,6 +12,7 @@ import {
 import {
   buildReferralInviteMessage,
   buildReferralUrl,
+  getCachedReferralCode,
   mintReferralCode,
   type ShareChannel,
 } from "../../../../lib/referral/api";
@@ -72,8 +73,14 @@ function InvitePageInner() {
   const sharerName = (user?.firstName ?? "").trim() || "Someone";
 
   const [enriched, setEnriched] = useState<DockingItem | null>(null);
-  const [referralCode, setReferralCode] = useState<string>("");
-  const [codeLoading, setCodeLoading] = useState(true);
+  // Seed synchronously from the module cache — if home's prefetch already
+  // resolved, we render the link on first paint with no spinner state.
+  const [referralCode, setReferralCode] = useState<string>(
+    () => getCachedReferralCode() ?? ""
+  );
+  const [codeLoading, setCodeLoading] = useState(
+    () => getCachedReferralCode() === null
+  );
   const [copyBusy, setCopyBusy] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Inline toast state — react-hot-toast's top-right is viewport-anchored,
@@ -99,6 +106,8 @@ function InvitePageInner() {
   }, [cardId]);
 
   useEffect(() => {
+    // Warm cache seeded from getCachedReferralCode above — skip the mint.
+    if (referralCode) return;
     let cancelled = false;
     setCodeLoading(true);
     mintReferralCode("docking_station")
@@ -116,6 +125,8 @@ function InvitePageInner() {
     return () => {
       cancelled = true;
     };
+    // Intentional single-fire: only mint if we didn't have the code at mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const shareUrl = referralCode ? buildReferralUrl(referralCode) : "";
@@ -376,6 +387,7 @@ function AvatarPhoto({ src }: { src: StaticImageData }) {
           alt=""
           width={64}
           height={64}
+          priority
           className="w-full h-full object-cover"
         />
       </div>
@@ -407,11 +419,53 @@ function ExchangeArrows() {
   );
 }
 
+// Suspense fallback that mirrors the loaded layout: back button + title,
+// hero avatar row, link row, and social chip row. Prevents the blank flash
+// during cold-nav from home while the /invite JS chunk downloads.
+function InvitePageFallback() {
+  return (
+    <div className="flex flex-col h-full min-h-0 px-[16px] md:px-[32px] pt-[16px] pb-[40px]">
+      <div className="flex items-center gap-[12px]">
+        <div className="w-[36px] h-[36px] rounded-full bg-[#f0f0f0]" />
+        <h1 className="font-montserrat font-bold text-primary-blue text-[20px] md:text-[28px] leading-none">
+          Challenge
+        </h1>
+      </div>
+      <div className="flex flex-col items-center mt-[48px] md:mt-[64px] w-full max-w-[560px] mx-auto opacity-0 animate-[skeleton-in_320ms_ease-out_forwards]">
+        <div className="flex items-center gap-[16px]">
+          <div className="w-[64px] h-[64px] rounded-full bg-primary-blue/[0.08]" />
+          <div className="w-[28px] h-[20px] rounded-[4px] bg-primary-blue/[0.05]" />
+          <div className="w-[64px] h-[64px] rounded-full bg-primary-blue/[0.08]" />
+        </div>
+        <div className="mt-[24px] h-[22px] w-[220px] rounded-full bg-primary-blue/[0.08]" />
+        <div className="mt-[10px] h-[14px] w-[280px] rounded-full bg-primary-blue/[0.06]" />
+        <div className="mt-[28px] md:mt-[36px] w-full max-w-[440px] bg-[#f0f0f0] rounded-[16px] p-[16px] md:p-[20px]">
+          <div className="h-[12px] w-[100px] rounded-full bg-primary-blue/[0.08] mb-[10px]" />
+          <div className="flex items-center gap-[10px]">
+            <div className="relative flex-1 h-[40px] rounded-full bg-white overflow-hidden">
+              <div className="absolute inset-0 animate-[skeleton-shimmer_1.4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-primary-blue/[0.05] to-transparent bg-[length:200%_100%]" />
+            </div>
+            <div className="h-[40px] w-[74px] rounded-full bg-primary-blue" />
+          </div>
+        </div>
+        <div className="mt-[28px] md:mt-[36px] w-full max-w-[440px] flex flex-col items-center">
+          <div className="h-[12px] w-[120px] rounded-full bg-primary-blue/[0.08] mb-[14px]" />
+          <div className="grid grid-cols-3 gap-[24px] md:gap-[32px]">
+            <div className="w-[48px] h-[48px] rounded-full bg-primary-blue/[0.08]" />
+            <div className="w-[48px] h-[48px] rounded-full bg-primary-blue/[0.08]" />
+            <div className="w-[48px] h-[48px] rounded-full bg-primary-blue/[0.08]" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // useSearchParams needs a Suspense boundary in the App Router. The inner
 // component is what actually reads the URL.
 export default function InvitePage() {
   return (
-    <Suspense fallback={<div className="h-full" />}>
+    <Suspense fallback={<InvitePageFallback />}>
       <InvitePageInner />
     </Suspense>
   );

@@ -6,17 +6,51 @@ export type ReferralCodeResponse = {
   code: string;
 };
 
+// Module-scoped cache for the current user's referral code. Safe because
+// signOut hard-reloads the tab — the cache dies with the JS runtime, so
+// there's no cross-user leak. `inflight` dedupes concurrent callers (e.g.
+// a home-tile prefetch racing the invite-page mount) into one round-trip.
+let cachedReferralCode: string | null = null;
+let inflightReferralMint: Promise<string> | null = null;
+
 // Mint OR fetch the current user's referral code. Idempotent on BE — one
 // code per user, so repeated calls return the same code. `entryPoint` is
 // analytics-only; mobile always sends "docking_station" for this flow.
+// The client-side cache means the second visit reads synchronously.
 export async function mintReferralCode(
   entryPoint = "docking_station"
 ): Promise<string> {
-  const res = await api.post<Envelope<ReferralCodeResponse>>(
-    "/api/referral/code",
-    { entryPoint }
-  );
-  return res.data?.code ?? "";
+  if (cachedReferralCode) return cachedReferralCode;
+  if (inflightReferralMint) return inflightReferralMint;
+  inflightReferralMint = (async () => {
+    try {
+      const res = await api.post<Envelope<ReferralCodeResponse>>(
+        "/api/referral/code",
+        { entryPoint }
+      );
+      const code = res.data?.code ?? "";
+      if (code) cachedReferralCode = code;
+      return code;
+    } finally {
+      inflightReferralMint = null;
+    }
+  })();
+  return inflightReferralMint;
+}
+
+// Read-only accessor for warm-cache checks (skip loading UI if we already
+// have it). Returns null if the code hasn't been minted this session.
+export function getCachedReferralCode(): string | null {
+  return cachedReferralCode;
+}
+
+// Fire-and-forget prefetch. Home mounts this on load so the invite page
+// renders the link on first paint when the user taps the tile. Errors
+// are swallowed — a failed prefetch just means the invite page falls
+// back to a normal mint on its own mount.
+export function prefetchReferralCode(entryPoint = "docking_station"): void {
+  if (cachedReferralCode || inflightReferralMint) return;
+  void mintReferralCode(entryPoint).catch(() => {});
 }
 
 export function buildReferralUrl(code: string): string {

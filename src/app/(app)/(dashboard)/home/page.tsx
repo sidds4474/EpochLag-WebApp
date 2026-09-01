@@ -19,6 +19,7 @@ import RemindersRow from "./RemindersRow";
 import RecentStoriesRow from "./RecentStoriesRow";
 import ResourcesRow from "./ResourcesRow";
 import OnThisDayCard from "./OnThisDayCard";
+import { prefetchReferralCode } from "../../../../lib/referral/api";
 
 // Module-level cache. Two invariants come from the mobile port:
 //   * dayKey is the LOCAL YYYY-MM-DD stamp — card-of-the-day is date-scoped,
@@ -96,6 +97,13 @@ export default function HomePage() {
           : null,
       } as UserCard)
     : null;
+
+  // Warm the referral-code cache in the background so tapping the
+  // "Give a month, get a month" tile renders the invite link on first
+  // paint instead of waiting on the mint round-trip.
+  useEffect(() => {
+    prefetchReferralCode();
+  }, []);
 
   useEffect(() => {
     const key = todayKey();

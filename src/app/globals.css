@@ -185,6 +185,20 @@
   height: 0;
 }
 
+/* iOS Safari / iOS Chrome auto-zooms into any input with computed
+   font-size below 16px. Instead of hunting every input in the codebase
+   (and re-introducing the bug every time someone adds one), force a
+   16px floor on all editable fields below the md breakpoint. Desktop
+   (>=768px) is unaffected — text-[14px] etc still apply there. */
+@media (max-width: 767px) {
+  input:where(:not([type="checkbox"]):not([type="radio"])),
+  textarea,
+  select,
+  [contenteditable="true"] {
+    font-size: 16px !important;
+  }
+}
+
 @keyframes skeleton-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }

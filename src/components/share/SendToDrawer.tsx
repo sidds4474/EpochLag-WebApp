@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "react-hot-toast";
+import { useAuth } from "../../lib/auth/AuthProvider";
 import { fetchHomePeople } from "../../lib/home/api";
 import { bustUrl } from "../../lib/images";
 import {
@@ -78,22 +79,46 @@ const SUCCESS_TITLE: Record<ShareContext, string> = {
   lag: "Lag Sent",
 };
 
-// Store-blurb fallback used when there's no minted public URL. Mirrors the
-// mobile message template.
-function buildStoreBlurb(context: ShareContext, firstName?: string): string {
-  const noun =
-    context === "story"
-      ? "a story"
-      : context === "prompt"
-        ? "a prompt"
-        : context === "moment"
-          ? "a moment"
-          : "something";
-  const prefix = firstName ? `${firstName} shared ${noun} with you` : `Someone shared ${noun} with you`;
-  return `${prefix} on Epoch Lag.
+// Message templates verbatim from mobile parity.
+// Minted (public URL available):
+//   "{firstName} shared a {noun} with you! Click to see the full story.
+//
+//    {url}"
+// Not minted (store-blurb fallback):
+//   "Wanted to share this {noun} with you on Epoch Lag.
+//
+//    Download our Play Store app from here:
+//    <play>
+//
+//    Download our App Store app from here:
+//    <apple>"
+const PLAY_STORE_URL =
+  "https://play.google.com/store/apps/details?id=com.epoch.epochlag";
+const APP_STORE_URL = "https://apps.apple.com/us/app/epoch-lag/id6745345209";
 
-Download our Play Store app: https://play.google.com/store/apps/details?id=com.epoch.epochlag
-Download our App Store app: https://apps.apple.com/us/app/epoch-lag/id6745345209`;
+function nounFor(context: ShareContext): string {
+  switch (context) {
+    case "story":
+      return "story";
+    case "prompt":
+      return "prompt";
+    case "moment":
+      return "moment";
+    case "album":
+      return "album";
+    default:
+      return "lag";
+  }
+}
+
+function buildStoreBlurb(context: ShareContext): string {
+  return `Wanted to share this ${nounFor(context)} with you on Epoch Lag.
+
+Download our Play Store app from here:
+${PLAY_STORE_URL}
+
+Download our App Store app from here:
+${APP_STORE_URL}`;
 }
 
 function buildShareMessage(
@@ -101,17 +126,12 @@ function buildShareMessage(
   url: string | null,
   firstName?: string
 ): string {
-  if (!url) return buildStoreBlurb(context, firstName);
-  const noun =
-    context === "story"
-      ? "a story"
-      : context === "prompt"
-        ? "a prompt"
-        : context === "moment"
-          ? "a moment"
-          : "something";
-  const prefix = firstName ? `${firstName} shared ${noun} with you` : `Someone shared ${noun} with you`;
-  return `${prefix}: ${url}`;
+  if (!url) return buildStoreBlurb(context);
+  const noun = nounFor(context);
+  const who = firstName?.trim() ? firstName.trim() : "Someone";
+  return `${who} shared a ${noun} with you! Click to see the full ${noun}.
+
+${url}`;
 }
 
 export default function SendToDrawer({
@@ -142,6 +162,8 @@ export default function SendToDrawer({
   const [sent, setSent] = useState(false);
   const [publicCode, setPublicCode] = useState<string | null>(null);
   const publicCodeMintingRef = useRef(false);
+  const { user } = useAuth();
+  const sharerFirstName = user?.firstName?.trim() || undefined;
 
   // Load contacts + groups on open. Cached across mounts by the fetch
   // layer's own caching; a fresh call every open is cheap.
@@ -273,16 +295,55 @@ export default function SendToDrawer({
 
   // External-chip handlers. Copy uses clipboard; the rest open URL schemes.
   // Native share sheet on More when available.
-  const shareMessage = buildShareMessage(shareContext, publicUrl);
+  const shareMessage = buildShareMessage(
+    shareContext,
+    publicUrl,
+    sharerFirstName
+  );
 
   const handleCopyLink = async () => {
     const text = publicUrl ?? shareMessage;
-    try {
-      await navigator.clipboard.writeText(text);
+    // Modern async Clipboard API is the happy path but fails on:
+    //   - insecure origins (http:// on a LAN IP)
+    //   - Safari without an active user-gesture token
+    //   - a drawer-open state where the backdrop stole document focus
+    // Fall through to the legacy execCommand path in those cases before
+    // toasting failure.
+    const okViaAsync =
+      typeof navigator !== "undefined" &&
+      !!navigator.clipboard &&
+      (await navigator.clipboard
+        .writeText(text)
+        .then(() => true)
+        .catch(() => false));
+    if (okViaAsync) {
       toast.success("Link copied");
-    } catch {
-      toast.error("Could not copy link");
+      return;
     }
+    if (typeof document !== "undefined") {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.top = "0";
+      ta.style.left = "0";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      let ok = false;
+      try {
+        ok = document.execCommand("copy");
+      } catch {
+        ok = false;
+      }
+      document.body.removeChild(ta);
+      if (ok) {
+        toast.success("Link copied");
+        return;
+      }
+    }
+    toast.error("Could not copy link");
   };
 
   const handleWhatsapp = () => {
@@ -331,17 +392,42 @@ export default function SendToDrawer({
               : "translate-y-full md:translate-y-0 md:translate-x-full"
           }`}
       >
-        {/* Mobile grab handle */}
-        <div className="md:hidden flex justify-center pt-[8px]">
-          <span className="w-[40px] h-[4px] rounded-full bg-black/[0.15]" />
-        </div>
+        {/* Mobile grab handle — tap to close so the user always has a way
+            out even when the sheet stretches to full 92vh and the backdrop
+            gets pushed off-screen behind the browser chrome. */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="md:hidden flex justify-center pt-[10px] pb-[6px] cursor-pointer"
+        >
+          <span className="w-[40px] h-[4px] rounded-full bg-black/[0.2]" />
+        </button>
 
         {/* Close button — desktop absolute top-right */}
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="hidden md:flex absolute top-[20px] right-[20px] cursor-pointer w-[32px] h-[32px] rounded-full bg-[#EDEDED] items-center justify-center text-primary-blue hover:bg-black/[0.08] transition-colors"
+          className="hidden md:flex absolute top-[20px] right-[20px] cursor-pointer w-[32px] h-[32px] rounded-full bg-[#EDEDED] items-center justify-center text-primary-blue hover:bg-black/[0.08] transition-colors z-10"
+        >
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+            <path
+              d="M6 6l12 12M18 6l-12 12"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+
+        {/* Mobile: X close button in the header row (visible even when the
+            sheet takes full 92vh and the backdrop gets pushed off-screen). */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="md:hidden absolute top-[10px] right-[16px] cursor-pointer w-[32px] h-[32px] rounded-full bg-[#EDEDED] flex items-center justify-center text-primary-blue z-10"
         >
           <svg width={14} height={14} viewBox="0 0 24 24" fill="none">
             <path

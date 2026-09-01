@@ -128,7 +128,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
     setUser(null);
     setStatus("unauthenticated");
-    router.replace("/onboarding/welcome");
+    // Hard reload rather than SPA nav — the codebase uses module-scoped
+    // `let cachedX = null` caches on the dashboard tabs (home, timeline,
+    // notifications, etc.) which survive router transitions. Without a
+    // full-page reset, a signIn on the same tab reads the previous
+    // user's data on tab remount.
+    if (typeof window !== "undefined") {
+      window.location.href = "/onboarding/welcome";
+    } else {
+      router.replace("/onboarding/welcome");
+    }
   }, [router, dispatch]);
 
   useEffect(() => {

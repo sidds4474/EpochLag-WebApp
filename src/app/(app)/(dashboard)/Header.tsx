@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { User } from "../../../types/user";
 import LogoDark from "../../../assets/images/logo-dark.webp";
-import { bustUrl } from "../../../lib/images";
+import Avatar from "../../../components/Avatar";
 import HeaderSearch from "./HeaderSearch";
 import { PersonIcon, SearchIcon } from "./icons";
 import NotificationsBell from "./notifications/NotificationsBell";
@@ -24,8 +24,6 @@ function MenuIcon({ width = 24, height = 24 }: { width?: number; height?: number
 }
 
 export default function Header({ user, onOpenDrawer }: HeaderProps) {
-  const initial = (user?.firstName || "?").charAt(0).toUpperCase();
-
   return (
     <header className="relative hidden md:flex items-center gap-[12px] md:gap-[16px] px-[16px] md:px-[32px] lg:px-[40px] pt-[16px] md:pt-[24px] pb-[16px] md:pb-[20px]">
       {/* Tablet (md → lg): hamburger left, wordmark centered, search+bell right.
@@ -77,21 +75,14 @@ export default function Header({ user, onOpenDrawer }: HeaderProps) {
       <Link
         href="/studio"
         aria-label="Studio"
-        className="cursor-pointer hidden lg:flex w-[40px] h-[40px] rounded-full overflow-hidden bg-primary-blue/15 text-primary-blue items-center justify-center shrink-0"
+        className="cursor-pointer hidden lg:flex shrink-0"
       >
-        {user?.profilePicture ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={bustUrl(user.profilePicture, user.updatedAt)}
-            alt=""
-            className="w-full h-full object-cover"
-          />
-        ) : user ? (
-          <span className="font-montserrat font-semibold text-[15px]">
-            {initial}
-          </span>
+        {user ? (
+          <Avatar user={user} size={40} isSelf />
         ) : (
-          <PersonIcon width={20} height={20} />
+          <span className="w-[40px] h-[40px] rounded-full bg-primary-blue/15 text-primary-blue flex items-center justify-center">
+            <PersonIcon width={20} height={20} />
+          </span>
         )}
       </Link>
       </div>

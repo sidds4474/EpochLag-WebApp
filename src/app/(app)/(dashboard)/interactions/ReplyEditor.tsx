@@ -20,6 +20,7 @@ import PreviewOverlay from "../../../../views/Thread/PreviewOverlay";
 import { compressImage } from "../../../../lib/images";
 import type { UserCard } from "../../../../types/home";
 import AudioRecorder from "../new-story/AudioRecorder";
+import Avatar from "../../../../components/Avatar";
 import StoryCreatedOverlay from "../new-story/StoryCreated";
 import {
   DateChip,
@@ -601,22 +602,18 @@ function PromptPill({
   const authorName = author
     ? [author.firstName, author.lastName].filter(Boolean).join(" ").trim()
     : "";
-  const initial = (authorName || "?").charAt(0).toUpperCase();
 
   return (
     <div className="mb-[12px] flex items-center gap-[10px]">
       <div className="w-[36px] h-[36px] rounded-full overflow-hidden shrink-0 flex items-center justify-center bg-primary-blue/15">
-        {author?.profilePicture ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={author.profilePicture}
-            alt=""
-            className="w-full h-full object-cover"
+        {author?.profilePicture || authorName ? (
+          <Avatar
+            user={{
+              firstName: author?.firstName ?? null,
+              profilePicture: author?.profilePicture ?? null,
+            }}
+            size={36}
           />
-        ) : authorName ? (
-          <div className="w-full h-full flex items-center justify-center font-montserrat font-semibold text-primary-blue text-[13px]">
-            {initial}
-          </div>
         ) : (
           // No author on the prompt → inspiration card. Show Epoch Lag logo.
           // eslint-disable-next-line @next/next/no-img-element

@@ -8,6 +8,7 @@ import type { GroupSummary, PersonSummary } from "../../../../types/home";
 import GroupTile from "./GroupTile";
 import GroupDrawer from "./GroupDrawer";
 import ConnectionRow from "./ConnectionRow";
+import Avatar from "../../../../components/Avatar";
 
 function SkeletonRow() {
   return (
@@ -236,15 +237,13 @@ export default function ConnectionsTab({
 }
 
 function MobileAvatar({ user }: { user: PersonSummary }) {
-  const initial = (user.firstName?.[0] ?? "?").toUpperCase();
   return (
-    <div className="w-[44px] h-[44px] rounded-full overflow-hidden bg-primary-blue/15 text-primary-blue flex items-center justify-center font-montserrat font-semibold text-[15px] shrink-0">
-      {user.profilePicture ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={user.profilePicture} alt="" className="w-full h-full object-cover" />
-      ) : (
-        initial
-      )}
-    </div>
+    <Avatar
+      user={{
+        firstName: user.firstName,
+        profilePicture: user.profilePicture,
+      }}
+      size={44}
+    />
   );
 }

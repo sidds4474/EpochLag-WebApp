@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
-import { bustUrl } from "../../../../lib/images";
 import { BookmarkIcon, PersonIcon, SendIcon } from "../icons";
+import Avatar from "../../../../components/Avatar";
+import { bustUrl } from "../../../../lib/images";
 import { parseContentToBlocks } from "../../../../lib/parseStoryContent";
 import { toggleCardBookmark } from "../../../../lib/home/api";
 import { mintPromptPublicLink } from "../../../../lib/share/api";
@@ -53,8 +54,6 @@ export default function StoryCard({
   const title = titleFor(thread);
   const participantCount = thread.totalPeople ?? thread.people?.length ?? 0;
   const firstPerson = thread.people?.[0];
-  const avatar = firstPerson?.profilePicture ?? null;
-  const initial = (firstPerson?.firstName || "?").charAt(0).toUpperCase();
 
   const bookmarkCardId = thread.promptCard?._id ?? thread._id;
   const [bookmarked, setBookmarked] = useState(!!thread.isBookmarked);
@@ -147,19 +146,23 @@ export default function StoryCard({
 
         {typeof daysRemaining !== "number" && (
           <div className="absolute top-[10px] left-[10px] flex items-center gap-[6px]">
-            <div className="w-[28px] h-[28px] md:w-[36px] md:h-[36px] rounded-full overflow-hidden bg-primary-blue/15 border-[2px] border-white shrink-0">
-              {avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={bustUrl(avatar, undefined)}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center font-montserrat font-semibold text-primary-blue text-[12px]">
-                  {initial}
-                </div>
-              )}
+            <div className="rounded-full border-[2px] border-white overflow-hidden shrink-0 md:hidden">
+              <Avatar
+                user={{
+                  firstName: firstPerson?.firstName,
+                  profilePicture: firstPerson?.profilePicture ?? null,
+                }}
+                size={28}
+              />
+            </div>
+            <div className="rounded-full border-[2px] border-white overflow-hidden shrink-0 hidden md:block">
+              <Avatar
+                user={{
+                  firstName: firstPerson?.firstName,
+                  profilePicture: firstPerson?.profilePicture ?? null,
+                }}
+                size={36}
+              />
             </div>
             {participantCount > 0 && (
               <div className="bg-white border border-white rounded-full px-[8px] py-[4px] flex items-center gap-[4px]">

@@ -1,11 +1,7 @@
 "use client";
 
-import { bustUrl } from "../../../../lib/images";
+import Avatar from "../../../../components/Avatar";
 import type { GroupSummary } from "../../../../types/home";
-
-function initial(first?: string | null) {
-  return first?.[0]?.toUpperCase() ?? "?";
-}
 
 function MemberAvatar({
   member,
@@ -14,23 +10,19 @@ function MemberAvatar({
   member: GroupSummary["members"][number];
   offset?: boolean;
 }) {
-  const url = bustUrl(member.profilePicture, undefined);
   return (
     <div
-      className={`w-[40px] h-[40px] rounded-full overflow-hidden border-2 border-white flex items-center justify-center bg-primary-blue/15 text-primary-blue font-montserrat font-semibold text-[14px] ${
+      className={`rounded-full border-2 border-white overflow-hidden ${
         offset ? "-ml-[12px]" : ""
       }`}
     >
-      {url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={url}
-          alt={member.firstName}
-          className="w-full h-full object-cover"
-        />
-      ) : (
-        <span>{initial(member.firstName)}</span>
-      )}
+      <Avatar
+        user={{
+          firstName: member.firstName,
+          profilePicture: member.profilePicture,
+        }}
+        size={40}
+      />
     </div>
   );
 }

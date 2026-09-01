@@ -57,6 +57,7 @@ import MicPermissionSheet, {
   classifyMicError,
   type MicErrorKind,
 } from "../../../../components/MicPermissionSheet";
+import SharedAvatar from "../../../../components/Avatar";
 import type { FriendUser } from "../../../../lib/home/api";
 import {
   DateChip,
@@ -3095,28 +3096,34 @@ function TagPeopleChip({
 function AvatarStack({ users }: { users: FriendUser[] }) {
   return (
     <span className="shrink-0 flex -space-x-[8px]">
-      {users.map((u, i) => {
-        const initial = tagPeopleDisplayName(u).charAt(0).toUpperCase() || "?";
-        return (
-          <span
-            key={u._id}
-            className="w-[24px] h-[24px] rounded-full bg-primary-blue/[0.08] text-primary-blue flex items-center justify-center font-montserrat font-semibold text-[10px] ring-2 ring-[#ededed] overflow-hidden"
-            style={{ zIndex: users.length - i }}
-          >
-            {u.profilePicture ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={u.profilePicture}
-                alt=""
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              initial
-            )}
-          </span>
-        );
-      })}
+      {users.map((u, i) => (
+        <span
+          key={u._id}
+          className="rounded-full ring-2 ring-[#ededed] overflow-hidden"
+          style={{ zIndex: users.length - i }}
+        >
+          <MicroAvatar
+            firstName={u.firstName ?? tagPeopleDisplayName(u)}
+            profilePicture={u.profilePicture ?? null}
+          />
+        </span>
+      ))}
     </span>
+  );
+}
+
+function MicroAvatar({
+  firstName,
+  profilePicture,
+}: {
+  firstName: string | null | undefined;
+  profilePicture: string | null;
+}) {
+  return (
+    <SharedAvatar
+      user={{ firstName: firstName ?? null, profilePicture }}
+      size={24}
+    />
   );
 }
 

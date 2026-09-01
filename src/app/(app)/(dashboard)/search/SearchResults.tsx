@@ -9,6 +9,7 @@ import type {
   PromptSearchResult,
 } from "../../../../lib/search/api";
 import { SearchIcon } from "../icons";
+import Avatar from "../../../../components/Avatar";
 
 type Props = {
   query: string;
@@ -118,7 +119,6 @@ function PersonRow({
 }) {
   const name = personName(u);
   const handle = personHandle(u);
-  const pic = u.profilePicture ? bustUrl(u.profilePicture, u.updatedAt) : null;
 
   return (
     <Link
@@ -126,16 +126,14 @@ function PersonRow({
       onClick={onNavigate}
       className="w-full flex items-center gap-[12px] px-[16px] py-[10px] hover:bg-black/[0.03] transition-colors"
     >
-      <div className="w-[44px] h-[44px] rounded-full overflow-hidden bg-primary-blue/15 shrink-0 flex items-center justify-center">
-        {pic ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={pic} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <span className="font-montserrat font-semibold text-primary-blue text-[15px]">
-            {initial(name)}
-          </span>
-        )}
-      </div>
+      <Avatar
+        user={{
+          firstName: u.firstName ?? name,
+          profilePicture: u.profilePicture ?? null,
+          updatedAt: u.updatedAt,
+        }}
+        size={44}
+      />
       <div className="flex-1 min-w-0">
         <p className="font-montserrat font-medium text-primary-blue text-[14px] truncate">
           {name}

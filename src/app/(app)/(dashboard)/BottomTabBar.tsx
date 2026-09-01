@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import type { User } from "../../../types/user";
-import { bustUrl } from "../../../lib/images";
+import Avatar from "../../../components/Avatar";
 import {
   HomeIcon,
   InteractionsIcon,
@@ -22,7 +22,6 @@ type Item = {
 
 export default function BottomTabBar({ user }: { user: User | null }) {
   const pathname = usePathname() ?? "";
-  const initial = (user?.firstName || "?").charAt(0).toUpperCase();
 
   const items: Item[] = [
     {
@@ -47,19 +46,8 @@ export default function BottomTabBar({ user }: { user: User | null }) {
     {
       href: "/studio",
       label: "Studio",
-      icon: user?.profilePicture ? (
-        <span className="w-[24px] h-[24px] rounded-full overflow-hidden block">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={bustUrl(user.profilePicture, user.updatedAt)}
-            alt=""
-            className="w-full h-full object-cover"
-          />
-        </span>
-      ) : user ? (
-        <span className="w-[24px] h-[24px] rounded-full bg-primary-blue/15 text-primary-blue flex items-center justify-center text-[11px] font-semibold">
-          {initial}
-        </span>
+      icon: user ? (
+        <Avatar user={user} size={24} isSelf />
       ) : (
         <PersonIcon width={22} height={22} />
       ),

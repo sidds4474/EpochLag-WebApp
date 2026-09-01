@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import { CloseIcon, SearchIcon } from "../icons";
-import { bustUrl } from "../../../../lib/images";
+import SharedAvatar from "../../../../components/Avatar";
 import { searchUsers } from "../../../../lib/connections/api";
 import type { UserSearchResult } from "../../../../lib/connections/api";
 import type { PersonSummary } from "../../../../types/home";
@@ -26,33 +26,6 @@ type Props = {
   busy?: boolean;
 };
 
-function initial(first?: string | null) {
-  return first?.[0]?.toUpperCase() ?? "?";
-}
-
-function Avatar({
-  url,
-  first,
-  size = 40,
-}: {
-  url: string | null;
-  first?: string | null;
-  size?: number;
-}) {
-  return (
-    <div
-      className="rounded-full overflow-hidden bg-primary-blue/15 text-primary-blue flex items-center justify-center font-montserrat font-semibold shrink-0"
-      style={{ width: size, height: size, fontSize: size * 0.4 }}
-    >
-      {url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="" className="w-full h-full object-cover" />
-      ) : (
-        <span>{initial(first)}</span>
-      )}
-    </div>
-  );
-}
 
 export default function AddMembersDrawer({
   open,
@@ -229,9 +202,12 @@ export default function AddMembersDrawer({
                   onClick={() => toggle(u)}
                   className="cursor-pointer flex items-center gap-[12px] py-[10px] rounded-[10px] hover:bg-black/[0.03] transition text-left"
                 >
-                  <Avatar
-                    url={bustUrl(u.profilePicture ?? null, u.updatedAt)}
-                    first={u.firstName}
+                  <SharedAvatar
+                    user={{
+                      firstName: u.firstName,
+                      profilePicture: u.profilePicture,
+                      updatedAt: u.updatedAt,
+                    }}
                     size={40}
                   />
                   <span className="flex-1 font-montserrat font-semibold text-primary-blue text-[15px] truncate">

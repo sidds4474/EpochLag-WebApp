@@ -3,13 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { bustUrl } from "../../../../lib/images";
+import Avatar from "../../../../components/Avatar";
 import { fetchSentRequests } from "../../../../lib/connections/api";
 import type { FriendRequest } from "../../../../lib/connections/api";
 
-function initial(first?: string | null) {
-  return first?.[0]?.toUpperCase() ?? "?";
-}
 
 function normalize(s: string) {
   return s
@@ -88,7 +85,6 @@ export default function PendingTab({ query }: { query: string }) {
       {filtered.map((req) => {
         const r = req.recipient;
         if (!r) return null;
-        const url = bustUrl(r.profilePicture ?? null, r.updatedAt);
         return (
           <div
             key={req._id}
@@ -101,18 +97,14 @@ export default function PendingTab({ query }: { query: string }) {
               onFocus={() => router.prefetch(`/profile/${r._id}`)}
               className="cursor-pointer flex items-center gap-[12px] flex-1 min-w-0 text-left hover:opacity-80 transition"
             >
-              <div className="w-[44px] h-[44px] rounded-full overflow-hidden bg-primary-blue/15 text-primary-blue flex items-center justify-center font-montserrat font-semibold text-[15px] shrink-0">
-                {url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={url}
-                    alt={r.firstName ?? ""}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span>{initial(r.firstName)}</span>
-                )}
-              </div>
+              <Avatar
+                user={{
+                  firstName: r.firstName,
+                  profilePicture: r.profilePicture,
+                  updatedAt: r.updatedAt,
+                }}
+                size={44}
+              />
               <p className="font-montserrat font-bold text-primary-blue text-[15px] truncate">
                 {[r.firstName, r.lastName].filter(Boolean).join(" ") ||
                   "Unknown"}

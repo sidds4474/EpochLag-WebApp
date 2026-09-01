@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { User } from "../../../../types/user";
 import { bustUrl } from "../../../../lib/images";
+import Avatar from "../../../../components/Avatar";
 import {
   CalendarIcon,
   MapPinIcon,
@@ -33,9 +34,7 @@ export default function StudioHeader({
 }: Props) {
   const router = useRouter();
   const fullName = `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || "…";
-  const initial = (user?.firstName || "?").charAt(0).toUpperCase();
   const cover = bustUrl(user?.backgroundPicture ?? null, user?.updatedAt);
-  const avatar = bustUrl(user?.profilePicture ?? null, user?.updatedAt);
   const location = user?.city || user?.state || user?.country || null;
   const dob = formatDob(user?.dateOfBirth ?? null);
   const bio = user?.bio ?? null;
@@ -86,19 +85,11 @@ export default function StudioHeader({
         {/* Avatar disc overlapping the cover bottom-left. */}
         <div className="absolute left-[16px] md:left-[24px] -bottom-[40px] md:-bottom-[50px]">
           <div className="relative">
-            <div className="w-[110px] h-[110px] md:w-[129px] md:h-[129px] rounded-full overflow-hidden bg-primary-blue/10 border-[4px] border-white shadow-[0_2px_10px_rgba(0,0,0,0.10)]">
-              {avatar ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={avatar}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="w-full h-full flex items-center justify-center text-primary-blue font-montserrat font-semibold text-[40px]">
-                  {initial}
-                </span>
-              )}
+            <div className="rounded-full border-[4px] border-white shadow-[0_2px_10px_rgba(0,0,0,0.10)] md:hidden">
+              <Avatar user={user} size={110} isSelf />
+            </div>
+            <div className="rounded-full border-[4px] border-white shadow-[0_2px_10px_rgba(0,0,0,0.10)] hidden md:block">
+              <Avatar user={user} size={129} isSelf />
             </div>
             <button
               type="button"

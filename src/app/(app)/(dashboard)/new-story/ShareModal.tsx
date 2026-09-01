@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import { fetchHomePeople } from "../../../../lib/home/api";
-import { bustUrl } from "../../../../lib/images";
 import type { GroupSummary, PersonSummary } from "../../../../types/home";
 import { CloseIcon, PersonIcon, SearchIcon } from "../icons";
+import SharedAvatar from "../../../../components/Avatar";
 
 // Mirrors the mobile spec: (userIds, sendSeparately, note, isPrivate, groupIds).
 // isPrivate is reserved for a future toggle — always false today.
@@ -694,26 +694,14 @@ function UserAvatar({
   person: PersonSummary;
   size: number;
 }) {
-  const initial = (person.firstName || "?").charAt(0).toUpperCase();
-  const style = { width: size, height: size };
-  if (person.profilePicture) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={bustUrl(person.profilePicture, undefined)}
-        alt=""
-        style={style}
-        className="rounded-full object-cover shrink-0"
-      />
-    );
-  }
   return (
-    <div
-      style={style}
-      className="rounded-full bg-primary-blue/15 text-primary-blue flex items-center justify-center font-montserrat font-semibold text-[15px] shrink-0"
-    >
-      {initial}
-    </div>
+    <SharedAvatar
+      user={{
+        firstName: person.firstName,
+        profilePicture: person.profilePicture,
+      }}
+      size={size}
+    />
   );
 }
 
@@ -775,26 +763,16 @@ function StackMember({
   size: number;
   pos: "tl" | "br";
 }) {
-  const initial = (member.firstName || "?").charAt(0).toUpperCase();
   const anchor = pos === "tl" ? "top-0 left-0" : "bottom-0 right-0";
-  const style = { width: size, height: size };
-  if (member.profilePicture) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={member.profilePicture}
-        alt=""
-        style={style}
-        className={`absolute ${anchor} rounded-full object-cover border-[2px] border-white`}
-      />
-    );
-  }
   return (
-    <div
-      style={style}
-      className={`absolute ${anchor} rounded-full bg-primary-blue/15 text-primary-blue flex items-center justify-center font-montserrat font-semibold text-[11px] border-[2px] border-white`}
-    >
-      {initial}
+    <div className={`absolute ${anchor} rounded-full border-[2px] border-white overflow-hidden`}>
+      <SharedAvatar
+        user={{
+          firstName: member.firstName,
+          profilePicture: member.profilePicture,
+        }}
+        size={size}
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchFriends, type FriendUser } from "../../../../lib/home/api";
 import { useAuth } from "../../../../lib/auth/AuthProvider";
 import { CloseIcon, SearchIcon } from "../icons";
+import SharedAvatar from "../../../../components/Avatar";
 
 type Props = {
   open: boolean;
@@ -252,24 +253,14 @@ function displayName(u: FriendUser): string {
 }
 
 function Avatar({ user, size }: { user: FriendUser; size: number }) {
-  const name = displayName(user);
-  const initial = name.charAt(0).toUpperCase() || "?";
   return (
-    <span
-      className="shrink-0 rounded-full overflow-hidden bg-primary-blue/[0.08] text-primary-blue flex items-center justify-center font-montserrat font-semibold"
-      style={{ width: size, height: size, fontSize: size * 0.4 }}
-    >
-      {user.profilePicture ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={user.profilePicture}
-          alt=""
-          className="w-full h-full object-cover"
-        />
-      ) : (
-        initial
-      )}
-    </span>
+    <SharedAvatar
+      user={{
+        firstName: user.firstName ?? displayName(user),
+        profilePicture: user.profilePicture ?? null,
+      }}
+      size={size}
+    />
   );
 }
 

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import { CloseIcon, SearchIcon } from "../icons";
-import { bustUrl } from "../../../../lib/images";
+import SharedAvatar from "../../../../components/Avatar";
 import { searchUsers } from "../../../../lib/connections/api";
 import type { UserSearchResult } from "../../../../lib/connections/api";
 import type { PersonSummary } from "../../../../types/home";
@@ -25,33 +25,6 @@ type Props = {
   loading?: boolean;
 };
 
-function initial(first?: string | null) {
-  return first?.[0]?.toUpperCase() ?? "?";
-}
-
-function Avatar({
-  url,
-  first,
-  size = 36,
-}: {
-  url: string | null;
-  first?: string | null;
-  size?: number;
-}) {
-  return (
-    <div
-      className="rounded-full overflow-hidden bg-primary-blue/15 text-primary-blue flex items-center justify-center font-montserrat font-semibold shrink-0"
-      style={{ width: size, height: size, fontSize: size * 0.4 }}
-    >
-      {url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="" className="w-full h-full object-cover" />
-      ) : (
-        <span>{initial(first)}</span>
-      )}
-    </div>
-  );
-}
 
 export default function MemberPicker({
   suggested,
@@ -152,9 +125,12 @@ export default function MemberPicker({
               key={u._id}
               className="bg-[#F3EFE9] rounded-full h-[32px] pl-[4px] pr-[8px] flex items-center gap-[6px]"
             >
-              <Avatar
-                url={bustUrl(u.profilePicture ?? null, u.updatedAt)}
-                first={u.firstName}
+              <SharedAvatar
+                user={{
+                  firstName: u.firstName,
+                  profilePicture: u.profilePicture,
+                  updatedAt: u.updatedAt,
+                }}
                 size={24}
               />
               <span className="font-montserrat text-primary-blue text-[13px] font-semibold">
@@ -212,9 +188,12 @@ export default function MemberPicker({
               onClick={() => toggle(u)}
               className="cursor-pointer flex items-center gap-[12px] p-[10px] rounded-[12px] hover:bg-black/[0.03] transition text-left"
             >
-              <Avatar
-                url={bustUrl(u.profilePicture ?? null, u.updatedAt)}
-                first={u.firstName}
+              <SharedAvatar
+                user={{
+                  firstName: u.firstName,
+                  profilePicture: u.profilePicture,
+                  updatedAt: u.updatedAt,
+                }}
                 size={40}
               />
               <div className="flex-1 min-w-0">

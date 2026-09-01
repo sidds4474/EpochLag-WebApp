@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import type { UserCard } from "../../../../types/home";
+import SharedAvatar from "../../../../components/Avatar";
 import {
   friendRequestName,
   type FriendRequest,
@@ -86,15 +87,10 @@ export default function WaitingOnYou({
 }
 
 function Avatar({ src, name }: { src?: string | null; name: string }) {
-  const initial = name.charAt(0).toUpperCase() || "?";
   return (
-    <span className="shrink-0 w-[40px] h-[40px] rounded-full overflow-hidden bg-primary-blue/10 text-primary-blue flex items-center justify-center font-montserrat font-semibold text-[14px]">
-      {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" className="w-full h-full object-cover" />
-      ) : (
-        initial
-      )}
-    </span>
+    <SharedAvatar
+      user={{ firstName: name, profilePicture: src ?? null }}
+      size={40}
+    />
   );
 }

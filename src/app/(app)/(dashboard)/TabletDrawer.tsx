@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import type { User } from "../../../types/user";
-import { bustUrl } from "../../../lib/images";
+import Avatar from "../../../components/Avatar";
 import {
   ChevronRightIcon,
   HomeIcon,
@@ -59,7 +59,6 @@ export default function TabletDrawer({
   const pathname = usePathname() ?? "";
   const displayName =
     [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "";
-  const initial = (user?.firstName || "?").charAt(0).toUpperCase();
 
   useEffect(() => {
     if (!open) return;
@@ -93,19 +92,8 @@ export default function TabletDrawer({
           onClick={onClose}
           className="flex items-center gap-[12px] px-[4px]"
         >
-          <div className="w-[44px] h-[44px] rounded-full overflow-hidden bg-primary-blue/15 text-primary-blue flex items-center justify-center shrink-0">
-            {user?.profilePicture ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={bustUrl(user.profilePicture, user.updatedAt)}
-                alt=""
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span className="font-montserrat font-semibold text-[16px]">
-                {initial}
-              </span>
-            )}
+          <div className="shrink-0">
+            <Avatar user={user} size={44} isSelf />
           </div>
           <span className="font-montserrat font-semibold text-primary-blue text-[15px] truncate">
             {displayName}

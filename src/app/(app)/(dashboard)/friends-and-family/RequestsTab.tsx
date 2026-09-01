@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { bustUrl } from "../../../../lib/images";
+import Avatar from "../../../../components/Avatar";
 import {
   fetchReceivedRequests,
   respondToFriendRequest,
@@ -11,10 +11,6 @@ import {
 import type { FriendRequest } from "../../../../lib/connections/api";
 
 type RowState = "accepted" | "declined" | null;
-
-function initial(first?: string | null) {
-  return first?.[0]?.toUpperCase() ?? "?";
-}
 
 function normalize(s: string) {
   return s
@@ -106,7 +102,6 @@ export default function RequestsTab({ query }: { query: string }) {
       {filtered.map((req) => {
         const s = req.requester;
         if (!s) return null;
-        const url = bustUrl(s.profilePicture ?? null, s.updatedAt);
         const rowState = status[req._id] ?? null;
         return (
           <div
@@ -120,18 +115,14 @@ export default function RequestsTab({ query }: { query: string }) {
               onFocus={() => router.prefetch(`/profile/${s._id}`)}
               className="cursor-pointer flex items-center gap-[12px] flex-1 min-w-0 text-left hover:opacity-80 transition"
             >
-              <div className="w-[44px] h-[44px] rounded-full overflow-hidden bg-primary-blue/15 text-primary-blue flex items-center justify-center font-montserrat font-semibold text-[15px] shrink-0">
-                {url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={url}
-                    alt={s.firstName ?? ""}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span>{initial(s.firstName)}</span>
-                )}
-              </div>
+              <Avatar
+                user={{
+                  firstName: s.firstName,
+                  profilePicture: s.profilePicture,
+                  updatedAt: s.updatedAt,
+                }}
+                size={44}
+              />
               <p className="font-montserrat font-bold text-primary-blue text-[15px] truncate">
                 {[s.firstName, s.lastName].filter(Boolean).join(" ") ||
                   "Unknown"}

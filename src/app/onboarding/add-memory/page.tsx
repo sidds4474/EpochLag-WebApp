@@ -379,10 +379,10 @@ export default function AddMemoryPage() {
         </div>
       }
       mobileContent={
-        <div className="flex flex-col min-h-screen px-[24px] pt-[56px] pb-[140px] text-primary-blue">
+        <div className="flex flex-col min-h-screen px-[24px] pt-[24px] pb-[140px] text-primary-blue">
           <div className="flex flex-col items-center">
             <PeachDot />
-            <h1 className="mt-[18px] font-montserrat font-bold text-[22px] leading-[128%] text-center whitespace-pre-line">
+            <h1 className="mt-[12px] font-montserrat font-bold text-[22px] leading-[128%] text-center whitespace-pre-line">
               {TITLE}
             </h1>
           </div>
@@ -404,9 +404,9 @@ export default function AddMemoryPage() {
                 onRemoveAudio={removeAudioAt}
               />
             }
-            heightClass="h-[400px]"
+            heightClass="h-[280px]"
             widthClass="w-full"
-            wrapClass="mt-[32px]"
+            wrapClass="mt-[20px]"
           />
 
           <SubCardSlot flipped={flipped !== null} onFlipBack={flipBack} mobile />
@@ -689,7 +689,7 @@ function SubCardSlot({
   onFlipBack: () => void;
   mobile?: boolean;
 }) {
-  const height = mobile ? "h-[96px]" : "h-[68px]";
+  const height = mobile ? "h-[76px]" : "h-[68px]";
   return (
     <div className={`${height} w-full flex items-center justify-center`}>
       {flipped ? (
@@ -901,10 +901,23 @@ async function reverseGeocode(lat: number, lng: number): Promise<LagLocation | n
 }
 
 function generateVideoPoster(uri: string): Promise<string | null> {
+  // iOS Safari never fires loadeddata on some detached <video> elements —
+  // the promise hangs and blocks the whole add-video flow. Race a hard
+  // 2.5s timeout so we always resolve; a null poster is fine, the upload
+  // pipeline handles it.
   return new Promise((resolve) => {
+    let settled = false;
+    const finish = (val: string | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(val);
+    };
     const video = document.createElement("video");
     video.preload = "metadata";
     video.muted = true;
+    // Inline playsinline hints iOS to actually load metadata even when the
+    // element isn't in the DOM.
+    video.setAttribute("playsinline", "");
     video.src = uri;
     video.crossOrigin = "anonymous";
     const cleanup = () => {
@@ -919,22 +932,26 @@ function generateVideoPoster(uri: string): Promise<string | null> {
         const ctx = canvas.getContext("2d");
         if (!ctx) {
           cleanup();
-          resolve(null);
+          finish(null);
           return;
         }
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
         cleanup();
-        resolve(dataUrl);
+        finish(dataUrl);
       } catch {
         cleanup();
-        resolve(null);
+        finish(null);
       }
     };
     video.onerror = () => {
       cleanup();
-      resolve(null);
+      finish(null);
     };
+    window.setTimeout(() => {
+      cleanup();
+      finish(null);
+    }, 2500);
   });
 }
 

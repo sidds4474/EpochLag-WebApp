@@ -60,13 +60,13 @@ export default function WhatsALagPage() {
         </div>
       }
       mobileContent={
-        <div className="flex flex-col min-h-screen px-[24px] pt-[96px] pb-[120px] text-primary-blue">
+        <div className="flex flex-col min-h-screen px-[24px] pt-[40px] pb-[120px] text-primary-blue">
           <h1 className="font-montserrat font-bold text-[24px] text-center">What&apos;s a Lag?</h1>
           <p className="mt-[10px] font-montserrat text-[14px] leading-[150%] text-primary-blue/80 text-center">
             {SUBTITLE}
           </p>
 
-          <div className="mt-[36px] flex flex-col gap-[32px]">
+          <div className="mt-[24px] flex flex-col gap-[20px]">
             {ROWS.map((row, i) => (
               <RowMobile key={row.key} row={row} index={i} />
             ))}
@@ -134,10 +134,10 @@ function RowMobile({ row, index }: { row: Row; index: number }) {
         alt=""
         className={`${
           row.key === "story"
-            ? "h-[38px] w-[38px]"
+            ? "h-[32px] w-[32px]"
             : row.key === "when"
-            ? "h-[50px] w-[50px]"
-            : "h-[62px] w-[62px]"
+            ? "h-[42px] w-[42px]"
+            : "h-[48px] w-[48px]"
         } object-contain`}
       />
       <h3 className="mt-[16px] font-montserrat font-bold text-[17px] text-primary-blue">{row.title}</h3>

@@ -21,6 +21,12 @@ export type ProfileState = {
   trialReminderSeenAt: string | null;
   currentPeriodEnd: string | null;
   willRenew: boolean | null;
+  // ISO timestamp of the last successful /api/subscription reconcile.
+  // The RequireAuth trial gate waits for this to be non-null before
+  // evaluating — otherwise it would fire on initialState defaults
+  // (subscriptionPlan: "free", hasUsedTrial: false) and misroute a
+  // returning user whose /me payload lacks subscription fields.
+  subscriptionReconciledAt: string | null;
 
   // V4 gate — the truth source for onboarding completion. undefined means
   // legacy V3 profile (fall back to onboardingStage).
@@ -47,6 +53,7 @@ const initialState: ProfileState = {
   trialReminderSeenAt: null,
   currentPeriodEnd: null,
   willRenew: null,
+  subscriptionReconciledAt: null,
   onboardingCompletedAt: undefined,
   onboardingStage: null,
   raw: null,
@@ -107,6 +114,7 @@ const profileSlice = createSlice({
       if ("trialEndsAt" in s) state.trialEndsAt = s.trialEndsAt ?? null;
       if ("currentPeriodEnd" in s) state.currentPeriodEnd = s.currentPeriodEnd ?? null;
       if ("willRenew" in s) state.willRenew = s.willRenew ?? null;
+      state.subscriptionReconciledAt = new Date().toISOString();
     },
     setSubscriptionPlan: (state, action: PayloadAction<SubscriptionPlan>) => {
       state.subscriptionPlan = action.payload;

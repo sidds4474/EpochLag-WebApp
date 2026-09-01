@@ -40,7 +40,7 @@ export default function ResourcesRow() {
 
   return (
     <section className="mt-[24px] md:mt-[32px]">
-      <SectionHeader title="Resources" />
+      <SectionHeader title="About Epoch Lag" />
       {/* Mobile: horizontal scrollable rail (matches Reminders + Recent
           Stories). Desktop: 2-column grid capped at 840px. */}
       <div className="flex gap-[16px] overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-[12px] px-[12px] md:mx-0 md:px-0 md:grid md:grid-cols-2 md:max-w-[854px] md:overflow-visible md:pl-[14px]">

@@ -22,7 +22,7 @@ export default function RecentStoriesRow({
 }) {
   return (
     <section className="mt-[24px] md:mt-[32px]">
-      <SectionHeader title="Recent Stories" viewAllHref="/lags" />
+      <SectionHeader title="Recent Lags" viewAllHref="/lags" />
       {loading || stories === null ? (
         <StoriesSkeleton />
       ) : stories.length === 0 ? (

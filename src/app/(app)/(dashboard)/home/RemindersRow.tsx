@@ -39,7 +39,7 @@ export default function RemindersRow({
 }) {
   return (
     <section className="mt-[24px] md:mt-[32px]">
-      <SectionHeader title="Reminders" />
+      <SectionHeader title="What's new?" />
       {loading || items === null ? (
         <ReminderSkeleton />
       ) : items.length === 0 ? (

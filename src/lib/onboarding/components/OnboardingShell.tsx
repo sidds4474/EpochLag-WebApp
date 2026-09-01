@@ -66,7 +66,7 @@ function SlimShell({
         )}
       </div>
       <div
-        className={`md:hidden min-h-screen w-full flex flex-col ${
+        className={`md:hidden min-h-dvh w-full flex flex-col ${
           mobileTheme === "cream" ? "bg-warm-cream" : "bg-primary-black"
         }`}
       >
@@ -135,7 +135,7 @@ function StandaloneShell({
         </section>
       </main>
       <main
-        className={`md:hidden min-h-screen w-full flex flex-col ${
+        className={`md:hidden min-h-dvh w-full flex flex-col ${
           mobileTheme === "cream" ? "bg-warm-cream" : "bg-primary-black"
         }`}
       >

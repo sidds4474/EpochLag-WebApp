@@ -74,7 +74,8 @@ export default function BottomTabBar({ user }: { user: User | null }) {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/[0.06] pb-[max(env(safe-area-inset-bottom),8px)] pt-[8px]"
+      className="md:hidden fixed inset-x-0 z-30 bg-white border-t border-black/[0.06] pb-[max(env(safe-area-inset-bottom),8px)] pt-[8px]"
+      style={{ bottom: "calc(100dvh - 100svh)" }}
       aria-label="Primary"
     >
       <div className="relative flex items-center justify-around max-w-[520px] mx-auto px-[8px]">

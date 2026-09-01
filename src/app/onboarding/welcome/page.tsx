@@ -45,10 +45,12 @@ export default function WelcomePage() {
           <div className="w-full max-w-[720px] h-[360px] rounded-[24px] overflow-hidden bg-primary-blue/5">
             <video
               src="/onboarding/ValueProp1.mp4"
+              poster="/onboarding/Epoch_Lag_Hero_poster.jpg"
               autoPlay
               muted
               loop
               playsInline
+              preload="auto"
               className="h-full w-full object-cover"
             />
           </div>
@@ -61,17 +63,19 @@ export default function WelcomePage() {
         </div>
       }
       mobileContent={
-        <div className="relative w-full min-h-screen overflow-hidden">
+        <div className="relative w-full min-h-dvh overflow-hidden">
           <video
             src="/onboarding/ValueProp1.mp4"
+            poster="/onboarding/Epoch_Lag_Hero_poster.jpg"
             autoPlay
             muted
             loop
             playsInline
+            preload="auto"
             className="absolute inset-0 h-full w-full object-cover"
           />
           <div className="absolute inset-0 bg-black/55" />
-          <div className="relative z-10 flex flex-col items-center min-h-screen px-[28px] pt-[56px] pb-[110px] text-primary-white text-center">
+          <div className="relative z-10 flex flex-col items-center min-h-dvh px-[28px] pt-[56px] pb-[110px] text-primary-white text-center">
             <MobileLogo variant="light" className="w-[140px]" />
             <div className="flex-1 flex flex-col justify-center">
               <h1 className="font-montserrat font-bold text-[28px] leading-[120%]">{HEADING}</h1>

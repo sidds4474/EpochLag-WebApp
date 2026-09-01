@@ -30,7 +30,10 @@ export default function AppDownloadBanner() {
   if (!visible) return null;
 
   return (
-    <div className="md:hidden bg-white border-b border-black/[0.06] px-[16px] py-[10px] flex items-center gap-[10px]">
+    <div
+      className="md:hidden bg-white border-b border-black/[0.06] px-[16px] pb-[10px] flex items-center gap-[10px]"
+      style={{ paddingTop: "calc(10px + env(safe-area-inset-top))" }}
+    >
       <span className="w-[36px] h-[36px] rounded-[8px] bg-primary-cream-dkr flex items-center justify-center shrink-0">
         <img src="/logo.svg" alt="" className="w-[24px] h-[24px]" />
       </span>

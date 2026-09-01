@@ -37,6 +37,10 @@ export const viewport = {
   themeColor: "#ffefdb",
   width: "device-width",
   initialScale: 1,
+  // Extend under the notch / home-indicator on iOS so env(safe-area-inset-*)
+  // returns non-zero — otherwise fixed elements like BottomTabBar sit under
+  // the home indicator and dvh math is off by the chrome height.
+  viewportFit: "cover" as const,
 };
 
 const GA_ID = "G-Y24K513FJM";

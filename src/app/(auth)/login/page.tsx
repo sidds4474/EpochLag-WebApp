@@ -66,7 +66,11 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
-  const hiddenGoogleBtnRef = useRef<HTMLDivElement | null>(null);
+  // Two refs — mobileContent and desktopContent both render FormBody in
+  // separate subtrees. A single ref would only point at whichever one
+  // React resolved last (mobile), leaving the desktop slot empty.
+  const googleBtnMobileRef = useRef<HTMLDivElement | null>(null);
+  const googleBtnDesktopRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (status === "authenticated") router.replace("/home");
@@ -121,30 +125,32 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (!googleReady || !hiddenGoogleBtnRef.current) return;
+    if (!googleReady) return;
     if (!window.google?.accounts?.id) return;
     if (!GOOGLE_CLIENT_ID) return;
     window.google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       callback: handleGoogleCredential,
     });
-    hiddenGoogleBtnRef.current.innerHTML = "";
-    window.google.accounts.id.renderButton(hiddenGoogleBtnRef.current, {
-      theme: "outline",
-      size: "large",
-      type: "standard",
-      shape: "rectangular",
-      text: "signin_with",
-      width: 240,
-    });
+    // Render into both slots. Only one is visible at any breakpoint
+    // (md:hidden vs hidden md:flex) but GSI is happy to draw into two
+    // containers off the same initialize().
+    const renderInto = (el: HTMLDivElement | null) => {
+      if (!el) return;
+      el.innerHTML = "";
+      window.google!.accounts.id.renderButton(el, {
+        theme: "outline",
+        size: "large",
+        type: "standard",
+        shape: "pill",
+        text: "signin_with",
+        logo_alignment: "center",
+        width: 260,
+      });
+    };
+    renderInto(googleBtnMobileRef.current);
+    renderInto(googleBtnDesktopRef.current);
   }, [googleReady, handleGoogleCredential]);
-
-  const triggerGoogle = () => {
-    const btn = hiddenGoogleBtnRef.current?.querySelector<HTMLElement>(
-      'div[role="button"]'
-    );
-    btn?.click();
-  };
 
   const switchMode = (next: AuthMode) => {
     if (next === authMode) return;
@@ -274,26 +280,32 @@ export default function LoginPage() {
 
   const onSubmit = () => (authMode === "phone" ? submitPhone() : submitEmail());
 
-  const content = (
-    <FormBody
-      authMode={authMode}
-      onSwitchMode={switchMode}
-      countryCode={countryCode}
-      onCountryCode={setCountryCode}
-      phone={phone}
-      onPhone={setPhone}
-      email={email}
-      onEmail={setEmail}
-      emailStep={emailStep}
-      password={password}
-      onPassword={setPassword}
-      error={error}
-      submitting={submitting}
-      googleBusy={googleBusy}
-      googleReady={googleReady && !!GOOGLE_CLIENT_ID}
-      onSubmit={onSubmit}
-      onGoogle={triggerGoogle}
-    />
+  // FormBody is mounted twice (once inside mobileContent, once inside
+  // desktopContent). Sharing a single ref would let one mount clobber
+  // the other — build two elements with distinct refs instead.
+  const formCommon = {
+    authMode,
+    onSwitchMode: switchMode,
+    countryCode,
+    onCountryCode: setCountryCode,
+    phone,
+    onPhone: setPhone,
+    email,
+    onEmail: setEmail,
+    emailStep,
+    password,
+    onPassword: setPassword,
+    error,
+    submitting,
+    googleBusy,
+    googleReady: googleReady && !!GOOGLE_CLIENT_ID,
+    onSubmit,
+  };
+  const mobileForm = (
+    <FormBody {...formCommon} googleBtnRef={googleBtnMobileRef} />
+  );
+  const desktopForm = (
+    <FormBody {...formCommon} googleBtnRef={googleBtnDesktopRef} />
   );
 
   return (
@@ -309,17 +321,6 @@ export default function LoginPage() {
           check();
         }}
       />
-      <div
-        ref={hiddenGoogleBtnRef}
-        aria-hidden
-        style={{
-          position: "absolute",
-          left: "-9999px",
-          top: "-9999px",
-          opacity: 0,
-          pointerEvents: "none",
-        }}
-      />
       <OnboardingShell
         hideDesktopNext
         hideMobileNext
@@ -331,7 +332,7 @@ export default function LoginPage() {
             className="relative w-full flex flex-col items-center justify-center min-h-[78vh] lg:min-h-0"
           >
             <div className="w-full max-w-[400px] flex flex-col items-center">
-              {content}
+              {desktopForm}
             </div>
           </motion.div>
         }
@@ -345,7 +346,7 @@ export default function LoginPage() {
             <BackChip onClick={() => router.back()} inline />
             <div className="flex-1 flex flex-col items-center justify-center">
               <div className="w-full max-w-[420px] flex flex-col items-center">
-                {content}
+                {mobileForm}
               </div>
             </div>
           </motion.div>
@@ -372,7 +373,7 @@ function FormBody({
   googleBusy,
   googleReady,
   onSubmit,
-  onGoogle,
+  googleBtnRef,
 }: {
   authMode: AuthMode;
   onSwitchMode: (m: AuthMode) => void;
@@ -390,7 +391,7 @@ function FormBody({
   googleBusy: boolean;
   googleReady: boolean;
   onSubmit: () => void;
-  onGoogle: () => void;
+  googleBtnRef: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
     <>
@@ -489,15 +490,14 @@ function FormBody({
         <div className="flex-1 h-px bg-primary-blue/15" />
       </div>
 
-      <button
-        type="button"
-        onClick={onGoogle}
-        disabled={!googleReady || googleBusy}
+      <div
+        ref={googleBtnRef}
         aria-label="Sign in with Google"
-        className="mt-[16px] h-[56px] w-[56px] bg-primary-white rounded-[14px] flex items-center justify-center shadow-[0_4px_14px_rgba(9,46,74,0.06)] cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <GoogleGlyph />
-      </button>
+        className={`mt-[16px] flex items-center justify-center transition-opacity ${
+          !googleReady || googleBusy ? "opacity-50 pointer-events-none" : ""
+        }`}
+        style={{ minHeight: 44 }}
+      />
     </>
   );
 }

@@ -103,7 +103,9 @@ export default function Sidebar() {
                     : "text-primary-blue/85 font-medium hover:bg-black/[0.03]"
                 }`}
               >
-                <span className="shrink-0">{item.icon}</span>
+                <span className="w-[26px] h-[26px] shrink-0 flex items-center justify-center">
+                  {item.icon}
+                </span>
                 <span className="flex-1">{item.label}</span>
                 {active && (
                   <ChevronRightIcon

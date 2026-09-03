@@ -111,6 +111,86 @@ const definition: Section = {
 
 export const ARCHIVE: Issue[] = [
   {
+    slug: "issue-05",
+    number: 5,
+    date: "September 2, 2026",
+    dateISO: "2026-09-02",
+    title: "Give every memory a time, place, and story",
+    teaser:
+      "What a Lag is, how to make your first one, and Alexis on capturing the moments that make her family’s memories.",
+    cover: "/newsletters/issue-05/alexis.png",
+    sections: [
+      definition,
+      {
+        kind: "paragraph",
+        text: "Give every memory a time, place, and story.",
+      },
+      { kind: "heading", text: "What’s a Lag?" },
+      { kind: "paragraph", text: "Let us show you how to preserve your memory." },
+      {
+        kind: "split",
+        imageSide: "right",
+        image: { src: "/newsletters/issue-05/hero.png", alt: "Creating a Lag in Epoch Lag" },
+        body: [
+          "A Lag is more than just a story. It’s a moment, memory, or experience captured in time and place.",
+          "Each Lag can include the people, location, and date connected to the story, creating a richer snapshot of the moments that matter.",
+          "Whether it’s a spontaneous adventure, a family tradition, or an unforgettable experience, Lags help preserve the story behind the memory and the people who shared it.",
+        ],
+      },
+      { kind: "image", src: "/newsletters/issue-05/howto-1.png", alt: "Tell your story and pick a location and date" },
+      {
+        kind: "paragraph",
+        text: "Once you select the create button at the bottom of your screen, start crafting your Lag! Begin by telling your story and selecting the location and date.",
+      },
+      { kind: "image", src: "/newsletters/issue-05/howto-2.png", alt: "Add people to your Lag and share it" },
+      {
+        kind: "paragraph",
+        text: "After you’ve ironed out the details, add those who were a part of your story. Congratulations, you just created a Lag!",
+      },
+      { kind: "paragraph", text: "Last but not least, share your Lag with friends and family!" },
+      { kind: "heading", text: "A Prompt Worth Sending This Week" },
+      {
+        kind: "prompt",
+        question: "What role did your grandparents play in your life?",
+        followup:
+          "Or — since school is about to start: What’s a first-day-of-school memory you’ll never forget?",
+        image: { src: "/newsletters/issue-05/prompt.png", alt: "Prompt card" },
+      },
+      { kind: "heading", text: "Hear Alexis’s Story" },
+      {
+        kind: "split",
+        image: { src: "/newsletters/issue-05/alexis.png", alt: "Alexis’s video thumbnail" },
+        imageSide: "right",
+        body: [
+          "Meet Alexis. As a mother, she knows how quickly life’s special moments can pass.",
+          "Hear her share how Epoch Lag helps her capture the people, places, and stories that make her family’s memories worth holding onto.",
+          "Click on the video to learn more.",
+        ],
+      },
+      {
+        kind: "paragraph",
+        text: "Big thank you to Alexis for sharing! Please reach out to share your stories as well!",
+      },
+      { kind: "heading", text: "Prompts at your fingertips!" },
+      {
+        kind: "split",
+        image: {
+          src: "/newsletters/issue-05/prompts-feature.png",
+          alt: "Prompts illustration",
+        },
+        imageSide: "left",
+        imageWidth: "sm",
+        body: [
+          "Every story starts with a spark. Use prompts crafted to help you kickstart your next Lag, whether you’re jumping into a forgotten era, reconnecting with family, or rediscovering a lost recipe.",
+          "Send a prompt to a loved one, see where it takes you, and let the Lag do its thing.",
+          "Found a prompt that took your story somewhere unexpected? Share it with us, and it might land in our upcoming issue.",
+        ],
+      },
+      { kind: "heading", text: "Other Opportunities" },
+      opportunities(),
+    ],
+  },
+  {
     slug: "issue-04",
     number: 4,
     date: "August 19, 2026",

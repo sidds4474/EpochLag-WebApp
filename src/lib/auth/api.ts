@@ -47,6 +47,7 @@ export type RegisterPayload = {
   phoneVerifyToken?: string;
   dateOfBirth?: string;
   anonId?: string;
+  familyInviteToken?: string;
 };
 
 export type SocialAuthResult = {
@@ -181,6 +182,7 @@ export type SocialFinalizePayload = {
   phoneVerifyToken: string;
   anonId?: string;
   referralCode?: string;
+  familyInviteToken?: string;
 };
 
 type SocialFinalizeEnvelope = {
@@ -200,6 +202,9 @@ export async function socialFinalize(
   };
   if (payload.anonId) body.anonId = payload.anonId;
   if (payload.referralCode) body.referralCode = payload.referralCode;
+  if (payload.familyInviteToken && payload.familyInviteToken.trim()) {
+    body.familyInviteToken = payload.familyInviteToken.trim();
+  }
   const res = await api.post<SocialFinalizeEnvelope>(
     "/api/auth/social/finalize",
     body
@@ -291,6 +296,11 @@ export async function registerUser(
   if (payload.dateOfBirth) body.dateOfBirth = payload.dateOfBirth;
   // draftToken INTENTIONALLY OMITTED — merge is deferred via /api/onboarding/merge.
   if (payload.anonId) body.anonId = payload.anonId;
+  // Omit familyInviteToken entirely when absent — never send "" or null.
+  // BE ignores unknown/consumed tokens silently, so no pre-validation.
+  if (payload.familyInviteToken && payload.familyInviteToken.trim()) {
+    body.familyInviteToken = payload.familyInviteToken.trim();
+  }
   const res = await api.post<RegisterAuthedEnvelope>(
     "/api/auth/register",
     body,

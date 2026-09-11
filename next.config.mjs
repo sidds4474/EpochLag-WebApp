@@ -18,6 +18,10 @@ const nextConfig = {
         source: "/api/:path*",
         destination: `${API_UPSTREAM}/api/:path*`,
       },
+      {
+        source: "/.well-known/assetlinks.json",
+        destination: "/well-known-assetlinks",
+      },
     ];
   },
 };

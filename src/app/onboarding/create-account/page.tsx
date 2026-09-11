@@ -22,6 +22,10 @@ import {
   clearStoredReferralCode,
 } from "../../../lib/onboarding/storage/localStore";
 import { postLoginSync } from "../../../lib/auth/postLoginSync";
+import {
+  peekFamilyInviteToken,
+  clearFamilyInviteToken,
+} from "../../../lib/familyInvite/token";
 import { trackOnboarding } from "../../../lib/analytics/track";
 import { useAppDispatch } from "../../../lib/onboarding/store";
 import { runAnonMergeSync } from "../../../lib/onboarding/merge/runAnonMergeSync";
@@ -132,6 +136,7 @@ function CreateAccountContent() {
     try {
       if (mode === "phone") {
         const anonId = peekAnonId() || undefined;
+        const familyInviteToken = peekFamilyInviteToken();
         const { token, user: registered } = await registerUser({
           firstName: firstName.trim(),
           lastName: lastName.trim(),
@@ -141,6 +146,7 @@ function CreateAccountContent() {
           phone: digits,
           phoneVerifyToken,
           anonId,
+          familyInviteToken,
         });
         if (!token || !registered) {
           setError(
@@ -152,6 +158,7 @@ function CreateAccountContent() {
         applyAuth(token, registered);
         await postLoginSync({ profile: registered });
         trackOnboarding("phone_signup_completed");
+        clearFamilyInviteToken();
 
         // Redeem referral silently. Prefer the in-form value the user
         // just validated; fall back to a deep-link stored code.

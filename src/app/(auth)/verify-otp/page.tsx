@@ -20,6 +20,10 @@ import {
   clearStoredReferralCode,
 } from "../../../lib/onboarding/storage/localStore";
 import { postLoginSync } from "../../../lib/auth/postLoginSync";
+import {
+  peekFamilyInviteToken,
+  clearFamilyInviteToken,
+} from "../../../lib/familyInvite/token";
 import { trackOnboarding } from "../../../lib/analytics/track";
 import { useAppDispatch } from "../../../lib/onboarding/store";
 import { runAnonMergeSync } from "../../../lib/onboarding/merge/runAnonMergeSync";
@@ -181,6 +185,7 @@ function VerifyOtpContent() {
             searchParams?.get("referralCode") ||
             getStoredReferralCode() ||
             undefined;
+          const familyInviteToken = peekFamilyInviteToken();
           const finalizedUser = await socialFinalize({
             countryCode,
             phone,
@@ -188,11 +193,13 @@ function VerifyOtpContent() {
             phoneVerifyToken: res.phoneVerifyToken,
             anonId,
             referralCode,
+            familyInviteToken,
           });
           // Already authed from earlier Google callback — refresh cached user
           // so newly-attached phone/DOB show up in the profile.
           updateUser(finalizedUser);
           trackOnboarding("social_finalize_completed");
+          clearFamilyInviteToken();
           let socialMergeResult: Awaited<
             ReturnType<ReturnType<typeof runAnonMergeSync>>
           > = null;

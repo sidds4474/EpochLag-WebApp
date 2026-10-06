@@ -1,9 +1,12 @@
-import StoryNavBar from "../StoryPage/components/StoryNavBar";
-import AppDownloadCTA from "../StoryPage/components/AppDownloadCTA";
+"use client";
+
+import { useState } from "react";
 import MomentViewAnalytics from "./MomentViewAnalytics";
+import DownloadModal from "../StoryPage/components/DownloadModal";
 import { toResponsiveImage } from "../../lib/cloudinary";
-import { formatCalendarDay, parseCalendarDay, ordinalSuffix } from "../../lib/moments/date";
+import { parseCalendarDay } from "../../lib/moments/date";
 import { getMomentIconPath } from "../../lib/moments/icons";
+import { APP_STORE_URL, PLAY_STORE_URL } from "../../utils/storeLinks";
 import type { Platform } from "../../types/story";
 import type { PublicMomentData } from "../../types/moment";
 
@@ -13,213 +16,174 @@ type Props = {
   platform: Platform;
 };
 
-function formatOrdinalDate(iso: string | null | undefined) {
+const MONTH_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+function shortDate(iso: string | null | undefined) {
   const parts = parseCalendarDay(iso);
-  if (!parts) return "";
-  const monthYear = formatCalendarDay(iso, { year: "numeric", month: "long" });
-  const [month, year] = monthYear.split(" ");
-  return `${month} ${parts.d}${ordinalSuffix(parts.d)}, ${year}`;
+  if (!parts) return { day: "", month: "" };
+  return { day: String(parts.d), month: MONTH_SHORT[parts.m] };
 }
-
-function countdownLabel(daysUntil: number | undefined | null) {
-  if (daysUntil === undefined || daysUntil === null) return null;
-  if (daysUntil === 0) return "Today";
-  if (daysUntil === 1) return "Tomorrow";
-  if (daysUntil > 1) return `in ${daysUntil} days`;
-  if (daysUntil === -1) return "Yesterday";
-  return `${Math.abs(daysUntil)} days ago`;
-}
-
-function capitalize(s: string | null | undefined) {
-  if (!s) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-const PersonGlyph = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-    className="w-[14px] h-[14px]"
-  >
-    <circle cx="12" cy="8" r="3.5" />
-    <path d="M4.5 20c1.2-3.8 4-5.5 7.5-5.5s6.3 1.7 7.5 5.5" />
-  </svg>
-);
-
-const RepeatGlyph = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-    className="w-[12px] h-[12px]"
-  >
-    <path d="M4 11V9a3 3 0 0 1 3-3h11" />
-    <path d="M16 3l3 3-3 3" />
-    <path d="M20 13v2a3 3 0 0 1-3 3H6" />
-    <path d="M8 21l-3-3 3-3" />
-  </svg>
-);
 
 const MomentPage = ({ data, publicCode, platform }: Props) => {
+  const [modalOpen, setModalOpen] = useState(false);
   const {
     title,
     type,
     date,
-    note,
     coverImageUrl,
     isRecurring,
-    frequency,
     nextOccurrence,
-    daysUntil,
-    participantCount,
     author,
   } = data;
 
   const displayDateIso = isRecurring ? nextOccurrence || date : date;
-  const formattedDate = formatOrdinalDate(displayDateIso);
-  const countdown = countdownLabel(daysUntil);
+  const { day, month } = shortDate(displayDateIso);
+  const authorFirstName = author?.firstName?.trim() || "Someone";
+  const headline = `${authorFirstName} shared a moment with you!`;
+  const cardTitle = title?.trim() || type || "Moment";
+
+  const handleDownload = () => {
+    if (platform === "ios") {
+      window.location.href = APP_STORE_URL;
+    } else if (platform === "android") {
+      window.location.href = PLAY_STORE_URL;
+    } else {
+      setModalOpen(true);
+    }
+  };
 
   return (
-    <main className="bg-warm-cream min-h-screen">
+    <main
+      className="min-h-screen bg-warm-cream flex flex-col"
+      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
       <MomentViewAnalytics publicCode={publicCode} momentType={type} />
-      <StoryNavBar
-        publicCode={publicCode}
-        platform={platform}
-        eventName="public_moment_app_cta_clicked"
-      />
 
-      <section className="px-[16px] md:px-[24px] pt-[16px] md:pt-[32px] pb-[24px] md:pb-[40px]">
-        <div className="mx-auto w-full max-w-[460px]">
-          {/* Poster card */}
-          <div className="rounded-[24px] overflow-hidden bg-primary-white shadow-[0_8px_32px_rgba(30,50,80,0.10)]">
-            {/* Cover */}
-            {coverImageUrl ? (
-              <div className="relative w-full aspect-[1/1] overflow-hidden bg-primary-cream">
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-0 scale-110"
-                  style={{
-                    backgroundImage: `url(${toResponsiveImage(coverImageUrl, 600)})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                    filter: "blur(28px)",
-                  }}
-                />
-                <div aria-hidden="true" className="absolute inset-0 bg-black/10" />
-                <img
-                  src={toResponsiveImage(coverImageUrl, 900) ?? undefined}
-                  alt={title || "Moment cover image"}
-                  className="relative w-full h-full object-cover"
-                  fetchPriority="high"
-                  decoding="async"
-                />
-              </div>
-            ) : (
-              <div className="w-full aspect-[1/1] bg-primary-cream flex items-center justify-center">
-                <img
-                  src={getMomentIconPath(type)}
-                  alt={type || "Moment"}
-                  className="w-[96px] h-[96px] object-contain opacity-40"
-                  decoding="async"
-                />
-              </div>
-            )}
+      {/* Centered content */}
+      <section className="flex-1 flex flex-col items-center justify-center px-5 sm:px-8">
+        <div className="w-full max-w-[340px] sm:max-w-[420px] md:max-w-[480px] flex flex-col items-center">
+          <h1 className="font-lora font-medium text-[#151515] text-[24px] md:text-[28px] leading-[120%] text-center max-w-[260px] md:max-w-[320px]">
+            {headline}
+          </h1>
 
-            {/* White panel */}
-            <div className="relative -mt-[24px] rounded-t-[24px] bg-primary-white px-[24px] pt-[56px] pb-[28px] text-center">
-              {/* Author line, floats top-left */}
-              {author?.firstName && (
-                <div className="absolute top-[18px] left-[18px] max-w-[calc(100%-90px)]">
-                  <span className="font-montserrat text-primary-blue text-[12px] md:text-[13px] leading-none truncate opacity-70">
-                    <span className="font-semibold opacity-100">{author.firstName}</span> shared a moment
-                  </span>
-                </div>
-              )}
+          <p className="mt-[14px] md:mt-[18px] font-plus-jakarta text-black text-[16px] md:text-[17px] leading-[150%] text-center max-w-[320px] md:max-w-[380px]">
+            Sign up to Epoch Lag to be reminded of this moment and cherish it forever.
+          </p>
 
-              {/* Participant chip, floats top-right */}
-              {typeof participantCount === "number" && participantCount > 0 && (
-                <div className="absolute top-[16px] right-[16px] inline-flex items-center gap-[6px] bg-primary-cream text-primary-blue rounded-full px-[10px] py-[5px]">
-                  <PersonGlyph />
-                  <span className="font-montserrat font-semibold text-[12px] leading-none">
-                    {participantCount}
-                  </span>
-                </div>
-              )}
-
-              {/* Type icon */}
-              <div className="mx-auto w-[44px] h-[44px] rounded-full bg-primary-cream flex items-center justify-center">
-                <img
-                  src={getMomentIconPath(type)}
-                  alt={type || "Moment"}
-                  className="w-[22px] h-[22px] object-contain"
-                  decoding="async"
-                />
-              </div>
-
-              {/* Type label */}
-              {type && (
-                <div className="mt-[12px] font-montserrat font-semibold uppercase tracking-[0.14em] text-[11px] text-primary-blue opacity-60">
-                  {type}
-                </div>
-              )}
-
-              {/* Title */}
-              {title && (
-                <h1 className="mt-[6px] font-ivy font-bold text-primary-blue text-[24px] md:text-[26px] leading-[120%] break-words">
-                  {title}
-                </h1>
-              )}
-
-              {/* Date + countdown */}
-              {formattedDate && (
-                <div className="mt-[10px] font-montserrat text-primary-blue text-[15px] leading-[150%]">
-                  <div>{formattedDate}</div>
-                  {countdown && (
-                    <div className="mt-[2px] text-[13px] opacity-60">
-                      {countdown}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Recurring indicator */}
-              {isRecurring && frequency && (
-                <div className="mt-[14px] inline-flex items-center gap-[6px] text-primary-blue opacity-70 font-montserrat text-[12px]">
-                  <RepeatGlyph />
-                  <span>Repeats {capitalize(frequency)}</span>
-                </div>
-              )}
-            </div>
+          {/* Event card */}
+          <div className="mt-[28px] md:mt-[36px] w-full">
+            <EventCard
+              day={day}
+              month={month}
+              title={cardTitle}
+              iconUrl={getMomentIconPath(type)}
+              coverUrl={coverImageUrl}
+            />
           </div>
-
-          {/* Note, below the card */}
-          {note && note.trim() ? (
-            <section className="mt-[28px] md:mt-[32px] font-montserrat text-primary-blue text-[16px] md:text-[17px] leading-[170%] whitespace-pre-wrap">
-              {note}
-            </section>
-          ) : null}
-
         </div>
       </section>
 
-      <AppDownloadCTA
-        platform={platform}
+      {/* Sticky footer */}
+      <footer className="w-full px-5 sm:px-8 pb-8 md:pb-10">
+        <div className="mx-auto w-full max-w-[380px] md:max-w-[420px] flex flex-col items-center gap-3">
+          <a
+            href="/signup"
+            className="w-full bg-primary-orange text-primary-white font-plus-jakarta text-[16px] px-6 py-[16px] rounded-full text-center hover:opacity-90 active:opacity-80 transition-opacity leading-none"
+          >
+            Sign up
+          </a>
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="font-plus-jakarta text-[#2c2c2c] text-[15px] py-2 hover:opacity-70 transition-opacity"
+          >
+            Download Epoch Lag
+          </button>
+        </div>
+      </footer>
+
+      <DownloadModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
         publicCode={publicCode}
-        title="Never miss the moments that matter"
-        subcopy="Track birthdays, anniversaries, and everything in between — with the people you love."
-        eventName="public_moment_app_cta_clicked"
+        trackEvent="public_moment_app_cta_clicked"
+        position="moment_invite"
       />
     </main>
   );
 };
+
+type EventCardProps = {
+  day: string;
+  month: string;
+  title: string;
+  iconUrl: string;
+  coverUrl: string | null | undefined;
+};
+
+function EventCard({ day, month, title, iconUrl, coverUrl }: EventCardProps) {
+  const thumb = coverUrl ? toResponsiveImage(coverUrl, 240) : null;
+
+  return (
+    <div className="w-full bg-primary-white rounded-[20px] drop-shadow-[0_0_12.5px_rgba(0,0,0,0.2)] pl-[24px] pr-[6px] py-[6px] flex items-stretch">
+      <div className="flex-1 flex items-center gap-[24px] min-w-0">
+        {/* Date */}
+        <div className="flex flex-col items-center shrink-0">
+          <span className="font-montserrat font-medium text-[#2c2c2c] text-[38px] leading-[41px]">
+            {day}
+          </span>
+          <span className="font-montserrat font-medium text-[#2c2c2c] text-[19px] leading-[24px]">
+            {month}
+          </span>
+        </div>
+
+        {/* Divider */}
+        <div className="w-[1.5px] h-[64px] bg-[#092e4a]/15 shrink-0" />
+
+        {/* Icon + title */}
+        <div className="flex-1 min-w-0 flex flex-col items-start gap-[12px]">
+          <div className="w-[29px] h-[29px] rounded-full bg-[#f3f1eb] flex items-center justify-center shrink-0">
+            <img
+              src={iconUrl}
+              alt=""
+              aria-hidden="true"
+              className="w-[16px] h-[16px] object-contain"
+              decoding="async"
+            />
+          </div>
+          <span className="font-plus-jakarta text-[#092e4a] text-[16px] leading-[20px] truncate w-full">
+            {title}
+          </span>
+        </div>
+      </div>
+
+      {/* Thumbnail — flush right, rounded on left only */}
+      {thumb ? (
+        <div className="shrink-0 w-[59px] self-stretch rounded-r-[16px] overflow-hidden bg-[#d9d9d9]">
+          <img
+            src={thumb}
+            alt=""
+            aria-hidden="true"
+            className="w-full h-full object-cover"
+            decoding="async"
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default MomentPage;

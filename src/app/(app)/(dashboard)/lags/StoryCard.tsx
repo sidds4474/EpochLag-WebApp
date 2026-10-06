@@ -9,6 +9,7 @@ import Avatar from "../../../../components/Avatar";
 import SendToDrawer from "../../../../components/share/SendToDrawer";
 import PromptPreviewCard from "../../../../components/share/PromptPreviewCard";
 import { bustUrl } from "../../../../lib/images";
+import QueuedImage from "../../../../components/QueuedImage";
 import { parseContentToBlocks } from "../../../../lib/parseStoryContent";
 import { toggleCardBookmark } from "../../../../lib/home/api";
 import { shareUserCard } from "../../../../lib/create/api";
@@ -85,15 +86,26 @@ export default function StoryCard({
 
   const shareCardId = thread.promptCard?._id ?? null;
   const [shareOpen, setShareOpen] = useState(false);
+  // The drawer is only mounted while it's in use. Mounting one per card
+  // unconditionally put 10–18 hidden "Send to" panels (and as many duplicate
+  // `#send-search-input` ids) into the page on every Lags load. Mount first,
+  // then open on the next frame so the slide-in transition still plays.
+  const [shareMounted, setShareMounted] = useState(false);
   const handleShare = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
       if (!shareCardId) return;
-      setShareOpen(true);
+      setShareMounted(true);
+      requestAnimationFrame(() => setShareOpen(true));
     },
     [shareCardId]
   );
+  const closeShare = useCallback(() => {
+    setShareOpen(false);
+    // Let the 300ms close transition finish before unmounting.
+    window.setTimeout(() => setShareMounted(false), 320);
+  }, []);
 
   // Share targets the underlying prompt via /api/user-card/:promptId/share
   // — same pattern as the Home Recent Stories row.
@@ -157,16 +169,23 @@ export default function StoryCard({
           onToggleSelect?.(thread);
         }
       }}
-      className="relative flex flex-col bg-white rounded-[22px] shadow-[0_0_18px_rgba(0,0,0,0.2)] hover:shadow-[0_0_22px_rgba(0,0,0,0.25)] transition-shadow pt-[8px] px-[8px] pb-[10px] md:pb-[16px] gap-[7px]"
+      className="relative flex flex-col bg-white rounded-[22px] shadow-[0_0_18px_rgba(0,0,0,0.15)] hover:shadow-[0_0_22px_rgba(0,0,0,0.2)] transition-shadow pt-[8px] px-[8px] pb-[10px] md:pb-[16px] gap-[7px]"
     >
       <div className="relative aspect-[5/4] bg-primary-blue/10 rounded-[15px] overflow-hidden">
         {cover ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <QueuedImage
             src={bustUrl(cover, undefined)}
             alt=""
             className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
+          />
+        ) : null}
+
+        {/* Scrim behind the top controls so the bookmark/share/person chips
+            stay legible over busy photos (they used to sit on bare image). */}
+        {cover ? (
+          <div
+            aria-hidden
+            className="absolute inset-x-0 top-0 h-[64px] bg-gradient-to-b from-black/30 to-transparent pointer-events-none"
           />
         ) : null}
 
@@ -258,10 +277,11 @@ export default function StoryCard({
     {/* Drawer is portaled to document.body so its click events don't bubble
         up through the parent Link and trigger navigation. */}
     {mounted &&
+      shareMounted &&
       createPortal(
         <SendToDrawer
           open={shareOpen}
-          onClose={() => setShareOpen(false)}
+          onClose={closeShare}
           onSend={handleShareSend}
           shareContext="story"
           showMessageInput={false}

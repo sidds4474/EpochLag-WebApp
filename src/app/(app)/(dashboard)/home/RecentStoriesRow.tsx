@@ -5,6 +5,7 @@ import type { RecentStory } from "../../../../lib/home/api";
 import { SectionHeader } from "../../../../components/ui";
 import { useRailScroll } from "../../../../lib/nav/useRailScroll";
 import { bustUrl } from "../../../../lib/images";
+import QueuedImage from "../../../../components/QueuedImage";
 import { BookmarkIcon, PersonIcon, SendIcon } from "../icons";
 import { useBookmarkToggle } from "./useBookmarkToggle";
 
@@ -41,12 +42,15 @@ export default function RecentStoriesRow({
       ) : (
         <div
           ref={setRef}
-          className="overflow-x-auto overflow-y-visible scrollbar-hide"
+          className="overflow-x-auto overflow-y-visible scrollbar-hide [mask-image:linear-gradient(to_right,#000_0,#000_calc(100%-28px),transparent_100%)]"
         >
           <div className="flex gap-[16px] snap-x snap-mandatory py-[20px] px-[20px]">
             {stories.map((s) => (
               <StoryTile key={s._id} story={s} onShare={onShare} />
             ))}
+            {/* Trailing spacer: a scroll container clips the flex row's right
+                padding at scroll-end, so the last card had no gutter. */}
+            <div aria-hidden className="shrink-0 w-[4px]" />
           </div>
         </div>
       )}
@@ -54,7 +58,8 @@ export default function RecentStoriesRow({
   );
 }
 
-// 1:1 with the original For You card shell — rounded-[32px] outer, thick
+// For You card shell — rounded-[30px] outer (unified with the reminder card
+// radius so the two Home rows don't use different roundings), thick
 // soft shadow, image with only top corners rounded, centered caption below.
 function StoryTile({
   story,
@@ -73,12 +78,15 @@ function StoryTile({
     story.promptCard?.imageUrl ||
     story.latestStory?.media?.[0]?.url ||
     null;
+  // Same precedence as the Lags card (`lags/StoryCard.tsx`). Never fall back
+  // to `latestStory.content` — that's the raw tagged body
+  // (`<image>…</image><text>…</text>`), which used to leak onto the card as
+  // a "title" whenever a story had none.
   const title =
+    story.latestStory?.title ||
     story.promptCard?.title ||
     story.promptCard?.content ||
-    story.latestStory?.content ||
-    story.latestStory?.title ||
-    "Untitled";
+    "Untitled story";
   // BE returns participants under `people`; total count may be `totalPeople`
   // when the list is truncated. Fall back to the array length otherwise.
   const people = story.people ?? [];
@@ -93,16 +101,14 @@ function StoryTile({
     <Link
       href={`/thread/${story._id}`}
       style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
-      className="snap-start shrink-0 bg-white rounded-[32px] shadow-[0_0_13.4px_rgba(0,0,0,0.25)] pt-[12px] pb-[24px] px-[12px] flex flex-col gap-[20px]"
+      className="font-montserrat snap-start shrink-0 bg-white rounded-[30px] shadow-[0_0_13.4px_rgba(0,0,0,0.25)] pt-[12px] pb-[24px] px-[12px] flex flex-col gap-[20px]"
     >
       <div className="relative flex-1 min-h-0 rounded-tl-[24px] rounded-tr-[24px] overflow-hidden bg-primary-blue/10">
         {cover && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <QueuedImage
             src={cover}
             alt=""
             className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
           />
         )}
         <div className="relative pt-[21px] pl-[20px] pr-[16px] flex items-start justify-between">
@@ -168,12 +174,12 @@ function StoryTile({
 
 function StoriesSkeleton() {
   return (
-    <div className="flex gap-[16px] overflow-hidden">
+    <div className="flex gap-[16px] overflow-hidden [mask-image:linear-gradient(to_right,#000_0,#000_calc(100%-28px),transparent_100%)]">
       {[0, 1, 2].map((i) => (
         <div
           key={i}
           style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
-          className="shrink-0 bg-white rounded-[32px] shadow-[0_0_13.4px_rgba(0,0,0,0.25)] pt-[12px] pb-[24px] px-[12px] flex flex-col gap-[20px]"
+          className="shrink-0 bg-white rounded-[30px] shadow-[0_0_13.4px_rgba(0,0,0,0.25)] pt-[12px] pb-[24px] px-[12px] flex flex-col gap-[20px]"
         >
           <div className="flex-1 rounded-tl-[24px] rounded-tr-[24px] bg-black/[0.06] animate-pulse" />
           <div className="h-[12px] mx-auto w-2/3 bg-black/[0.06] rounded animate-pulse" />
@@ -185,7 +191,7 @@ function StoriesSkeleton() {
 
 function EmptyState() {
   return (
-    <div className="bg-white rounded-[32px] shadow-[0_0_13.4px_rgba(0,0,0,0.25)] px-[24px] py-[36px] text-center max-w-[520px]">
+    <div className="bg-white rounded-[30px] shadow-[0_0_13.4px_rgba(0,0,0,0.25)] px-[24px] py-[36px] text-center max-w-[520px]">
       <p className="font-montserrat font-medium text-primary-blue text-[14px]">
         No stories yet — start your first one.
       </p>
@@ -193,7 +199,7 @@ function EmptyState() {
         href="/new-story"
         className="inline-block mt-[12px] bg-primary-orange text-white rounded-full px-[18px] py-[10px] font-montserrat font-semibold text-[13px]"
       >
-        Create a story
+        Create a Lag
       </Link>
     </div>
   );

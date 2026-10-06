@@ -104,3 +104,24 @@ function fitWithin(
     height: Math.round(height * ratio),
   };
 }
+
+// Retry image loads that error out (e.g. transient CDN 429s). Re-requests the
+// SAME url a couple of times with backoff, then give up and leave whatever
+// placeholder sits behind it. We re-request the identical URL (clear + re-set
+// src) rather than cache-busting with a query param, because the covers are
+// signed S3 URLs and an extra param would break the signature. Attach as:
+//   onError={(e) => retryImageOnError(e.currentTarget)}
+export function retryImageOnError(img: HTMLImageElement, max = 2): void {
+  const attempt = Number(img.dataset.retry ?? "0");
+  if (attempt >= max) return; // give up — the placeholder behind it stays
+  const url = img.dataset.srcOriginal || img.src;
+  if (!url) return;
+  if (!img.dataset.srcOriginal) img.dataset.srcOriginal = url;
+  img.dataset.retry = String(attempt + 1);
+  const delay = 600 * (attempt + 1); // 600ms, then 1.2s
+  window.setTimeout(() => {
+    if (!img.isConnected) return;
+    img.src = "";
+    img.src = url;
+  }, delay);
+}

@@ -43,7 +43,7 @@ const StoryHero = ({
       <div className={`${coverUrl ? "mt-[24px] md:mt-[32px]" : ""}`}>
         <AuthorBadge author={author} datePosted={datePosted} />
         {headline && (
-          <h1 className="mt-[20px] md:mt-[24px] font-ivy font-bold text-primary-blue text-[32px] md:text-[44px] lg:text-[52px] leading-[110%] break-words">
+          <h1 className="mt-[20px] md:mt-[24px] font-lora font-bold text-primary-blue text-[32px] md:text-[44px] lg:text-[52px] leading-[110%] break-words">
             {headline}
           </h1>
         )}

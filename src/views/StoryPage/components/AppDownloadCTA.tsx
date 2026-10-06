@@ -65,10 +65,10 @@ const AppDownloadCTA = ({
     <>
       <section className="bg-primary-cream">
         <div className="max-w-[860px] mx-auto px-[16px] md:px-[24px] py-[48px] md:py-[64px] text-center">
-          <h2 className="font-ivy font-bold text-primary-blue text-[28px] md:text-[36px] leading-[120%]">
+          <h2 className="font-lora font-bold text-primary-blue text-[28px] md:text-[36px] leading-[120%]">
             {title}
           </h2>
-          <p className="mt-[12px] font-montserrat text-primary-blue text-[16px] md:text-[18px] leading-[160%] opacity-85 max-w-[520px] mx-auto">
+          <p className="mt-[12px] font-plus-jakarta text-primary-blue text-[16px] md:text-[18px] leading-[160%] opacity-85 max-w-[520px] mx-auto">
             {subcopy}
           </p>
 
@@ -80,7 +80,7 @@ const AppDownloadCTA = ({
                   setModalOpen(true);
                   trackFooterClick(publicCode, "modal", eventName);
                 }}
-                className="cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[14px] md:text-[15px] px-[28px] md:px-[36px] py-[12px] md:py-[14px] rounded-full hover:opacity-90 transition-opacity"
+                className="cursor-pointer bg-primary-orange text-primary-white font-plus-jakarta font-semibold text-[14px] md:text-[15px] px-[28px] md:px-[36px] py-[12px] md:py-[14px] rounded-full hover:opacity-90 transition-opacity"
               >
                 Download the App
               </button>

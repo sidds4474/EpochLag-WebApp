@@ -75,11 +75,11 @@ const DownloadModal = ({
         </button>
         <h2
           id="download-modal-title"
-          className="font-ivy font-bold text-primary-blue text-[24px] md:text-[28px] leading-[120%] text-center"
+          className="font-lora font-bold text-primary-blue text-[24px] md:text-[28px] leading-[120%] text-center"
         >
           Get Epoch Lag on your phone
         </h2>
-        <p className="mt-[10px] font-montserrat text-primary-blue text-[14px] md:text-[15px] leading-[160%] opacity-80 text-center">
+        <p className="mt-[10px] font-plus-jakarta text-primary-blue text-[14px] md:text-[15px] leading-[160%] opacity-80 text-center">
           Epoch Lag is a mobile app. Scan the QR with your phone, or tap a
           store badge below.
         </p>

@@ -76,7 +76,7 @@ const StoryNavBar = ({
         <a
           href={platform === "android" ? PLAY_STORE_URL : APP_STORE_URL}
           onClick={handleClick}
-          className="cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[13px] md:text-[14px] px-[20px] md:px-[28px] py-[10px] md:py-[12px] rounded-full hover:opacity-90 transition-opacity"
+          className="cursor-pointer bg-primary-orange text-primary-white font-plus-jakarta font-semibold text-[13px] md:text-[14px] px-[20px] md:px-[28px] py-[10px] md:py-[12px] rounded-full hover:opacity-90 transition-opacity"
         >
           Download the App
         </a>

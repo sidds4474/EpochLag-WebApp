@@ -1,10 +1,22 @@
 import Script from "next/script";
+import { Lora, Plus_Jakarta_Sans } from "next/font/google";
 import ToastProvider from "../components/ToastProvider/ToastProvider";
 import { AuthProvider } from "../lib/auth/AuthProvider";
 import { OnboardingStoreProvider } from "../lib/onboarding/OnboardingStoreProvider";
 import "./globals.css";
-import LogoDark from "../assets/images/logo-dark.webp";
-import MobileApp from "../assets/images/mobile-app.webp";
+
+// Reply/story/prompt flow typography — Lora for headings, Plus Jakarta for body/UI.
+const lora = Lora({
+  subsets: ["latin"],
+  variable: "--font-lora",
+  display: "swap",
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-plus-jakarta",
+  display: "swap",
+});
 
 export const metadata = {
   metadataBase: new URL("https://www.epochlag.com"),
@@ -52,34 +64,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${lora.variable} ${plusJakarta.variable}`}>
       <head>
-        <link
-          rel="preload"
-          href="/fonts/Projekt-Blackbird.otf"
-          as="font"
-          type="font/otf"
-          crossOrigin="anonymous"
-        />
         <link
           rel="preload"
           href="/fonts/Montserrat-VariableFont_wght.ttf"
           as="font"
-          type="font/truetype"
+          type="font/ttf"
           crossOrigin="anonymous"
-        />
-        <link
-          rel="preload"
-          href={LogoDark.src}
-          as="image"
-          type="image/webp"
-        />
-        <link
-          rel="preload"
-          href={MobileApp.src}
-          as="image"
-          type="image/webp"
-          fetchPriority="high"
         />
       </head>
       <body>

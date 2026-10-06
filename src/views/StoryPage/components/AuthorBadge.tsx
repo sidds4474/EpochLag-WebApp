@@ -36,17 +36,17 @@ const AuthorBadge = ({ author, datePosted, size = "md" }: AuthorBadgeProps) => {
       ) : (
         <div
           aria-hidden="true"
-          className={`${dimensions} rounded-full bg-primary-orange text-primary-white font-montserrat font-semibold flex items-center justify-center`}
+          className={`${dimensions} rounded-full bg-primary-orange text-primary-white font-plus-jakarta font-semibold flex items-center justify-center`}
         >
           {initials}
         </div>
       )}
       <div className="leading-tight">
-        <div className="font-montserrat font-semibold text-primary-blue text-[14px] md:text-[15px]">
+        <div className="font-plus-jakarta font-semibold text-primary-blue text-[14px] md:text-[15px]">
           {name}
         </div>
         {formattedDate && (
-          <div className="font-montserrat text-primary-blue text-[12px] md:text-[13px] opacity-70 mt-[2px]">
+          <div className="font-plus-jakarta text-primary-blue text-[12px] md:text-[13px] opacity-70 mt-[2px]">
             {formattedDate}
           </div>
         )}

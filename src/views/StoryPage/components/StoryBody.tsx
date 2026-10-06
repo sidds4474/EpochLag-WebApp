@@ -27,7 +27,7 @@ const renderBlocks = (
     nodes.push(
       <div
         key={`${keyPrefix}-text-${nodes.length}`}
-        className="font-montserrat text-primary-blue text-[16px] md:text-[18px] leading-[170%] space-y-[16px]"
+        className="font-plus-jakarta text-primary-blue text-[16px] md:text-[18px] leading-[170%] space-y-[16px]"
       >
         {textBuffer.map((t, i) => (
           <p key={i} className="whitespace-pre-line">
@@ -153,7 +153,7 @@ const StoryBody = ({
             )}
 
             {showTitle && (
-              <h2 className="font-ivy font-semibold text-primary-blue text-[24px] md:text-[28px] leading-[120%] break-words mb-[16px]">
+              <h2 className="font-lora font-semibold text-primary-blue text-[24px] md:text-[28px] leading-[120%] break-words mb-[16px]">
                 {story.title}
               </h2>
             )}

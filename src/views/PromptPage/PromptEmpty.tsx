@@ -35,7 +35,7 @@ const PromptEmpty = ({ prompt, publicCode, platform }: Props) => {
             {/* Author line above the image */}
             {authorFirstName && (
               <div className="px-[6px] pt-[4px] pb-[10px]">
-                <div className="font-montserrat text-primary-blue text-[12px] md:text-[13px] leading-none truncate opacity-70">
+                <div className="font-plus-jakarta text-primary-blue text-[12px] md:text-[13px] leading-none truncate opacity-70">
                   <span className="font-semibold opacity-100">{authorFirstName}</span> asked
                 </div>
               </div>
@@ -85,7 +85,7 @@ const PromptEmpty = ({ prompt, publicCode, platform }: Props) => {
             {/* Question */}
             {headline && (
               <div className="px-[12px] pt-[22px] pb-[14px] text-center">
-                <h1 className="font-montserrat text-primary-blue text-[16px] md:text-[17px] leading-[145%] break-words">
+                <h1 className="font-plus-jakarta text-primary-blue text-[16px] md:text-[17px] leading-[145%] break-words">
                   {headline}
                 </h1>
               </div>

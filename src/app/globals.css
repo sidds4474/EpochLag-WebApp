@@ -87,6 +87,8 @@
   --font-montserrat: "Montserrat", sans-serif;
   --font-myriadpro: "Myriadpro Regular", sans-serif;
   --font-ivy: "Ivy Journal", serif;
+  --font-lora: var(--font-lora);
+  --font-plus-jakarta: var(--font-plus-jakarta);
 
   --color-primary-blue: #092e4a;
   --color-primary-white: #ffffff;
@@ -221,4 +223,11 @@
 .gm-style :focus,
 .gm-style :focus-visible {
   outline: none !important;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

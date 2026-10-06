@@ -20,7 +20,7 @@ const StoryMetadata = ({ dateOfStory, location, music }: StoryMetadataProps) => 
   if (!dateLabel && !locationLabel && !musicLabel) return null;
 
   return (
-    <div className="mt-[20px] flex flex-wrap gap-x-[16px] gap-y-[8px] font-montserrat text-primary-blue text-[13px] md:text-[14px] opacity-80">
+    <div className="mt-[20px] flex flex-wrap gap-x-[16px] gap-y-[8px] font-plus-jakarta text-primary-blue text-[13px] md:text-[14px] opacity-80">
       {dateLabel && <span>{dateLabel}</span>}
       {locationLabel && <span>· {locationLabel}</span>}
       {musicLabel && <span>· ♫ {musicLabel}</span>}

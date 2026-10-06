@@ -3,14 +3,19 @@ import { notFound } from "next/navigation";
 import StoryPage from "../../../views/StoryPage/StoryPage";
 import StoryError from "../../../views/StoryPage/StoryError";
 import PromptEmpty from "../../../views/PromptPage/PromptEmpty";
+import PromptLanding from "../../../views/PromptPage/PromptLanding";
 import { fetchPublicPrompt, PROMPT_FETCH_STATUS } from "../../../lib/promptApi";
 import { toOgImage } from "../../../lib/cloudinary";
 import { detectPlatform } from "../../../lib/platform";
 import { excerpt } from "../../../lib/formatters";
+import { parseReplyAs } from "../../../lib/replies/routes";
 
 const SITE_URL = "https://www.epochlag.com";
 
-type RouteParams = { params: Promise<{ publicCode: string }> };
+type RouteParams = {
+  params: Promise<{ publicCode: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
 
 export async function generateMetadata({ params }: RouteParams) {
   const { publicCode } = await params;
@@ -59,7 +64,7 @@ export async function generateMetadata({ params }: RouteParams) {
   };
 }
 
-export default async function Page({ params }: RouteParams) {
+export default async function Page({ params, searchParams }: RouteParams) {
   const { publicCode } = await params;
   const result = await fetchPublicPrompt(publicCode);
 
@@ -74,6 +79,8 @@ export default async function Page({ params }: RouteParams) {
   const platform = detectPlatform(headersList.get("user-agent") || "");
 
   const { hasStory, prompt } = result.data;
+  const sp = searchParams ? await searchParams : {};
+  const replyAs = parseReplyAs(sp);
 
   if (hasStory) {
     return (
@@ -86,10 +93,11 @@ export default async function Page({ params }: RouteParams) {
   }
 
   return (
-    <PromptEmpty
+    <PromptLanding
       prompt={prompt || {}}
       publicCode={publicCode}
       platform={platform}
+      replyAs={replyAs}
     />
   );
 }

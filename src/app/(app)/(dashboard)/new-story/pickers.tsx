@@ -155,7 +155,7 @@ function toIsoDate(y: number, m: number, d: number): string {
   return `${y}-${mm}-${dd}`;
 }
 
-function DateModal({
+export function DateModal({
   initial,
   onClose,
   onSubmit,
@@ -317,7 +317,7 @@ export function LocationChip({
   );
 }
 
-function LocationModal({
+export function LocationModal({
   onClose,
   onSubmit,
 }: {
@@ -538,7 +538,7 @@ export function MusicChip({
   );
 }
 
-function MusicPickerModal({
+export function MusicPickerModal({
   onClose,
   onSelect,
 }: {
@@ -562,27 +562,29 @@ function MusicPickerModal({
     let cancelled = false;
     setLoading(true);
     setError(null);
+
+    // Apple redirects browser-origin requests to iTunes to the `musics://`
+    // scheme (opens the native Music app), blocking fetch/XHR/JSONP alike.
+    // We proxy through our own Next.js API route (`/api/music/search`) —
+    // same origin, no CORS, server-side fetch dodges Apple's redirect.
     const handle = window.setTimeout(async () => {
       try {
         const res = await fetch(
-          `https://itunes.apple.com/search?term=${encodeURIComponent(
-            q
-          )}&media=music&entity=song&limit=15&country=us`
+          `/api/music/search?term=${encodeURIComponent(q)}&limit=15&country=us`
         );
-        if (!res.ok) throw new Error(`iTunes returned ${res.status}`);
-        const data = (await res.json()) as { results: ItunesResult[] };
+        if (!res.ok) throw new Error(`proxy returned ${res.status}`);
+        const data = (await res.json()) as { results?: ItunesResult[] };
         if (cancelled) return;
         setResults(data.results ?? []);
       } catch (err) {
         if (cancelled) return;
-        setError(
-          err instanceof Error ? err.message : "Music search failed"
-        );
+        setError(err instanceof Error ? err.message : "Music search failed");
         setResults([]);
       } finally {
         if (!cancelled) setLoading(false);
       }
     }, 300);
+
     return () => {
       cancelled = true;
       window.clearTimeout(handle);

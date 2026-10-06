@@ -66,12 +66,25 @@ export async function apiGetAnonDraft(
 
 // ---- PUT /api/onboarding/anon/draft — save-on-pick ----
 
+export type AnonDraftMusic = {
+  trackName: string;
+  artistName: string;
+  previewUrl: string;
+  artworkUrl: string;
+};
+
+export type AnonDraftCover = {
+  imageUrl?: string | null;
+};
+
 export type SaveAnonDraftPayload = {
   title?: string;
   content?: string;
   screensReached?: number;
   dateOfStory?: string | null;
   location?: LagLocation | null;
+  music?: AnonDraftMusic | null;
+  cover?: AnonDraftCover | null;
   exifResolved?: boolean;
   taggedPeople?: Array<{ name: string; relationshipSlug: string }>;
 };

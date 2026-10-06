@@ -11,16 +11,18 @@ const API_BASE =
 
 export class ApiError extends Error {
   status: number;
+  code?: string;
   data: unknown;
   // Tagged by the paywall pass in request() when the server returns 403 with
   // an upgrade-shaped message. Callers (e.g. the free-trial handler) swallow
   // these silently so we don't stack a generic error toast on top of the
   // BE's upgrade message. Actual paywall UI wiring lands with web billing.
   isPaywallRedirect?: boolean;
-  constructor(message: string, status: number, data: unknown) {
+  constructor(message: string, status: number, data: unknown, code?: string) {
     super(message);
     this.status = status;
     this.data = data;
+    this.code = code;
   }
 }
 
@@ -36,13 +38,17 @@ type RequestOptions = {
   body?: unknown;
   headers?: Record<string, string>;
   auth?: boolean;
+  // When true, a 401 response throws ApiError without clearing stored auth or
+  // firing onUnauthorized. Needed for endpoints like reply-submit where 401
+  // means VERIFY_REQUIRED, not session expiry.
+  skipAutoSignout?: boolean;
 };
 
 async function request<T = unknown>(
   path: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { method = "GET", body, headers: extraHeaders = {}, auth = true } = options;
+  const { method = "GET", body, headers: extraHeaders = {}, auth = true, skipAutoSignout = false } = options;
 
   const headers: Record<string, string> = { ...extraHeaders };
   let payload: BodyInit | undefined;
@@ -84,13 +90,21 @@ async function request<T = unknown>(
     }
   }
 
+  const responseCode =
+    data && typeof data === "object" && "code" in data && typeof (data as { code: unknown }).code === "string"
+      ? (data as { code: string }).code
+      : undefined;
+
   // 401 on an authed request => session expired: sign the user out. 401 on
   // an unauthenticated request (login probe, phone-verify, etc.) is a normal
   // auth failure — surface it as an ApiError so the caller can react.
+  // skipAutoSignout: caller owns the 401 (e.g. reply-submit VERIFY_REQUIRED).
   if (res.status === 401 && auth) {
-    clearStoredAuth();
-    onUnauthorized?.();
-    throw new ApiError("Session expired. Please sign in again.", 401, data);
+    if (!skipAutoSignout) {
+      clearStoredAuth();
+      onUnauthorized?.();
+    }
+    throw new ApiError("Session expired. Please sign in again.", 401, data, responseCode);
   }
 
   if (!res.ok) {
@@ -98,7 +112,7 @@ async function request<T = unknown>(
       (data && typeof data === "object" && "message" in data && typeof (data as { message: unknown }).message === "string"
         ? (data as { message: string }).message
         : null) || `Request failed with status ${res.status}`;
-    const err = new ApiError(message, res.status, data);
+    const err = new ApiError(message, res.status, data, responseCode);
     if (res.status === 403 && /subscribe|upgrade|paywall|unlimited/i.test(message)) {
       err.isPaywallRedirect = true;
     }

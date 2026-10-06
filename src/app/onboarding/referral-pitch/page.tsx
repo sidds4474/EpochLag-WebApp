@@ -15,6 +15,15 @@ const SUBTITLE =
 
 export default function ReferralPitchPage() {
   const router = useRouter();
+  // MONETIZATION OFF: referral pitch is hidden; auto-redirect to the
+  // onboarding completion screen (where "Maybe later" used to land).
+  // Original body preserved below under `return null;` so uncommenting
+  // restores the UI.
+  useEffect(() => {
+    router.replace("/onboarding/complete");
+  }, [router]);
+  return null;
+  // eslint-disable-next-line no-unreachable
   const [code, setCode] = useState<string>("");
   const [sharing, setSharing] = useState(false);
   const [copied, setCopied] = useState(false);

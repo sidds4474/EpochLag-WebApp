@@ -95,12 +95,19 @@ const profileSlice = createSlice({
       if ("onboardingCompletedAt" in extended) {
         state.onboardingCompletedAt = extended.onboardingCompletedAt ?? null;
       }
-      if (extended.subscriptionPlan) state.subscriptionPlan = extended.subscriptionPlan;
-      if (typeof extended.hasUsedTrial === "boolean") {
-        state.hasUsedTrial = extended.hasUsedTrial;
-      }
-      if ("trialStartedAt" in extended) state.trialStartedAt = extended.trialStartedAt ?? null;
-      if ("trialEndsAt" in extended) state.trialEndsAt = extended.trialEndsAt ?? null;
+      // MONETIZATION OFF (also fixes the reconciler race): `/api/subscription`
+      // via `setSubscription` is the single source of truth for plan +
+      // hasUsedTrial + trial dates. Letting the /me envelope write these
+      // fields re-introduces the mobile bug — a stale cached user payload
+      // overwriting a freshly reconciled plan: "unlimited" back to "free"
+      // between applyAuth(cached) and applyAuth(fresh) renders. Preserve
+      // the original writes below for restoration if monetization returns.
+      // if (extended.subscriptionPlan) state.subscriptionPlan = extended.subscriptionPlan;
+      // if (typeof extended.hasUsedTrial === "boolean") {
+      //   state.hasUsedTrial = extended.hasUsedTrial;
+      // }
+      // if ("trialStartedAt" in extended) state.trialStartedAt = extended.trialStartedAt ?? null;
+      // if ("trialEndsAt" in extended) state.trialEndsAt = extended.trialEndsAt ?? null;
       state.raw = u;
     },
     updateProfileFields: (state, action: PayloadAction<Partial<ProfileState>>) => {

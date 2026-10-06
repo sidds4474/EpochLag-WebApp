@@ -201,7 +201,8 @@ export async function socialFinalize(
     phoneVerifyToken: payload.phoneVerifyToken,
   };
   if (payload.anonId) body.anonId = payload.anonId;
-  if (payload.referralCode) body.referralCode = payload.referralCode;
+  // MONETIZATION OFF: referralCode no longer forwarded on social-finalize.
+  // if (payload.referralCode) body.referralCode = payload.referralCode;
   if (payload.familyInviteToken && payload.familyInviteToken.trim()) {
     body.familyInviteToken = payload.familyInviteToken.trim();
   }
@@ -232,26 +233,27 @@ type ReferralResolveEnvelope = {
 export async function resolveReferralCode(
   code: string
 ): Promise<ReferralResolveResult> {
-  // Do NOT uppercase — legacy codes are case-sensitive per the referral
-  // implementation doc §3b. Server normalizes new-format codes itself.
+  // MONETIZATION OFF: BE returns { valid: false, code: "REFERRALS_DISABLED" }
+  // when the flag is off; short-circuit to that shape so we avoid pointless
+  // network traffic. Original body preserved below as a block comment —
+  // narrowing-dependent branches don't typecheck cleanly as unreachable code.
+  void code;
+  return { valid: false, code: "REFERRALS_DISABLED" };
+  /*
   const clean = code.trim();
   try {
     const res = await api.get<ReferralResolveEnvelope>(
       `/api/referral/resolve/${encodeURIComponent(clean)}`,
       { auth: false }
     );
-    // Envelope may be `{ data: {...}, message, valid }` or flat.
     const inner = res.data || (res as ReferralResolveResult);
     return {
       ...inner,
-      // Doc §3a: message is present on both branches — prefer top-level.
       message: (res as ReferralResolveEnvelope).message ?? inner.message,
       valid:
         (res as ReferralResolveEnvelope).valid ?? inner.valid ?? Boolean(inner.code),
     };
   } catch (e) {
-    // Doc §3a: 404 = invalid; switch on `valid`, not HTTP status. Any
-    // non-2xx with a body containing `valid` is treated as an invalid.
     if (e instanceof ApiError) {
       const body = (e.data ?? {}) as { message?: string; valid?: boolean };
       if (body.valid === false || e.status === 404 || e.status === 400) {
@@ -260,10 +262,13 @@ export async function resolveReferralCode(
     }
     throw e;
   }
+  */
 }
 
 export async function redeemReferralCode(code: string): Promise<void> {
-  await api.post<GenericEnvelope>("/api/referral/redeem", { code });
+  // MONETIZATION OFF: redemption no-ops server-side; skip the network call.
+  // Original: await api.post<GenericEnvelope>("/api/referral/redeem", { code });
+  void code;
 }
 
 export async function fetchMe(): Promise<User> {

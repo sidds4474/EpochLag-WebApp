@@ -47,6 +47,15 @@ const SUBTITLE = "No credit card. Just keep telling stories.";
 
 export default function FreeTrialOnboardingPage() {
   const router = useRouter();
+  // MONETIZATION OFF: trial-start screen is hidden; auto-redirect to the
+  // next real Phase C step (AddRelationship) so bookmarks + the RequireAuth
+  // trial-gate fallback both land somewhere coherent. Original body
+  // preserved below under `return null;` so uncommenting restores the UI.
+  useEffect(() => {
+    router.replace("/onboarding/add-relationship");
+  }, [router]);
+  return null;
+  // eslint-disable-next-line no-unreachable
   const dispatch = useAppDispatch();
   const [starting, setStarting] = useState(false);
   // Ref-guard because setStarting is async — a fast double-tap on Continue

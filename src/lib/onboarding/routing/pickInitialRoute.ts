@@ -40,7 +40,11 @@ export function pickInitialRoute(
   //    finished onboarding.
   if (s.isAuthenticated) {
     if (s.onboardingCompletedAt) return "AppDrawer";
-    if (s.hasUsedTrial === true) return "ReferralPitch";
+    // MONETIZATION OFF: ReferralPitch route is hidden (auto-redirects to
+    // /onboarding/complete). Skip the pitch — mid-flow authed users with
+    // hasUsedTrial=true fall through to AddRelationship so they land on
+    // the next real Phase C step.
+    // if (s.hasUsedTrial === true) return "ReferralPitch";
     return "AddRelationship";
   }
 

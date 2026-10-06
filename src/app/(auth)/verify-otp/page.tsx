@@ -125,14 +125,15 @@ function VerifyOtpContent() {
         applyAuth(token, user);
         await postLoginSync({ profile: user });
         trackOnboarding("otp_verified", { mode });
+        // MONETIZATION OFF: referral redemption disabled on email signup.
         // v4 email path: redeem referral silently, then go to AddRelationship.
-        const storedRef = getStoredReferralCode();
-        if (storedRef) {
-          try {
-            await redeemReferralCode(storedRef);
-          } catch {}
-          clearStoredReferralCode();
-        }
+        // const storedRef = getStoredReferralCode();
+        // if (storedRef) {
+        //   try {
+        //     await redeemReferralCode(storedRef);
+        //   } catch {}
+        //   clearStoredReferralCode();
+        // }
         router.replace("/onboarding/add-relationship");
         return;
       }
@@ -179,12 +180,14 @@ function VerifyOtpContent() {
         }
         if (res.kind === "new") {
           const anonId = peekAnonId() || undefined;
+          // MONETIZATION OFF: referral code no longer resolved or forwarded
+          // to the social-finalize payload.
           // Prefer URL-carried referral (manual entry on CreateAccount);
           // fall back to a deep-link stored code.
-          const referralCode =
-            searchParams?.get("referralCode") ||
-            getStoredReferralCode() ||
-            undefined;
+          // const referralCode =
+          //   searchParams?.get("referralCode") ||
+          //   getStoredReferralCode() ||
+          //   undefined;
           const familyInviteToken = peekFamilyInviteToken();
           const finalizedUser = await socialFinalize({
             countryCode,
@@ -192,7 +195,8 @@ function VerifyOtpContent() {
             dateOfBirth,
             phoneVerifyToken: res.phoneVerifyToken,
             anonId,
-            referralCode,
+            // MONETIZATION OFF: referralCode omitted.
+            // referralCode,
             familyInviteToken,
           });
           // Already authed from earlier Google callback — refresh cached user
@@ -215,7 +219,8 @@ function VerifyOtpContent() {
               );
             } catch {}
           }
-          if (referralCode) clearStoredReferralCode();
+          // MONETIZATION OFF: no referralCode in scope; nothing to clear.
+          // if (referralCode) clearStoredReferralCode();
           if (socialMergeResult) {
             const params = new URLSearchParams({ postSignup: "1" });
             if (socialMergeResult.threadId)

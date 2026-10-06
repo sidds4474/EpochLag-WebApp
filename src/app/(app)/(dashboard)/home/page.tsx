@@ -19,7 +19,8 @@ import RemindersRow from "./RemindersRow";
 import RecentStoriesRow from "./RecentStoriesRow";
 import ResourcesRow from "./ResourcesRow";
 import OnThisDayCard from "./OnThisDayCard";
-import { prefetchReferralCode } from "../../../../lib/referral/api";
+// MONETIZATION OFF: referral prefetch removed with the invite tile.
+// import { prefetchReferralCode } from "../../../../lib/referral/api";
 
 // Module-level cache. Two invariants come from the mobile port:
 //   * dayKey is the LOCAL YYYY-MM-DD stamp — card-of-the-day is date-scoped,
@@ -98,12 +99,14 @@ export default function HomePage() {
       } as UserCard)
     : null;
 
+  // MONETIZATION OFF: referral prefetch is a no-op now that /invite redirects
+  // to /home — the warm-cache mint only exists to accelerate that surface.
   // Warm the referral-code cache in the background so tapping the
   // "Give a month, get a month" tile renders the invite link on first
   // paint instead of waiting on the mint round-trip.
-  useEffect(() => {
-    prefetchReferralCode();
-  }, []);
+  // useEffect(() => {
+  //   prefetchReferralCode();
+  // }, []);
 
   useEffect(() => {
     const key = todayKey();

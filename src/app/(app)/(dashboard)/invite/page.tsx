@@ -64,6 +64,14 @@ function resolveCopy(
 
 function InvitePageInner() {
   const router = useRouter();
+  // MONETIZATION OFF: invite / "give a month, get a month" surface is hidden;
+  // auto-redirect any bookmarks / deep links to /home. Original body preserved
+  // below under `return null;` so uncommenting restores the UI.
+  useEffect(() => {
+    router.replace("/home");
+  }, [router]);
+  return null;
+  // eslint-disable-next-line no-unreachable
   const params = useSearchParams();
   const { user } = useAuth();
   const variant: Variant =

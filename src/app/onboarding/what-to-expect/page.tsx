@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
 import { trackOnboarding } from "../../../lib/analytics/track";
@@ -38,6 +39,14 @@ function useRows(): Row[] {
 
 export default function WhatToExpectPage() {
   const router = useRouter();
+  // MONETIZATION OFF: trial-terms screen is hidden; auto-redirect to the
+  // next real Phase C step (AddRelationship). Original body preserved
+  // below under `return null;` so uncommenting restores the UI.
+  useEffect(() => {
+    router.replace("/onboarding/add-relationship");
+  }, [router]);
+  return null;
+  // eslint-disable-next-line no-unreachable
   const rows = useRows();
 
   const goNext = () => {

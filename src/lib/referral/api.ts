@@ -20,6 +20,14 @@ let inflightReferralMint: Promise<string> | null = null;
 export async function mintReferralCode(
   entryPoint = "docking_station"
 ): Promise<string> {
+  // MONETIZATION OFF: BE no-ops /api/referral/code; return an empty string
+  // so no caller tries to use a code (all referral surfaces are hidden
+  // anyway). Original body preserved below as a block comment — the
+  // `return cachedReferralCode` branch doesn't narrow `string | null` to
+  // `string` when it sits in unreachable code.
+  void entryPoint;
+  return "";
+  /*
   if (cachedReferralCode) return cachedReferralCode;
   if (inflightReferralMint) return inflightReferralMint;
   inflightReferralMint = (async () => {
@@ -36,6 +44,7 @@ export async function mintReferralCode(
     }
   })();
   return inflightReferralMint;
+  */
 }
 
 // Read-only accessor for warm-cache checks (skip loading UI if we already
@@ -89,6 +98,11 @@ export function buildReferralInviteMessage(
   code: string,
   note?: string
 ): string {
+  // MONETIZATION OFF: reward wording removed; invite still works as a plain
+  // "join me on Epoch Lag" message. `code` kept in the signature (unused for
+  // now) so uncommenting the original line below restores reward attribution
+  // without touching call sites.
+  void code;
   const trimmedNote = (note ?? "").trim();
   const base = `Hey! I've been using Epoch Lag to save memories with the people who matter. Thought you'd like it too - join me.
 
@@ -96,7 +110,8 @@ Download our Play Store app from here: https://play.google.com/store/apps/detail
 
 Download our App Store app from here: https://apps.apple.com/us/app/epoch-lag/id6745345209
 
-Use code "${code}" and we both get 30 days free.
 Excited to storytell with you soon!`;
+  // Original reward line, preserved for restoration:
+  //   Use code "${code}" and we both get 30 days free.
   return trimmedNote ? `${base}\n\n${trimmedNote}` : base;
 }

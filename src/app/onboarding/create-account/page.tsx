@@ -160,16 +160,19 @@ function CreateAccountContent() {
         trackOnboarding("phone_signup_completed");
         clearFamilyInviteToken();
 
+        // MONETIZATION OFF: referral redemption disabled — BE no-ops the
+        // endpoint but no reason to send pointless traffic. Original block
+        // preserved below for restoration.
         // Redeem referral silently. Prefer the in-form value the user
         // just validated; fall back to a deep-link stored code.
-        const refToRedeem =
-          referralInput.trim() || getStoredReferralCode() || "";
-        if (refToRedeem) {
-          try {
-            await redeemReferralCode(refToRedeem);
-          } catch {}
-          clearStoredReferralCode();
-        }
+        // const refToRedeem =
+        //   referralInput.trim() || getStoredReferralCode() || "";
+        // if (refToRedeem) {
+        //   try {
+        //     await redeemReferralCode(refToRedeem);
+        //   } catch {}
+        //   clearStoredReferralCode();
+        // }
 
         // Fire merge inline. runAnonMergeSync returns null on failure (not
         // throw), so check the return value and queue for the deferred
@@ -208,10 +211,11 @@ function CreateAccountContent() {
         countryCode: cc,
         dateOfBirth: dob,
       });
+      // MONETIZATION OFF: referral carry-through disabled.
       // Carry the manually-entered referral through to social-finalize
       // (verify-otp) via URL — we no longer persist to localStorage.
-      const manualRef = referralInput.trim();
-      if (manualRef) params.set("referralCode", manualRef);
+      // const manualRef = referralInput.trim();
+      // if (manualRef) params.set("referralCode", manualRef);
       router.push(`/verify-otp?${params.toString()}`);
     } catch (err) {
       const msg =
@@ -337,7 +341,9 @@ function CreateAccountContent() {
         </div>
       )}
 
-      <div className="mt-[20px]">{referralCard}</div>
+      {/* MONETIZATION OFF: referral code input hidden; card component kept
+          intact above so uncommenting this line restores the surface. */}
+      {/* <div className="mt-[20px]">{referralCard}</div> */}
 
       <p className="mt-[16px] font-montserrat text-[12px] text-primary-blue/80 text-center leading-[160%]">
         By selecting <strong>agree and continue</strong> I agree to Epoch Lag&apos;s{" "}

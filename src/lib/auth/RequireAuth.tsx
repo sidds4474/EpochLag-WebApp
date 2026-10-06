@@ -24,22 +24,28 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
     if (status === "unauthenticated") router.replace("/onboarding/welcome");
   }, [status, router]);
 
-  useEffect(() => {
-    if (status !== "authenticated" || !subscriptionReconciledAt) return;
-    if (
-      hasUsedTrial === false &&
-      subscriptionPlan !== "free_trial" &&
-      subscriptionPlan !== "unlimited"
-    ) {
-      router.replace("/onboarding/free-trial");
-    }
-  }, [
-    status,
-    subscriptionReconciledAt,
-    hasUsedTrial,
-    subscriptionPlan,
-    router,
-  ]);
+  // MONETIZATION OFF: trial gate disabled. Every authenticated user is
+  // treated as having access regardless of plan or hasUsedTrial. Original
+  // effect preserved below for restoration.
+  // useEffect(() => {
+  //   if (status !== "authenticated" || !subscriptionReconciledAt) return;
+  //   if (
+  //     hasUsedTrial === false &&
+  //     subscriptionPlan !== "free_trial" &&
+  //     subscriptionPlan !== "unlimited"
+  //   ) {
+  //     router.replace("/onboarding/free-trial");
+  //   }
+  // }, [
+  //   status,
+  //   subscriptionReconciledAt,
+  //   hasUsedTrial,
+  //   subscriptionPlan,
+  //   router,
+  // ]);
+  void subscriptionPlan;
+  void hasUsedTrial;
+  void subscriptionReconciledAt;
 
   if (status !== "authenticated") {
     return (

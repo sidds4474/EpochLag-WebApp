@@ -1,12 +1,19 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import SuccessCelebration from "../../../../../components/SuccessCelebration";
 
 function InviteCompleteInner() {
   const router = useRouter();
-
+  // MONETIZATION OFF: challenge-completed celebration is hidden; auto-redirect
+  // any deep links to /home. Original body preserved below under `return null;`
+  // so uncommenting restores the UI.
+  useEffect(() => {
+    router.replace("/home");
+  }, [router]);
+  return null;
+  // eslint-disable-next-line no-unreachable
   return (
     <div className="flex flex-col h-full min-h-0 bg-primary-cream/40 lg:bg-transparent px-[16px] md:px-[32px] pt-[16px] pb-[24px] md:pb-[40px] overflow-y-auto scrollbar-hide">
       <div className="flex items-center gap-[12px]">

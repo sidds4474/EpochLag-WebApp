@@ -31,25 +31,39 @@ export function resolveDockingAction(item: DockingItem): DockingActionRoute {
 
   const cardId = item._id;
   const message = item.message;
+  // MONETIZATION OFF: `message` is only consumed by the hidden invite branches.
+  // Keep the binding so uncommenting restores the original shape; suppress
+  // the unused-local warning in the meantime.
+  void message;
 
   switch (kind) {
+    // MONETIZATION OFF: referral/invite tile branches route to the hidden
+    // /invite page; collapse them to fallback so docking-station tiles no
+    // longer open any monetization UI even if BE still ships these kinds.
+    // Original branches preserved below for restoration.
     case "give-a-month-get-a-month":
     case "give-a-month-get-month":
-      return { kind: "invite", variant: "reward", cardId, message };
     case "connect-with-3-friends":
     case "challenge_flow":
-      return { kind: "invite", variant: "challenge", cardId, message };
-    case "referral_flow": {
-      // BE can override the default reward variant per tile via
-      // action.variant. Unknown values fall back to reward.
-      const variantOverride =
-        typeof (action as Record<string, unknown>).variant === "string"
-          ? ((action as Record<string, unknown>).variant as string)
-          : "";
-      const variant: InviteVariant =
-        variantOverride === "challenge" ? "challenge" : "reward";
-      return { kind: "invite", variant, cardId, message };
-    }
+    case "referral_flow":
+      return { kind: "fallback" };
+    // case "give-a-month-get-a-month":
+    // case "give-a-month-get-month":
+    //   return { kind: "invite", variant: "reward", cardId, message };
+    // case "connect-with-3-friends":
+    // case "challenge_flow":
+    //   return { kind: "invite", variant: "challenge", cardId, message };
+    // case "referral_flow": {
+    //   // BE can override the default reward variant per tile via
+    //   // action.variant. Unknown values fall back to reward.
+    //   const variantOverride =
+    //     typeof (action as Record<string, unknown>).variant === "string"
+    //       ? ((action as Record<string, unknown>).variant as string)
+    //       : "";
+    //   const variant: InviteVariant =
+    //     variantOverride === "challenge" ? "challenge" : "reward";
+    //   return { kind: "invite", variant, cardId, message };
+    // }
     case "hows-life": {
       // The docking-station card is a wrapper — action.cardId points at the
       // underlying user-card prompt the user actually reads/answers. Without

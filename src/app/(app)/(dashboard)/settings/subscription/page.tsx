@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import PanelMobileHeader from "../PanelMobileHeader";
 import { fetchSubscription, type Subscription } from "../../../../../lib/subscription/api";
 
@@ -24,6 +25,18 @@ function planLabel(plan: string): string {
 }
 
 export default function SubscriptionPage() {
+  // MONETIZATION OFF: subscription page is hidden; auto-redirect any
+  // bookmarks / deep links to the Account page. Original body preserved
+  // below under `return null;` so uncommenting restores the UI.
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/settings/account");
+  }, [router]);
+  return null;
+  /* MONETIZATION OFF: original Subscription page body preserved below as a
+     block comment (unreachable code with narrowing-dependent branches
+     doesn't typecheck cleanly inside a function). Uncomment to restore.
+
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [sub, setSub] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
@@ -116,4 +129,5 @@ export default function SubscriptionPage() {
       )}
     </div>
   );
+  */
 }

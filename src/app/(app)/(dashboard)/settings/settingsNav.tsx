@@ -3,7 +3,8 @@ import {
   AccountIcon,
   BellOutlineIcon,
   ChatSupportIcon,
-  DollarCircleIcon,
+  // MONETIZATION OFF: DollarCircleIcon only used by the hidden Subscription row.
+  // DollarCircleIcon,
   InfoCircleIcon,
   LightbulbIcon,
   QuestionBadgeIcon,
@@ -20,7 +21,9 @@ export type SettingsNavItem = {
 
 export const SETTINGS_NAV: SettingsNavItem[] = [
   { href: "/settings/account", label: "Account", Icon: AccountIcon },
-  { href: "/settings/subscription", label: "Subscription", Icon: DollarCircleIcon },
+  // MONETIZATION OFF: Subscription row hidden; route itself auto-redirects
+  // to /settings/account, but hiding the entry removes the dead affordance.
+  // { href: "/settings/subscription", label: "Subscription", Icon: DollarCircleIcon },
   { href: "/settings/about", label: "About", Icon: InfoCircleIcon },
   { href: "/settings/privacy", label: "Privacy Policy", Icon: ShieldCheckIcon },
   { href: "/settings/terms", label: "Terms of Services", Icon: QuestionBadgeIcon },

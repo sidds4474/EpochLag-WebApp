@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
 import { trackOnboarding } from "../../../lib/analytics/track";
 import SuccessCelebration from "../../../components/SuccessCelebration";
+import { consumePendingReturnTo } from "../../../lib/auth/pendingReturnTo";
 
 type StartCard = {
   label: string;
@@ -35,7 +36,10 @@ export default function OnboardingCompletePage() {
 
   const goExplore = () => {
     trackOnboarding("onboarding_complete_explore");
-    router.replace("/home");
+    // Round-trip signup originators (e.g. public /story/<code>) back to their
+    // originating page. consume = one-shot read + remove.
+    const returnTo = consumePendingReturnTo();
+    router.replace(returnTo || "/home");
   };
 
   const goCard = (card: StartCard) => {

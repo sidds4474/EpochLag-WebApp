@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Script from "next/script";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
 import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
 import { CountryPicker } from "../../../components/auth/CountryPicker";
@@ -52,14 +52,48 @@ function decodeJwtPayload(jwt: string): {
   }
 }
 
+// Only accept same-origin relative paths — guards against open-redirect
+// attacks where a crafted `?returnTo=https://evil.com` could hijack the
+// post-login navigation.
+function safeReturnTo(raw: string | null): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
+
 export default function LoginPage() {
+  // Suspense wrapper: useSearchParams in a client component bails out of
+  // Next 15 static prerendering unless its subtree is wrapped in Suspense.
+  // Without this, `next build` throws "should be wrapped in a suspense
+  // boundary" and the production server returns 500 for /login.
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = safeReturnTo(searchParams?.get("returnTo") ?? null);
+  // Prefill hints — when the caller (e.g. public reply flow after a
+  // LOGIN_REQUIRED) already knows which identity the user will log in with,
+  // prefill the matching field + lock the authMode so no ambiguity.
+  const prefillEmail = searchParams?.get("prefillEmail") || null;
+  const prefillPhone = searchParams?.get("prefillPhone") || null;
+  const prefillCc = searchParams?.get("prefillCc") || null;
+  const hasEmailPrefill = !!prefillEmail;
+  const hasPhonePrefill = !!prefillPhone;
+
   const dispatch = useAppDispatch();
   const { status, applyAuth } = useAuth();
-  const [authMode, setAuthMode] = useState<AuthMode>("phone");
-  const [countryCode, setCountryCode] = useState("+1");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
+  const [authMode, setAuthMode] = useState<AuthMode>(
+    hasEmailPrefill ? "email" : "phone"
+  );
+  const [countryCode, setCountryCode] = useState(prefillCc || "+1");
+  const [phone, setPhone] = useState(prefillPhone || "");
+  const [email, setEmail] = useState(prefillEmail || "");
   const [emailStep, setEmailStep] = useState<EmailStep>("probe");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -73,8 +107,8 @@ export default function LoginPage() {
   const googleBtnDesktopRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (status === "authenticated") router.replace("/home");
-  }, [status, router]);
+    if (status === "authenticated") router.replace(returnTo || "/home");
+  }, [status, router, returnTo]);
 
   useEffect(() => {
     trackOnboarding("login_screen_viewed");
@@ -106,7 +140,7 @@ export default function LoginPage() {
         try {
           await dispatch(queueAnonMergeIfNeeded({ source: "LoginScreen/google" }));
         } catch {}
-        router.replace("/home");
+        router.replace(returnTo || "/home");
       } catch (err) {
         const msg =
           err instanceof ApiError ? err.message : "Google sign-in failed.";
@@ -192,6 +226,7 @@ export default function LoginPage() {
         phone: digits,
         countryCode: cc,
       });
+      if (returnTo) params.set("returnTo", returnTo);
       router.push(`/verify-otp?${params.toString()}`);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -254,7 +289,7 @@ export default function LoginPage() {
       try {
         await dispatch(queueAnonMergeIfNeeded({ source: "LoginScreen/email" }));
       } catch {}
-      router.replace("/home");
+      router.replace(returnTo || "/home");
     } catch (err) {
       if (err instanceof ApiError) {
         if (

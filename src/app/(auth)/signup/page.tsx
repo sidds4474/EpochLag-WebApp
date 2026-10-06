@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Script from "next/script";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
 import { CountryPicker } from "../../../components/auth/CountryPicker";
 import { ApiError } from "../../../lib/api/client";
@@ -16,6 +16,7 @@ import { postLoginSync } from "../../../lib/auth/postLoginSync";
 import { trackOnboarding } from "../../../lib/analytics/track";
 import { useAppDispatch } from "../../../lib/onboarding/store";
 import { queueAnonMergeIfNeeded } from "../../../lib/onboarding/merge/queueAnonMergeIfNeeded";
+import { setPendingReturnTo, clearPendingReturnTo } from "../../../lib/auth/pendingReturnTo";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 const TITLE_LINES = ["Create an account to", "save your Lag"];
@@ -47,8 +48,29 @@ function decodeJwtPayload(jwt: string): {
   }
 }
 
+// Only accept same-origin relative paths — guards against open-redirect attacks
+// where a crafted `?returnTo=https://evil.com` could hijack the post-signup
+// navigation.
+function safeReturnTo(raw: string | null): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
+
 export default function SignupPage() {
+  // Suspense wrapper: useSearchParams in a client component bails out of
+  // Next 15 static prerendering unless its subtree is wrapped in Suspense.
+  return (
+    <Suspense fallback={null}>
+      <SignupPageInner />
+    </Suspense>
+  );
+}
+
+function SignupPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = safeReturnTo(searchParams?.get("returnTo") ?? null);
   const dispatch = useAppDispatch();
   const { status, applyAuth } = useAuth();
   const [countryCode, setCountryCode] = useState("+1");
@@ -64,12 +86,22 @@ export default function SignupPage() {
   const googleBtnDesktopRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (status === "authenticated") router.replace("/home");
-  }, [status, router]);
+    if (status === "authenticated") router.replace(returnTo || "/home");
+  }, [status, router, returnTo]);
 
   useEffect(() => {
     trackOnboarding("signup_screen_viewed");
   }, []);
+
+  // Persist returnTo so the long new-user onboarding chain can consume it at
+  // its terminal redirect (/onboarding/complete) without URL plumbing through
+  // every intermediate screen. Also clear any stale entry when a signup starts
+  // without an explicit returnTo (otherwise a previous session's intent could
+  // bounce this user unexpectedly after onboarding).
+  useEffect(() => {
+    if (returnTo) setPendingReturnTo(returnTo);
+    else clearPendingReturnTo();
+  }, [returnTo]);
 
   const handleGoogleCredential = useCallback(
     async ({ credential }: GoogleCredentialResponse) => {
@@ -85,6 +117,13 @@ export default function SignupPage() {
         });
         if (newRegistration) {
           applyAuth(token, user);
+          // If signup was initiated with a returnTo, honor it — the user came
+          // from a specific context (e.g. public story) and expects to land back
+          // there. Full onboarding (DOB, etc.) can be nudged later.
+          if (returnTo) {
+            router.replace(returnTo);
+            return;
+          }
           // Match mobile: skip CreateAccount only if Google gave us DOB.
           // (Downstream lands at AddRelationship — routes to /home for now.)
           if (user.dateOfBirth) {
@@ -99,7 +138,7 @@ export default function SignupPage() {
         try {
           await dispatch(queueAnonMergeIfNeeded({ source: "SignupScreen/google" }));
         } catch {}
-        router.replace("/home");
+        router.replace(returnTo || "/home");
       } catch (err) {
         const msg =
           err instanceof ApiError ? err.message : "Google sign-in failed.";
@@ -108,7 +147,7 @@ export default function SignupPage() {
         setGoogleBusy(false);
       }
     },
-    [applyAuth, dispatch, router]
+    [applyAuth, dispatch, router, returnTo]
   );
 
   useEffect(() => {
@@ -172,6 +211,7 @@ export default function SignupPage() {
         phone: digits,
         countryCode: cc,
       });
+      if (returnTo) params.set("returnTo", returnTo);
       router.push(`/verify-otp?${params.toString()}`);
     } catch (err) {
       const msg =

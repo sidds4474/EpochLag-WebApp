@@ -28,10 +28,19 @@ import { trackOnboarding } from "../../../lib/analytics/track";
 import { useAppDispatch } from "../../../lib/onboarding/store";
 import { runAnonMergeSync } from "../../../lib/onboarding/merge/runAnonMergeSync";
 import { queueAnonMergeIfNeeded } from "../../../lib/onboarding/merge/queueAnonMergeIfNeeded";
+import { setPendingReturnTo } from "../../../lib/auth/pendingReturnTo";
 
 type Mode = "phone" | "email" | "social-finalize";
 
 const RESEND_SECONDS = 60;
+
+// Only accept same-origin relative paths — guards against open-redirect attacks
+// where a crafted `?returnTo=https://evil.com` could hijack post-verify navigation.
+function safeReturnTo(raw: string | null): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
 
 export default function VerifyOtpPage() {
   return (
@@ -52,6 +61,7 @@ function VerifyOtpContent() {
   const countryCode = searchParams?.get("countryCode") || "";
   const email = searchParams?.get("email") || "";
   const dateOfBirth = searchParams?.get("dateOfBirth") || "";
+  const returnTo = safeReturnTo(searchParams?.get("returnTo") ?? null);
 
   const otpLength = mode === "email" ? 5 : 6;
   const identifierLabel =
@@ -76,6 +86,11 @@ function VerifyOtpContent() {
     setPhoneTaken(false);
   }, [mode, phone, countryCode, email]);
 
+  // Persist returnTo so terminal onboarding redirects can honor it.
+  useEffect(() => {
+    if (returnTo) setPendingReturnTo(returnTo);
+  }, [returnTo]);
+
   const finishAsAuthedUser = useCallback(
     async (token: string, user: import("../../../types/user").User) => {
       applyAuth(token, user);
@@ -98,16 +113,17 @@ function VerifyOtpContent() {
             queueAnonMergeIfNeeded({ source: `VerifyOtp/${mode}` })
           );
         } catch {}
-        // No merged story to celebrate — go straight home.
-        router.replace("/home");
+        // No merged story to celebrate — honor returnTo or go home.
+        router.replace(returnTo || "/home");
         return;
       }
       const params = new URLSearchParams({ postSignup: "1" });
       if (mergeResult.threadId) params.set("storyThreadId", mergeResult.threadId);
       if (mergeResult.publicCode) params.set("publicCode", mergeResult.publicCode);
+      if (returnTo) params.set("returnTo", returnTo);
       router.replace(`/onboarding/share-lag?${params.toString()}`);
     },
-    [applyAuth, dispatch, mode, router]
+    [applyAuth, dispatch, mode, router, returnTo]
   );
 
   const submit = async (override?: string) => {
@@ -134,7 +150,7 @@ function VerifyOtpContent() {
         //   } catch {}
         //   clearStoredReferralCode();
         // }
-        router.replace("/onboarding/add-relationship");
+        router.replace(returnTo || "/onboarding/add-relationship");
         return;
       }
 
@@ -153,6 +169,7 @@ function VerifyOtpContent() {
             countryCode,
             phoneVerifyToken: res.phoneVerifyToken,
           });
+          if (returnTo) params.set("returnTo", returnTo);
           router.replace(`/onboarding/create-account?${params.toString()}`);
           return;
         }
@@ -227,9 +244,10 @@ function VerifyOtpContent() {
               params.set("storyThreadId", socialMergeResult.threadId);
             if (socialMergeResult.publicCode)
               params.set("publicCode", socialMergeResult.publicCode);
+            if (returnTo) params.set("returnTo", returnTo);
             router.replace(`/onboarding/share-lag?${params.toString()}`);
           } else {
-            router.replace("/onboarding/add-relationship");
+            router.replace(returnTo || "/onboarding/add-relationship");
           }
         }
       }

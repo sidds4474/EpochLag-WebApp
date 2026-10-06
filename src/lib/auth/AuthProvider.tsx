@@ -96,6 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     clearStoredAuth();
     dispatch(resetOnboardingAuth());
+    // Drop any pending signup round-trip target — a prior session's intent
+    // shouldn't carry into the next user's onboarding.
+    import("./pendingReturnTo").then((m) => m.clearPendingReturnTo()).catch(() => {});
     // Wipe subscription + profile state so the next signed-in user
     // doesn't inherit ghost plan / hasUsedTrial from the previous session.
     dispatch(resetProfile());

@@ -2,6 +2,23 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { ReplyShell } from '@/components/replies/ReplyShell';
 import {
   apiGetAnonUploadToken,
@@ -384,6 +401,31 @@ export function StepCompose({
       return prev.filter((b) => b.id !== id);
     });
 
+  // Pointer sensor needs a small activation distance so a drag on the handle
+  // doesn't swallow click/tap intents on nearby controls (textarea focus,
+  // close button). touch-none on the handle itself keeps mobile scroll from
+  // stealing the gesture.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    setBlocks((prev) => {
+      const fromIdx = prev.findIndex((b) => b.id === active.id);
+      const toIdx = prev.findIndex((b) => b.id === over.id);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      return arrayMove(prev, fromIdx, toIdx);
+    });
+  };
+
+  // Hide the handle when there's only one block (nothing to reorder with).
+  const singleBlock = blocks.length <= 1;
+
   const handleSubmit = useCallback(async () => {
     if (submitting) return;
     setSubmitting(true);
@@ -522,84 +564,28 @@ export function StepCompose({
         </div>
 
         {/* Content blocks */}
-        <div className="flex flex-col gap-3">
-          {blocks.map((block) => (
-            <div key={block.id} className="flex gap-2 items-start">
-              <div className="mt-3 text-primary-blue opacity-25 cursor-grab flex-shrink-0" aria-hidden="true">
-                <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor">
-                  <circle cx="9" cy="6" r="1.5" />
-                  <circle cx="15" cy="6" r="1.5" />
-                  <circle cx="9" cy="12" r="1.5" />
-                  <circle cx="15" cy="12" r="1.5" />
-                  <circle cx="9" cy="18" r="1.5" />
-                  <circle cx="15" cy="18" r="1.5" />
-                </svg>
-              </div>
-
-              <div className="flex-1">
-                {block.kind === 'audio' && (
-                  <ComposerAudioBlock
-                    blob={block.blob}
-                    durationSecs={block.durationSecs}
-                    uploading={block.uploading}
-                  />
-                )}
-
-                {block.kind === 'text' && (
-                  <textarea
-                    value={block.text}
-                    onChange={(e) => updateTextBlock(block.id, e.target.value)}
-                    placeholder="Write your story…"
-                    rows={3}
-                    className="w-full font-plus-jakarta text-[15px] text-primary-blue bg-primary-white rounded-[14px] px-4 py-3 outline-none resize-none focus:ring-2 focus:ring-primary-blue/20 shadow-[0_2px_8px_rgba(9,46,74,0.06)] placeholder:opacity-40"
-                    style={{ minHeight: 80 }}
-                    onInput={(e) => {
-                      const el = e.currentTarget;
-                      el.style.height = 'auto';
-                      el.style.height = `${el.scrollHeight}px`;
-                    }}
-                  />
-                )}
-
-                {(block.kind === 'image' || block.kind === 'video') && (
-                  <div className="relative rounded-[14px] overflow-hidden bg-primary-cream shadow-[0_2px_8px_rgba(9,46,74,0.06)]">
-                    {block.kind === 'image' ? (
-                      <img
-                        src={block.previewUrl}
-                        alt="Attached"
-                        className="w-full h-auto max-h-[320px] object-cover"
-                      />
-                    ) : (
-                      <video
-                        src={block.previewUrl}
-                        controls
-                        preload="metadata"
-                        className="w-full h-auto max-h-[320px] bg-black"
-                      />
-                    )}
-                    {block.uploading && (
-                      <div className="absolute top-2 right-2 bg-black/60 text-white font-plus-jakarta text-[11px] px-2 py-1 rounded-full">
-                        Uploading…
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => removeBlock(block.id)}
-                aria-label="Remove block"
-                className="mt-3 text-primary-blue opacity-25 hover:opacity-60 transition-opacity flex-shrink-0"
-              >
-                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={blocks.map((b) => b.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="flex flex-col gap-3">
+              {blocks.map((block) => (
+                <SortableBlockRow
+                  key={block.id}
+                  block={block}
+                  draggable={!singleBlock}
+                  onUpdateText={updateTextBlock}
+                  onRemove={removeBlock}
+                />
+              ))}
             </div>
-          ))}
-        </div>
-
+          </SortableContext>
+        </DndContext>
         {/* Add more media — pills match the StepRecord toolbar style */}
         <div className="mt-6 mb-3">
           <p className="font-plus-jakarta text-[14px] text-black mb-3">
@@ -758,6 +744,133 @@ export function StepCompose({
         />
       )}
     </ReplyShell>
+  );
+}
+
+// Sortable wrapper around a single composer block. The 6-dot handle on the
+// left is the only drag source; the textarea / media body stays interactive.
+// touch-none keeps mobile scroll from swallowing the pointer gesture.
+function SortableBlockRow({
+  block,
+  draggable,
+  onUpdateText,
+  onRemove,
+}: {
+  block: ContentBlock;
+  draggable: boolean;
+  onUpdateText: (id: string, text: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: block.id, disabled: !draggable });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    boxShadow: isDragging ? '0 12px 24px rgba(0,0,0,0.15)' : undefined,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex gap-2 items-start">
+      <button
+        type="button"
+        aria-label="Drag to reorder"
+        {...listeners}
+        {...attributes}
+        disabled={!draggable}
+        className={`mt-3 text-primary-blue flex-shrink-0 w-5 h-5 flex items-center justify-center touch-none ${
+          draggable
+            ? 'opacity-25 hover:opacity-60 cursor-grab active:cursor-grabbing'
+            : 'opacity-15 cursor-default'
+        }`}
+      >
+        <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="9" cy="6" r="1.5" />
+          <circle cx="15" cy="6" r="1.5" />
+          <circle cx="9" cy="12" r="1.5" />
+          <circle cx="15" cy="12" r="1.5" />
+          <circle cx="9" cy="18" r="1.5" />
+          <circle cx="15" cy="18" r="1.5" />
+        </svg>
+      </button>
+
+      <div className="flex-1">
+        {block.kind === 'audio' && (
+          <ComposerAudioBlock
+            blob={block.blob}
+            durationSecs={block.durationSecs}
+            uploading={block.uploading}
+          />
+        )}
+
+        {block.kind === 'text' && (
+          <textarea
+            value={block.text}
+            onChange={(e) => onUpdateText(block.id, e.target.value)}
+            placeholder="Write your story…"
+            rows={3}
+            className="w-full font-plus-jakarta text-[15px] text-primary-blue bg-primary-white rounded-[14px] px-4 py-3 outline-none resize-none focus:ring-2 focus:ring-primary-blue/20 shadow-[0_2px_8px_rgba(9,46,74,0.06)] placeholder:opacity-40"
+            style={{ minHeight: 80 }}
+            onInput={(e) => {
+              const el = e.currentTarget;
+              el.style.height = 'auto';
+              el.style.height = `${el.scrollHeight}px`;
+            }}
+          />
+        )}
+
+        {(block.kind === 'image' || block.kind === 'video') && (
+          <div className="relative rounded-[14px] overflow-hidden bg-primary-cream shadow-[0_2px_8px_rgba(9,46,74,0.06)]">
+            {block.kind === 'image' ? (
+              <img
+                src={block.previewUrl}
+                alt="Attached"
+                className="w-full h-auto max-h-[320px] object-cover"
+              />
+            ) : (
+              <video
+                src={block.previewUrl}
+                controls
+                preload="metadata"
+                className="w-full h-auto max-h-[320px] bg-black"
+              />
+            )}
+            {block.uploading && (
+              <div className="absolute top-2 right-2 bg-black/60 text-white font-plus-jakarta text-[11px] px-2 py-1 rounded-full">
+                Uploading…
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onRemove(block.id)}
+        aria-label="Remove block"
+        className="mt-3 text-primary-blue opacity-25 hover:opacity-60 transition-opacity flex-shrink-0"
+      >
+        <svg
+          width={18}
+          height={18}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+        >
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
   );
 }
 

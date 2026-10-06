@@ -6,14 +6,24 @@ import type { ContentBlock } from "../types/story";
 //   <video>URL</video>   inline body video
 //   <audio>URL</audio>   inline body audio
 //
+// Backend also emits <audioTranscribe idRef="aud_...">text</audioTranscribe>
+// as a sibling to the matching <audio> block. We don't render transcripts yet,
+// so strip the whole tag — otherwise it leaks as stray untagged text.
+//
 // Legacy stories may send plain text with no tags at all — treat that as one
 // text block. See the backend rendering brief for the full spec.
 
 export function parseContentToBlocks(content = ""): ContentBlock[] {
   if (!content) return [];
 
+  // Drop audioTranscribe blocks entirely (not rendered in v1).
+  const stripped = content.replace(
+    /<audioTranscribe\b[\s\S]*?<\/audioTranscribe\s*>/g,
+    ""
+  );
+
   // Strip optional attributes on tags: <video width="..." height="...">  →  <video>
-  const normalized = content.replace(
+  const normalized = stripped.replace(
     /<(image|video|audio|text)(\s[^>]*)>/g,
     "<$1>"
   );

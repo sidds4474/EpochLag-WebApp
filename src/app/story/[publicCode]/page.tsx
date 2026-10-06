@@ -1,17 +1,21 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import StoryPage from "../../../views/StoryPage/StoryPage";
+import StoryLanding from "../../../views/StoryPage/StoryLanding";
 import StoryError from "../../../views/StoryPage/StoryError";
 import { fetchPublicStory, STORY_FETCH_STATUS } from "../../../lib/storyApi";
 import { toOgImage } from "../../../lib/cloudinary";
 import { detectPlatform } from "../../../lib/platform";
 import { excerpt } from "../../../lib/formatters";
 import { parseContentToBlocks } from "../../../lib/parseStoryContent";
+import { parseReplyAs } from "../../../lib/replies/routes";
 import type { StoryMedia } from "../../../types/story";
 
 const SITE_URL = "https://www.epochlag.com";
 
-type RouteParams = { params: Promise<{ publicCode: string }> };
+type RouteParams = {
+  params: Promise<{ publicCode: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
 
 function extractTextForDescription(content: string | null | undefined) {
   if (!content) return "";
@@ -79,7 +83,7 @@ export async function generateMetadata({ params }: RouteParams) {
   };
 }
 
-export default async function Page({ params }: RouteParams) {
+export default async function Page({ params, searchParams }: RouteParams) {
   const { publicCode } = await params;
   const result = await fetchPublicStory(publicCode);
 
@@ -92,12 +96,15 @@ export default async function Page({ params }: RouteParams) {
 
   const headersList = await headers();
   const platform = detectPlatform(headersList.get("user-agent") || "");
+  const sp = searchParams ? await searchParams : {};
+  const replyAs = parseReplyAs(sp);
 
   return (
-    <StoryPage
+    <StoryLanding
       data={result.data}
       publicCode={publicCode}
       platform={platform}
+      replyAs={replyAs}
     />
   );
 }

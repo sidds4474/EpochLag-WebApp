@@ -49,7 +49,19 @@ const StoryPage = ({ data, publicCode, platform }: StoryPageProps) => {
           pageHeadline={headline}
           showAuthorPerStory={Boolean(
             prompt?.author &&
-              stories?.some((s) => s.author?._id !== prompt.author?._id)
+              stories?.some((s) => {
+                if (!s.author) return false;
+                // Prefer _id comparison when both sides have one. Fall back to
+                // firstName+lastName — the public story payload sometimes omits
+                // _id on author objects, which was silently hiding story
+                // attribution.
+                if (s.author._id && prompt.author?._id) {
+                  return s.author._id !== prompt.author._id;
+                }
+                const sName = `${s.author.firstName ?? ''} ${s.author.lastName ?? ''}`.trim().toLowerCase();
+                const pName = `${prompt.author?.firstName ?? ''} ${prompt.author?.lastName ?? ''}`.trim().toLowerCase();
+                return sName !== pName && sName.length > 0;
+              })
           )}
         />
       </article>

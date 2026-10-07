@@ -511,8 +511,15 @@ async function resolveRoute(n: Notification): Promise<string | null> {
     case "received_story":
     case "loved_story":
     case "commented_story": {
+      // BE isn't consistent about where the thread id lands — check every
+      // field a story notification can carry before giving up, otherwise the
+      // tap does nothing (QA: "clicking doesn't open the affiliated Lag").
       const threadId =
-        n.navigation?.threadId || n.profileDetails?.threadId || null;
+        n.navigation?.threadId ||
+        n.navigation?.storyId ||
+        n.profileDetails?.threadId ||
+        n.relatedId ||
+        null;
       if (threadId) return `/thread/${threadId}`;
       return null;
     }
@@ -529,9 +536,11 @@ async function resolveRoute(n: Notification): Promise<string | null> {
     }
     case "album_user_added":
     case "story_added_to_album": {
-      // Albums are disabled in the Lags redesign — notification stays
-      // rendered but doesn't route anywhere.
-      return null;
+      // Albums are live again (Lags → Albums tab), so these route to the
+      // album instead of dead-ending.
+      const albumId =
+        n.navigation?.albumId || n.profileDetails?.albumId || null;
+      return albumId ? `/lags/albums/${albumId}` : "/lags/albums";
     }
     case "moment_invite": {
       const momentId = extractMomentId(n);
@@ -559,7 +568,25 @@ async function resolveRoute(n: Notification): Promise<string | null> {
     case "docking_station_card":
       return "/home";
     default:
-      return null;
+      // Unknown/new notification type — the BE can ship types faster than the
+      // client knows them. Rather than dead-end the tap, route on whatever
+      // unambiguous navigation id the payload carries. Order matters: thread >
+      // album > group > prompt.
+      {
+        const nav = n.navigation;
+        const threadId =
+          nav?.threadId || nav?.storyId || n.profileDetails?.threadId;
+        if (threadId) return `/thread/${threadId}`;
+        const albumId = nav?.albumId || n.profileDetails?.albumId;
+        if (albumId) return `/lags/albums/${albumId}`;
+        const groupId = nav?.groupId || n.profileDetails?.groupId;
+        if (groupId) return `/groups/${groupId}`;
+        const promptId = nav?.promptDetails?.prompt?._id;
+        if (promptId) {
+          return `/new-story?promptId=${encodeURIComponent(promptId)}`;
+        }
+        return null;
+      }
   }
 }
 

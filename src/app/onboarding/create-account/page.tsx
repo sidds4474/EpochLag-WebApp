@@ -22,10 +22,6 @@ import {
   clearStoredReferralCode,
 } from "../../../lib/onboarding/storage/localStore";
 import { postLoginSync } from "../../../lib/auth/postLoginSync";
-import {
-  peekFamilyInviteToken,
-  clearFamilyInviteToken,
-} from "../../../lib/familyInvite/token";
 import { trackOnboarding } from "../../../lib/analytics/track";
 import { useAppDispatch } from "../../../lib/onboarding/store";
 import { runAnonMergeSync } from "../../../lib/onboarding/merge/runAnonMergeSync";
@@ -136,7 +132,6 @@ function CreateAccountContent() {
     try {
       if (mode === "phone") {
         const anonId = peekAnonId() || undefined;
-        const familyInviteToken = peekFamilyInviteToken();
         const { token, user: registered } = await registerUser({
           firstName: firstName.trim(),
           lastName: lastName.trim(),
@@ -146,7 +141,6 @@ function CreateAccountContent() {
           phone: digits,
           phoneVerifyToken,
           anonId,
-          familyInviteToken,
         });
         if (!token || !registered) {
           setError(
@@ -158,7 +152,6 @@ function CreateAccountContent() {
         applyAuth(token, registered);
         await postLoginSync({ profile: registered });
         trackOnboarding("phone_signup_completed");
-        clearFamilyInviteToken();
 
         // MONETIZATION OFF: referral redemption disabled — BE no-ops the
         // endpoint but no reason to send pointless traffic. Original block
@@ -248,13 +241,16 @@ function CreateAccountContent() {
           autoCorrect="off"
           spellCheck={false}
           placeholder="Enter Code"
-          className="flex-1 pl-[14px] py-[8px] font-montserrat text-[14px] text-primary-blue placeholder:text-primary-blue/40 outline-none bg-transparent"
+          // `min-w-0` lets the input shrink below its intrinsic width; without
+          // it the Validate button was pushed past the screen edge on 320px
+          // phones and the whole page scrolled sideways.
+          className="flex-1 min-w-0 w-full pl-[14px] py-[8px] font-montserrat text-[14px] text-primary-blue placeholder:text-primary-blue/40 outline-none bg-transparent"
         />
         <button
           type="button"
           onClick={validateReferral}
           disabled={referralBusy || !referralInput.trim()}
-          className="h-[36px] px-[18px] rounded-full bg-primary-orange text-primary-white font-montserrat font-semibold text-[13px] cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          className="shrink-0 h-[36px] px-[18px] rounded-full bg-primary-orange text-primary-white font-montserrat font-semibold text-[13px] cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Validate
         </button>

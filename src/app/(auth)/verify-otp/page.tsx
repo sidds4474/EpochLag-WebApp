@@ -20,15 +20,12 @@ import {
   clearStoredReferralCode,
 } from "../../../lib/onboarding/storage/localStore";
 import { postLoginSync } from "../../../lib/auth/postLoginSync";
-import {
-  peekFamilyInviteToken,
-  clearFamilyInviteToken,
-} from "../../../lib/familyInvite/token";
 import { trackOnboarding } from "../../../lib/analytics/track";
 import { useAppDispatch } from "../../../lib/onboarding/store";
 import { runAnonMergeSync } from "../../../lib/onboarding/merge/runAnonMergeSync";
 import { queueAnonMergeIfNeeded } from "../../../lib/onboarding/merge/queueAnonMergeIfNeeded";
 import { setPendingReturnTo } from "../../../lib/auth/pendingReturnTo";
+import { peekFamilyInviteToken } from "../../../lib/familyInvite/token";
 
 type Mode = "phone" | "email" | "social-finalize";
 
@@ -220,7 +217,6 @@ function VerifyOtpContent() {
           // so newly-attached phone/DOB show up in the profile.
           updateUser(finalizedUser);
           trackOnboarding("social_finalize_completed");
-          clearFamilyInviteToken();
           let socialMergeResult: Awaited<
             ReturnType<ReturnType<typeof runAnonMergeSync>>
           > = null;

@@ -59,7 +59,7 @@ export default function FriendsAndFamilyPage() {
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
-                className={`flex-1 cursor-pointer rounded-full h-[36px] font-montserrat font-semibold text-[13px] transition ${
+                className={`flex-1 cursor-pointer rounded-full h-[36px] font-plusjakarta font-medium text-[16px] transition ${
                   active
                     ? "bg-primary-orange text-white"
                     : "text-primary-blue"
@@ -95,7 +95,7 @@ export default function FriendsAndFamilyPage() {
                   key={t.id}
                   type="button"
                   onClick={() => setTab(t.id)}
-                  className={`cursor-pointer rounded-full h-[36px] px-[20px] font-montserrat font-semibold text-[14px] transition ${
+                  className={`cursor-pointer rounded-full h-[36px] px-[20px] font-plusjakarta font-medium text-[16px] transition ${
                     active
                       ? "bg-primary-blue text-white"
                       : "text-primary-blue"

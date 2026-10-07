@@ -23,6 +23,17 @@ type Props = {
 // reopens are instant.
 let cachedCovers: GradientCover[] | null = null;
 
+// Soft gradient fallbacks so a tile is never blank when its curated image is
+// slow or 429s (same reasoning as the story cover picker).
+const FALLBACK_GRADIENTS = [
+  "linear-gradient(135deg, #f2d0a4 0%, #d78a5a 55%, #6b3a2a 100%)",
+  "linear-gradient(135deg, #a8c5e0 0%, #6d8fb5 55%, #3a5877 100%)",
+  "linear-gradient(135deg, #f5b7a1 0%, #d97a5a 55%, #6b3a2a 100%)",
+  "linear-gradient(135deg, #d0dae5 0%, #8ca3b7 100%)",
+  "linear-gradient(135deg, #f5c9a1 0%, #d78a5a 100%)",
+  "linear-gradient(135deg, #cdd7c2 0%, #8fa37a 100%)",
+];
+
 export default function CoverPickerModal({ open, onClose }: Props) {
   const { updateUser } = useAuth();
   const [covers, setCovers] = useState<GradientCover[]>(cachedCovers ?? []);
@@ -177,6 +188,10 @@ export default function CoverPickerModal({ open, onClose }: Props) {
                     type="button"
                     disabled={uploading}
                     onClick={() => pickCurated(url)}
+                    style={{
+                      background:
+                        FALLBACK_GRADIENTS[i % FALLBACK_GRADIENTS.length],
+                    }}
                     className="relative cursor-pointer aspect-[16/9] rounded-[12px] overflow-hidden ring-1 ring-black/[0.06] hover:brightness-95 transition-[filter] disabled:opacity-60"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -185,6 +200,9 @@ export default function CoverPickerModal({ open, onClose }: Props) {
                       alt=""
                       className="absolute inset-0 w-full h-full object-cover"
                       loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
                     />
                   </button>
                 );

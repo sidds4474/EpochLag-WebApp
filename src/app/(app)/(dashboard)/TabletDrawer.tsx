@@ -6,7 +6,6 @@ import { useEffect, type ReactNode } from "react";
 import type { User } from "../../../types/user";
 import Avatar from "../../../components/Avatar";
 import {
-  ChevronRightIcon,
   HomeIcon,
   InteractionsIcon,
   LibraryIcon,
@@ -122,7 +121,7 @@ export default function TabletDrawer({
               className="relative text-white"
             />
           </div>
-          <span className="font-montserrat font-semibold text-primary-blue text-[15px]">
+          <span className="font-plusjakarta font-medium text-primary-blue text-[16px]">
             Create
           </span>
         </Link>
@@ -143,13 +142,6 @@ export default function TabletDrawer({
               >
                 <span className="shrink-0">{item.icon}</span>
                 <span className="flex-1">{item.label}</span>
-                {active && (
-                  <ChevronRightIcon
-                    width={14}
-                    height={14}
-                    className="text-primary-blue/60"
-                  />
-                )}
               </Link>
             );
           })}

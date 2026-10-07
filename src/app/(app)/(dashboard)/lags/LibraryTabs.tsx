@@ -21,6 +21,11 @@ const TABS: Array<{ href: string; label: string; match: (p: string) => boolean }
     label: "People",
     match: (p) => p.startsWith("/lags/people"),
   },
+  {
+    href: "/lags/albums",
+    label: "Albums",
+    match: (p) => p.startsWith("/lags/albums"),
+  },
 ];
 
 export default function LagsTabs() {
@@ -35,7 +40,7 @@ export default function LagsTabs() {
             <Link
               key={tab.href}
               href={tab.href}
-              className={`relative cursor-pointer px-[18px] md:px-[24px] py-[10px] md:py-[12px] rounded-full font-montserrat font-medium text-[13px] md:text-[14px] whitespace-nowrap transition-colors ${
+              className={`relative cursor-pointer px-[18px] md:px-[24px] py-[10px] md:py-[12px] rounded-full font-plusjakarta font-medium text-[16px] whitespace-nowrap transition-colors ${
                 active
                   ? "bg-primary-blue text-white font-semibold"
                   : "bg-[#f0f0f0] text-primary-blue hover:bg-black/[0.08]"

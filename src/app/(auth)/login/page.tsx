@@ -20,7 +20,6 @@ import { useAppDispatch } from "../../../lib/onboarding/store";
 import { queueAnonMergeIfNeeded } from "../../../lib/onboarding/merge/queueAnonMergeIfNeeded";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
-const PROBE_PASSWORD = "___probe___";
 
 type AuthMode = "phone" | "email";
 type EmailStep = "probe" | "password";
@@ -245,31 +244,19 @@ function LoginPageInner() {
     }
   };
 
-  const submitEmailProbe = async () => {
+  const submitEmailProbe = () => {
     setError(null);
     const cleaned = email.trim().toLowerCase();
     if (!cleaned || !/.+@.+\..+/.test(cleaned)) {
       setError("Please enter a valid email");
       return;
     }
-    setSubmitting(true);
-    try {
-      // Login-probe: bogus password. Expected outcome is an error (401 for
-      // "wrong password" on an existing account, or "no account" if not).
-      // We show the password field on any error so the real password submit
-      // can surface an accurate reason — this avoids dead-ending a user who
-      // typed an email the BE couldn't disambiguate.
-      await loginWithEmailPassword(cleaned, PROBE_PASSWORD);
-      setEmailStep("password");
-    } catch (err) {
-      if (process.env.NODE_ENV !== "production") {
-        // eslint-disable-next-line no-console
-        console.log("[LoginProbe] response", err);
-      }
-      setEmailStep("password");
-    } finally {
-      setSubmitting(false);
-    }
+    // Just reveal the password field. This used to fire a real login request
+    // with a placeholder password and ignore the result — which logged a
+    // failed sign-in against the account on every visit. The real submit
+    // (`submitEmailPassword`) already distinguishes "no account" from
+    // "wrong password", so no probe is needed.
+    setEmailStep("password");
   };
 
   const submitEmailPassword = async () => {
@@ -429,7 +416,13 @@ function FormBody({
   googleBtnRef: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
-    <>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+      className="w-full flex flex-col items-center"
+    >
       <RingDot />
       <h1 className="mt-[24px] font-montserrat font-bold text-[24px] text-primary-blue text-center leading-[130%]">
         Log in to your account
@@ -449,9 +442,6 @@ function FormBody({
               value={phone}
               onChange={(e) => onPhone(e.target.value)}
               placeholder="Phone number"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") onSubmit();
-              }}
               className="flex-1 bg-primary-white rounded-full h-[48px] px-[18px] font-montserrat text-[15px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_4px_14px_rgba(9,46,74,0.05)]"
             />
           </>
@@ -464,12 +454,6 @@ function FormBody({
             onChange={(e) => onEmail(e.target.value)}
             placeholder="Email address"
             disabled={emailStep === "password"}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                onSubmit();
-              }
-            }}
             className="flex-1 bg-primary-white rounded-full h-[48px] px-[18px] font-montserrat text-[15px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_4px_14px_rgba(9,46,74,0.05)] disabled:opacity-70"
           />
         )}
@@ -483,9 +467,6 @@ function FormBody({
           onChange={(e) => onPassword(e.target.value)}
           placeholder="Password"
           autoFocus
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onSubmit();
-          }}
           className="mt-[10px] w-full bg-primary-white rounded-full h-[48px] px-[18px] font-montserrat text-[15px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_4px_14px_rgba(9,46,74,0.05)]"
         />
       )}
@@ -509,8 +490,7 @@ function FormBody({
       ) : null}
 
       <button
-        type="button"
-        onClick={onSubmit}
+        type="submit"
         disabled={submitting}
         className="mt-[16px] w-full h-[50px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
       >
@@ -533,7 +513,7 @@ function FormBody({
         }`}
         style={{ minHeight: 44 }}
       />
-    </>
+    </form>
   );
 }
 
@@ -557,7 +537,7 @@ function SegmentedControl({
           key={m}
           type="button"
           onClick={() => onChange(m)}
-          className={`relative z-10 h-[36px] w-[104px] rounded-full font-montserrat text-[14px] font-semibold cursor-pointer ${
+          className={`relative z-10 h-[44px] w-[104px] rounded-full font-montserrat text-[14px] font-semibold cursor-pointer ${
             value === m ? "text-primary-white" : "text-primary-blue"
           }`}
         >

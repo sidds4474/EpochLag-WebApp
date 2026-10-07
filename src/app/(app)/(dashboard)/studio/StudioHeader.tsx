@@ -47,7 +47,7 @@ export default function StudioHeader({
           below — so this row only shows below md to avoid a duplicate
           heading + big empty gap on iPad. */}
       <div className="md:hidden flex items-center justify-between mb-[12px]">
-        <h1 className="font-montserrat font-bold text-primary-blue text-[22px] leading-tight">
+        <h1 className="font-montserrat font-medium text-primary-blue text-[24px] leading-tight">
           Studio
         </h1>
         <button
@@ -198,10 +198,13 @@ function ConnectionsPill({
       ? "1 connection"
       : `${count} connections`;
   return (
+    // Neutral styling, not the orange primary-CTA look it had before — this
+    // is a passive stat / shortcut, and it shouldn't outshout "Edit studio",
+    // the actual action beside it.
     <button
       type="button"
       onClick={onClick}
-      className="cursor-pointer inline-flex items-center gap-[8px] bg-primary-orange text-white rounded-full h-[40px] px-[18px] font-montserrat font-medium text-[14px] hover:brightness-95 transition-[filter]"
+      className="cursor-pointer inline-flex items-center gap-[8px] bg-[#f0f0f0] text-primary-blue rounded-full h-[40px] px-[18px] font-montserrat font-medium text-[14px] hover:bg-black/[0.08] transition-colors"
     >
       <PersonIcon width={16} height={16} />
       {label}

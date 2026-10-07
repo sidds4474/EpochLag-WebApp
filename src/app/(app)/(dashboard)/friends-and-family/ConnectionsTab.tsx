@@ -118,7 +118,7 @@ export default function ConnectionsTab({
   return (
     <div className="flex flex-col gap-[24px] mt-[8px]">
       <section className="hidden md:block">
-        <h2 className="font-montserrat font-bold text-primary-blue text-[18px] mb-[12px]">
+        <h2 className="font-montserrat font-bold text-primary-blue text-[20px] mb-[12px]">
           Groups
         </h2>
         <div className="flex gap-[12px] overflow-x-auto pb-[8px]">
@@ -143,7 +143,7 @@ export default function ConnectionsTab({
       </section>
 
       <section className="hidden md:block">
-        <h2 className="font-montserrat font-bold text-primary-blue text-[18px] mb-[12px]">
+        <h2 className="font-montserrat font-bold text-primary-blue text-[20px] mb-[12px]">
           All connections
         </h2>
         {filteredUsers.length === 0 ? (

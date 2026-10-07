@@ -49,7 +49,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             user={user}
             onOpenDrawer={() => setDrawerOpen(true)}
           />
-          <main className={`flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden ${isImmersive ? "" : "pb-[80px] md:pb-0"}`}>
+          <main className={`flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden ${isImmersive ? "" : "pb-[calc(80px+env(safe-area-inset-bottom))] md:pb-0"}`}>
             {children}
           </main>
         </div>

@@ -34,7 +34,13 @@ export default function EditStoryPage({
 
   useEffect(() => {
     if (!threadId) {
-      setState({ kind: "error", message: "Missing thread reference" });
+      // Reached without the `?thread=` parameter the edit screen needs.
+      // Was "Missing thread reference" — developer wording shown to users.
+      setState({
+        kind: "error",
+        message:
+          "We couldn't open this story for editing. Please open it from the story page and try again.",
+      });
       return;
     }
     let cancelled = false;

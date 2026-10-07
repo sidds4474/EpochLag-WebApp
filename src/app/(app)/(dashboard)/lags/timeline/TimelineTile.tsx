@@ -89,14 +89,14 @@ export default function TimelineTile({ entry, onHide }: TimelineTileProps) {
       <Link
         href={`/thread/${entry.threadId}`}
         onClickCapture={handleClickCapture}
-        className="relative flex items-stretch bg-white rounded-[20px] shadow-[0_0_46px_0_rgba(0,0,0,0.15)] hover:shadow-[0_0_50px_0_rgba(0,0,0,0.2)] transition-shadow py-[6px] md:py-[8px] pr-[6px] md:pr-[8px]"
+        className="relative flex items-stretch bg-white rounded-[20px] shadow-[0_0_18px_rgba(0,0,0,0.12)] hover:shadow-[0_0_22px_rgba(0,0,0,0.18)] transition-shadow py-[6px] md:py-[8px] pr-[6px] md:pr-[8px]"
       >
         {parts && (
           <div className="shrink-0 flex flex-col items-center justify-center w-[80px] md:w-[100px]">
             <div className="font-montserrat font-medium text-primary-blue text-[28px] md:text-[34px] leading-none">
               {parts.day}
             </div>
-            <div className="font-montserrat text-primary-blue/70 text-[12px] md:text-[13px] mt-[4px] lowercase">
+            <div className="font-montserrat text-primary-blue text-[13px] md:text-[14px] mt-[4px] lowercase">
               {parts.month}
             </div>
           </div>

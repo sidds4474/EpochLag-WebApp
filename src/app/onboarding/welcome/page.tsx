@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { OnboardingShell, MobileLogo } from "../../../lib/onboarding/components/OnboardingShell";
 import { urlForScreen } from "../../../lib/onboarding";
 
@@ -9,15 +10,36 @@ const HEADING = "Stories weren't meant to disappear in a feed";
 const BODY =
   "Whether it's your family history, or sharing important stories amongst friends, we make it easy to preserve and share meaningful memories.";
 
+const HERO_VIDEO = "/videos/Epoch_Lag_Hero.mp4";
+const HERO_POSTER = "/onboarding/Epoch_Lag_Hero_poster.jpg";
+
+// OnboardingShell renders BOTH the desktop and mobile slots (one hidden via
+// CSS), so a <video> in each slot made the 17MB hero download *twice* and
+// decode in both places (QA #53 — "plays in two places", 45s loads). Gate the
+// heavy <video> to the active viewport only; the other slot (and the brief
+// pre-mount phase) shows the lightweight poster image.
+function useIsDesktop(): boolean | null {
+  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return isDesktop;
+}
+
 export default function WelcomePage() {
   const router = useRouter();
   const goNext = () => router.push(urlForScreen("WhyEpochLag"));
+  const isDesktop = useIsDesktop();
 
   return (
     <>
       <Link
         href="/login"
-        className="fixed top-[24px] right-[24px] z-40 font-montserrat text-[15px] underline underline-offset-[4px] cursor-pointer hover:opacity-90 text-primary-white md:hidden"
+        className="fixed top-[12px] right-[16px] z-40 inline-flex items-center min-h-[44px] px-[8px] font-montserrat text-[15px] underline underline-offset-[4px] cursor-pointer hover:opacity-90 text-primary-white md:hidden"
       >
         Log in
       </Link>
@@ -43,16 +65,25 @@ export default function WelcomePage() {
       desktopContent={
         <div className="flex flex-col items-center text-center text-primary-blue">
           <div className="w-full max-w-[720px] h-[360px] rounded-[24px] overflow-hidden bg-primary-blue/5">
-            <video
-              src="/videos/Epoch_Lag_Hero.mp4"
-              poster="/onboarding/Epoch_Lag_Hero_poster.jpg"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="auto"
-              className="h-full w-full object-cover"
-            />
+            {isDesktop === true ? (
+              <video
+                src={HERO_VIDEO}
+                poster={HERO_POSTER}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={HERO_POSTER}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            )}
           </div>
           <h1 className="mt-[28px] font-montserrat font-bold text-[24px] lg:text-[26px] leading-[120%] max-w-[460px]">
             {HEADING}
@@ -64,16 +95,25 @@ export default function WelcomePage() {
       }
       mobileContent={
         <div className="relative w-full min-h-dvh overflow-hidden">
-          <video
-            src="/videos/Epoch_Lag_Hero.mp4"
-            poster="/onboarding/Epoch_Lag_Hero_poster.jpg"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            className="absolute inset-0 h-full w-full object-cover"
-          />
+          {isDesktop === false ? (
+            <video
+              src={HERO_VIDEO}
+              poster={HERO_POSTER}
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={HERO_POSTER}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          )}
           <div className="absolute inset-0 bg-black/55" />
           <div className="relative z-10 flex flex-col items-center min-h-dvh px-[28px] pt-[56px] pb-[110px] text-primary-white text-center">
             <MobileLogo variant="light" className="w-[140px]" />

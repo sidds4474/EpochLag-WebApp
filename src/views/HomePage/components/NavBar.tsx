@@ -40,7 +40,7 @@ const NavBar = () => {
           </Link>
           <button
             onClick={() => setIsContactOpen(true)}
-            className="cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[13px] md:text-[14px] 2xl:text-[16px] px-[16px] sm:px-[20px] md:px-[28px] py-[9px] sm:py-[10px] md:py-[12px] rounded-full hover:opacity-90 transition-opacity"
+            className="cursor-pointer inline-flex items-center min-h-[44px] bg-primary-orange text-primary-white font-montserrat font-semibold text-[13px] md:text-[14px] 2xl:text-[16px] px-[16px] sm:px-[20px] md:px-[28px] py-[9px] sm:py-[10px] md:py-[12px] rounded-full hover:opacity-90 transition-opacity"
           >
             Contact Us
           </button>
@@ -48,7 +48,7 @@ const NavBar = () => {
             onClick={() => setIsMenuOpen((v) => !v)}
             aria-label={isMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={isMenuOpen}
-            className="md:hidden cursor-pointer w-[40px] h-[40px] rounded-full border border-primary-blue/20 flex items-center justify-center hover:bg-primary-blue/5 transition-colors"
+            className="md:hidden cursor-pointer w-[44px] h-[44px] rounded-full border border-primary-blue/20 flex items-center justify-center hover:bg-primary-blue/5 transition-colors"
           >
             {isMenuOpen ? (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">

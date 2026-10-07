@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useAppSelector } from "../lib/onboarding/store";
 import {
   bustUrl,
@@ -52,34 +53,26 @@ export default function Avatar({
     ? selfUpdatedAt ?? user?.updatedAt ?? null
     : user?.updatedAt ?? null;
 
-  if (hasProfilePicture(profilePicture)) {
-    return (
-      // Plain img so we don't need per-usage width/height typing gymnastics
-      // for arbitrary sizes. next/image would need explicit sizes anyway
-      // for user-uploaded content on Cloudinary.
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={bustUrl(profilePicture as string, version)}
-        alt={firstName ?? ""}
-        width={size}
-        height={size}
-        className={className}
-        style={{
-          width: size,
-          height: size,
-          borderRadius: rounded,
-          objectFit: "cover",
-        }}
-      />
-    );
-  }
+  // The remote image can be slow or intermittently 429. Render the initial
+  // circle as a *placeholder behind* the photo so that:
+  //   • while the photo loads, the coloured initial shows (not a broken-image
+  //     glyph), and
+  //   • the <img> carries alt="" so the name never prints over it during load.
+  // On error we drop the <img> entirely and the placeholder stays.
+  const [imgError, setImgError] = useState(false);
+  useEffect(() => {
+    setImgError(false);
+  }, [profilePicture, version]);
 
   const initial = getInitial(firstName);
   const color = colorForName(firstName);
+  const showImg = hasProfilePicture(profilePicture) && !imgError;
+
   return (
     <div
       className={className}
       style={{
+        position: "relative",
         width: size,
         height: size,
         borderRadius: rounded,
@@ -93,10 +86,32 @@ export default function Avatar({
         lineHeight: 1,
         userSelect: "none",
         flexShrink: 0,
+        overflow: "hidden",
       }}
       aria-label={firstName ?? undefined}
     >
       {initial}
+      {showImg && (
+        // Plain img (user-uploaded Cloudinary content; next/image would need
+        // explicit sizes). alt="" — the name is on the container's aria-label,
+        // and an empty alt stops the filename/name printing while it loads.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={bustUrl(profilePicture as string, version)}
+          alt=""
+          width={size}
+          height={size}
+          onError={() => setImgError(true)}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: size,
+            height: size,
+            borderRadius: rounded,
+            objectFit: "cover",
+          }}
+        />
+      )}
     </div>
   );
 }

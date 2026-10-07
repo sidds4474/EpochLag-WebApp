@@ -150,7 +150,7 @@ export default function HelpPage() {
                     onClick={() => setOpenIdx(open ? null : i)}
                     className="cursor-pointer w-full flex items-center justify-between gap-[12px] px-[16px] py-[14px] text-left"
                   >
-                    <span className="font-montserrat text-primary-blue text-[13px] md:text-[14px]">
+                    <span className="font-plusjakarta font-medium text-[#4A4A4A] text-[18px] md:text-[16px]">
                       {item.q}
                     </span>
                     <span

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useModalA11y } from "../../../../lib/useModalA11y";
 import { fetchFriends, type FriendUser } from "../../../../lib/home/api";
 import { useAuth } from "../../../../lib/auth/AuthProvider";
 import { CloseIcon, SearchIcon } from "../icons";
@@ -33,6 +34,9 @@ export default function TagPeopleSheet({
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<FriendUser[]>(initialSelected);
   const pendingActionRef = useRef<(() => void) | null>(null);
+  // Escape to close + keep Tab inside the sheet (it had neither).
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useModalA11y(open, onClose, rootRef);
 
   // Deferred-commit dance: the pendingActionRef holds the confirm callback
   // and only fires once the exit transition finishes. See spec.
@@ -131,9 +135,14 @@ export default function TagPeopleSheet({
       onClick={() => setVisible(false)}
     >
       <div
+        ref={rootRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Tag People"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onTransitionEnd={handleTransitionEnd}
-        className={`w-full max-w-[480px] bg-white rounded-[20px] shadow-[0_10px_40px_rgba(0,0,0,0.25)] flex flex-col overflow-hidden transition-[opacity,transform] duration-200 ${
+        className={`w-full max-w-[480px] bg-white rounded-[20px] shadow-[0_10px_40px_rgba(0,0,0,0.25)] flex flex-col overflow-hidden outline-none transition-[opacity,transform] duration-200 ${
           visible ? "opacity-100 scale-100" : "opacity-0 scale-95"
         }`}
         style={{ maxHeight: "70vh" }}

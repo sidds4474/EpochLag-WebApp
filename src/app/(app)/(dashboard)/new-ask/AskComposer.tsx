@@ -365,18 +365,27 @@ function QuestionInput({
   onChange: (v: string) => void;
 }) {
   return (
-    <label className="relative block">
-      <span className="absolute left-[18px] top-[18px] text-primary-blue/60 pointer-events-none">
-        <PencilIcon width={18} height={18} />
-      </span>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="What's your favorite memory?"
-        rows={2}
-        className="w-full resize-none bg-white lg:bg-[#ededed] rounded-[20px] pl-[46px] pr-[16px] py-[16px] font-montserrat font-medium text-primary-blue text-[16px] leading-[22px] placeholder:text-[#848484] focus:outline-none focus:ring-2 focus:ring-primary-blue/15"
-      />
-    </label>
+    <div>
+      <label className="relative block">
+        <span className="absolute left-[18px] top-[18px] text-primary-blue/60 pointer-events-none">
+          <PencilIcon width={18} height={18} />
+        </span>
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="What's your favorite memory?"
+          rows={2}
+          maxLength={300}
+          className="w-full resize-none bg-white lg:bg-[#ededed] rounded-[20px] pl-[46px] pr-[16px] py-[16px] font-montserrat font-medium text-primary-blue text-[16px] leading-[22px] placeholder:text-[#848484] focus:outline-none focus:ring-2 focus:ring-primary-blue/15"
+        />
+      </label>
+      {/* Counter appears as the question nears the 300-char cap. */}
+      {value.length > 240 && (
+        <p className="mt-[4px] pr-[16px] text-right font-montserrat text-[11px] text-primary-blue/50">
+          {value.length}/300
+        </p>
+      )}
+    </div>
   );
 }
 

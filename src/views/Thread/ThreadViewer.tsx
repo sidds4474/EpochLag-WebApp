@@ -257,11 +257,13 @@ export default function ThreadViewer({
     setCommentsOpen(false);
   }, [storyId]);
 
-  // Warm the /add-story chunk so the "Add Story" tap navigates instantly
-  // instead of waiting on the composer's JS to download at click time.
+  // Warm the add-story route so the "Add Story" tap navigates instantly
+  // instead of waiting on the composer's JS to download at click time. The
+  // route is /add-story/[threadId] — the bare "/add-story" this used to
+  // prefetch doesn't exist (404), so nothing was ever warmed.
   useEffect(() => {
-    router.prefetch("/add-story");
-  }, [router]);
+    router.prefetch(`/add-story/${data.thread._id}`);
+  }, [router, data.thread._id]);
 
   const prompt = data.thread.prompt;
   const participants: ThreadParticipant[] = data.thread.participants ?? [];

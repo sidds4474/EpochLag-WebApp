@@ -42,6 +42,9 @@ export default function SearchPage() {
 
   return (
     <div className="flex flex-col h-full min-h-0">
+      {/* The page had no heading at any level — screen readers announced
+          nothing on arrival. Visually hidden; the search box is the UI. */}
+      <h1 className="sr-only">Search</h1>
       <div className="flex items-center gap-[12px] px-[16px] md:px-[24px] py-[12px] border-b border-black/5">
         <button
           type="button"

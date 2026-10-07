@@ -102,7 +102,7 @@ export default function AccountPage() {
           <div className="md:hidden flex items-start gap-[14px]">
             <EpochIdIcon width={22} height={22} className="text-primary-blue mt-[2px]" />
             <div className="flex-1">
-              <p className="font-montserrat font-bold text-primary-blue text-[14px]">
+              <p className="font-montserrat font-bold text-primary-blue text-[16px]">
                 EL ID
               </p>
               <div className="flex items-center gap-[8px] mt-[2px]">
@@ -131,10 +131,10 @@ export default function AccountPage() {
         <div className="hidden md:flex items-start gap-[14px]">
           <AccountFillIcon width={22} height={22} className="text-primary-blue mt-[2px]" />
           <div>
-            <p className="font-montserrat font-bold text-primary-blue text-[14px]">
+            <p className="font-montserrat font-bold text-primary-blue text-[16px]">
               Name
             </p>
-            <p className="font-montserrat text-primary-blue text-[14px] mt-[2px]">
+            <p className="font-montserrat text-primary-blue text-[16px] mt-[2px]">
               {fullName || "—"}
             </p>
           </div>
@@ -154,11 +154,11 @@ export default function AccountPage() {
         <div className="flex items-start gap-[14px]">
           <MailFillIcon width={22} height={22} className="text-primary-blue mt-[2px]" />
           <div className="min-w-0">
-            <p className="font-montserrat font-bold text-primary-blue text-[14px]">
+            <p className="font-montserrat font-bold text-primary-blue text-[16px]">
               <span className="md:hidden">Email Address</span>
               <span className="hidden md:inline">Email</span>
             </p>
-            <p className="font-montserrat text-primary-blue text-[14px] mt-[2px] break-all">
+            <p className="font-montserrat text-primary-blue text-[16px] mt-[2px] break-all">
               {user.email}
             </p>
           </div>
@@ -170,7 +170,7 @@ export default function AccountPage() {
             <PhoneFillIcon width={22} height={22} className="text-primary-blue mt-[2px]" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-[8px]">
-                <p className="font-montserrat font-bold text-primary-blue text-[14px]">
+                <p className="font-montserrat font-bold text-primary-blue text-[16px]">
                   Phone
                 </p>
                 <button
@@ -196,11 +196,11 @@ export default function AccountPage() {
           <div className="flex items-start gap-[14px]">
             <PhoneFillIcon width={22} height={22} className="text-primary-blue mt-[2px]" />
             <div>
-              <p className="font-montserrat font-bold text-primary-blue text-[14px]">
+              <p className="font-montserrat font-bold text-primary-blue text-[16px]">
                 <span className="md:hidden">Phone Number</span>
                 <span className="hidden md:inline">Phone</span>
               </p>
-              <p className="font-montserrat text-primary-blue text-[14px] mt-[2px]">
+              <p className="font-montserrat text-primary-blue text-[16px] mt-[2px]">
                 {countryCode} {phone}
               </p>
             </div>
@@ -239,10 +239,10 @@ export default function AccountPage() {
         {/* Divider + password row (mobile only) */}
         <div className="md:hidden pt-[16px] border-t border-black/10 flex items-center justify-between">
           <div>
-            <p className="font-montserrat font-bold text-primary-blue text-[14px]">
+            <p className="font-montserrat font-bold text-primary-blue text-[16px]">
               Password
             </p>
-            <p className="font-montserrat text-primary-blue text-[14px] mt-[2px]">
+            <p className="font-montserrat text-primary-blue text-[16px] mt-[2px]">
               *************
             </p>
           </div>
@@ -261,14 +261,14 @@ export default function AccountPage() {
         <button
           type="button"
           onClick={() => setResetOpen(true)}
-          className="hidden md:block cursor-pointer font-montserrat text-[14px] font-semibold text-primary-blue py-[12px] rounded-full border border-primary-blue hover:bg-primary-blue/5 transition-colors"
+          className="hidden md:block cursor-pointer font-montserrat text-[16px] font-medium text-primary-blue py-[12px] rounded-full border border-primary-blue hover:bg-primary-blue/5 transition-colors"
         >
           Reset password
         </button>
         <button
           type="button"
           onClick={() => setDeleteOpen(true)}
-          className="cursor-pointer font-montserrat text-[14px] font-semibold text-white bg-[#D95F3B] py-[12px] rounded-full hover:opacity-90 transition-opacity"
+          className="cursor-pointer font-montserrat text-[16px] font-medium text-white bg-[#D95F3B] py-[12px] rounded-full hover:opacity-90 transition-opacity"
         >
           Delete account
         </button>

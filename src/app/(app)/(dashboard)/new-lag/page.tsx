@@ -18,7 +18,7 @@ export default function NewLagPage() {
       onBack={() => {
         if (draftId) router.push("/studio?tab=draft");
         else if (promptId) router.push("/inspiration");
-        else if (albumId) router.push(`/albums/${albumId}`);
+        else if (albumId) router.push(`/lags/albums/${albumId}`);
         else router.push("/new-story");
       }}
     />

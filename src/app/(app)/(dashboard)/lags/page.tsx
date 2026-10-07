@@ -282,7 +282,7 @@ export default function LagsAllPage() {
                 strokeLinecap="round"
               />
             </svg>
-            <span className="font-montserrat font-medium text-[13px]">Filters</span>
+            <span className="font-plusjakarta font-medium text-[16px]">Filters</span>
             {filterCount > 0 && (
               <span
                 aria-label={`${filterCount} active filters`}
@@ -307,7 +307,7 @@ export default function LagsAllPage() {
           <button
             type="button"
             onClick={toggleSelectMode}
-            className="cursor-pointer font-montserrat text-black text-[14px] hover:opacity-80 transition-opacity"
+            className="cursor-pointer font-montserrat font-medium text-[#1C274C] text-[16px] hover:opacity-80 transition-opacity"
           >
             Select
           </button>
@@ -407,7 +407,7 @@ export default function LagsAllPage() {
     <div className="flex flex-col h-full min-h-0">
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-0 md:px-[24px] pt-[8px] pb-[28px] scrollbar-hide"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-0 md:px-[24px] pt-[8px] pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-[28px] scrollbar-hide"
       >
         {showMediaStrip && (
           <div className={showStoryGrid ? "mb-[24px]" : ""}>

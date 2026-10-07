@@ -35,7 +35,7 @@ export function SectionHeader({
     <div
       className={`flex items-end justify-between mb-[12px] md:mb-[14px] md:px-[14px] ${className}`}
     >
-      <h2 className="font-montserrat font-medium text-primary-blue text-[17px] md:text-[19px] leading-[1.2]">
+      <h2 className="font-montserrat font-medium text-primary-blue text-[20px] md:text-[24px] leading-[1.2]">
         {title}
       </h2>
       <div className="flex items-center gap-[10px]">
@@ -56,7 +56,7 @@ export function SectionHeader({
         {viewAllHref && (
           <Link
             href={viewAllHref}
-            className="font-montserrat font-medium text-primary-blue/60 text-[12px] md:text-[13px] hover:text-primary-blue transition-colors"
+            className="font-plusjakarta font-medium text-primary-blue text-[14px] md:text-[16px] hover:opacity-80 transition-opacity"
           >
             View All
           </Link>

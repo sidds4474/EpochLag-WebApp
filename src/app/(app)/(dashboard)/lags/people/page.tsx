@@ -216,7 +216,7 @@ export default function LagsPeoplePage() {
   }
 
   return (
-    <div className="pt-[16px] pb-[40px] overflow-y-auto scrollbar-hide h-full min-h-0">
+    <div className="pt-[16px] pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-[40px] overflow-y-auto scrollbar-hide h-full min-h-0">
       {loading ? (
         <div className="grid grid-cols-3 md:grid-cols-4 2xl:grid-cols-5 gap-[8px] md:gap-[12px]">
           {Array.from({ length: 6 }).map((_, i) => (

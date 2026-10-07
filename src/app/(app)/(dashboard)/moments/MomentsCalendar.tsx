@@ -9,7 +9,8 @@ const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
-const WEEKDAYS = ["m", "t", "w", "t", "f", "s", "s"]; // Monday first
+// Two letters, not one: "t t" and "s s" couldn't be told apart.
+const WEEKDAYS = ["mo", "tu", "we", "th", "fr", "sa", "su"]; // Monday first
 
 function daysInMonth(year: number, monthIdx: number): number {
   return new Date(year, monthIdx + 1, 0).getDate();
@@ -45,7 +46,11 @@ export default function MomentsCalendar({
   const total = daysInMonth(year, monthIdx);
   const leading = mondayFirstWeekday(year, monthIdx);
 
-  // Fixed 6-row (42-cell) layout so month switches don't jump.
+  // Dynamic row count: only draw the weeks the month actually spans (5 or 6),
+  // so there's never a full trailing row made up entirely of next month's dates.
+  // The last row always contains at least one in-month day.
+  const rowCount = Math.ceil((leading + total) / 7);
+  const cellCount = rowCount * 7;
   const cells: Array<{ iso: string; day: number; inMonth: boolean }> = [];
 
   // Previous month tail
@@ -70,7 +75,7 @@ export default function MomentsCalendar({
   const nextMonth = monthIdx === 11 ? 0 : monthIdx + 1;
   const nextYear = monthIdx === 11 ? year + 1 : year;
   let nd = 1;
-  while (cells.length < 42) {
+  while (cells.length < cellCount) {
     cells.push({
       iso: isoDay(new Date(nextYear, nextMonth, nd)),
       day: nd,
@@ -186,7 +191,7 @@ export default function MomentsCalendar({
               key={c.iso}
               type="button"
               onClick={() => onSelectDay(c.iso)}
-              className={`relative mx-auto w-[30px] h-[30px] rounded-full flex items-center justify-center font-montserrat text-[14px] transition-colors focus:outline-none focus-visible:outline-none ${
+              className={`relative mx-auto w-[30px] h-[30px] rounded-full flex items-center justify-center font-poppins font-medium text-[12px] transition-colors focus:outline-none focus-visible:outline-none ${
                 isSelected
                   ? "bg-primary-orange text-white font-semibold"
                   : !c.inMonth

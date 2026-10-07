@@ -1116,9 +1116,15 @@ function AskStep1({
             value={draft.question}
             onChange={(e) => onChange({ ...draft, question: e.target.value })}
             placeholder="What's your favorite memory?"
+            maxLength={200}
             className="flex-1 min-w-0 bg-transparent focus:outline-none font-montserrat text-primary-blue placeholder:text-primary-blue/40 text-[15px]"
           />
         </div>
+        {draft.question.length > 160 && (
+          <p className="mt-[4px] pr-[8px] text-right font-montserrat text-[11px] text-primary-blue/50">
+            {draft.question.length}/200
+          </p>
+        )}
 
         <button
           type="button"
@@ -1256,7 +1262,9 @@ function AskStep2({
 function CoverUploadZone({
   preview,
   onFile,
-  prompt = "Click to upload a cover photo",
+  // Was "Click to upload a cover photo" — wrong verb on a touchscreen, and
+  // inconsistent with the desktop composer's "Choose Cover".
+  prompt = "Add a cover photo",
   showUploadButton = false,
 }: {
   preview: string | null;

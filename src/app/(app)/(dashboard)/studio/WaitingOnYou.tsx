@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { UserCard } from "../../../../types/home";
 import SharedAvatar from "../../../../components/Avatar";
+import { formatRelativeTime } from "../../../../lib/formatters";
 import {
   friendRequestName,
   type FriendRequest,
@@ -74,8 +75,29 @@ export default function WaitingOnYou({
               >
                 <Avatar src={card.author?.profilePicture} name={senderName} />
                 <span className="flex-1 min-w-0 font-montserrat text-primary-blue text-[13px] leading-[18px]">
-                  <span className="font-semibold">{senderName}</span> sent you a
-                  prompt, answer it!
+                  {card.content || card.title ? (
+                    // Show the actual question + when it arrived so rows are
+                    // distinguishable — they all used to read "{name} sent you
+                    // a prompt, answer it!"
+                    <>
+                      <span className="font-semibold">{senderName}</span> asks
+                      {card.createdAt ? (
+                        <span className="text-primary-blue/50">
+                          {" · "}
+                          {formatRelativeTime(card.createdAt)}
+                        </span>
+                      ) : null}
+                      :
+                      <span className="block font-medium line-clamp-2">
+                        {card.content || card.title}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-semibold">{senderName}</span> sent you
+                      a prompt, answer it!
+                    </>
+                  )}
                 </span>
               </button>
             </li>

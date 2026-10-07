@@ -79,7 +79,7 @@ export default function HeroGreeting({
       </Link>
 
       <div className="relative px-[16px] md:px-[28px] pt-[20px] md:pt-[48px] pb-[16px] md:pb-[18px] flex flex-col gap-[14px]">
-        <h1 className="font-montserrat font-medium text-white text-[22px] md:text-[24px] leading-[1.15] max-w-[80%]">
+        <h1 className="font-montserrat font-medium text-white text-[26px] md:text-[32px] leading-[1.15] max-w-[80%]">
           {label}
         </h1>
 

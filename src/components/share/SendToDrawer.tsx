@@ -212,19 +212,6 @@ export default function SendToDrawer({
     setSelectedGroups(new Set(prefillGroupIds ?? []));
   }, [open, selectedUsers, prefillGroupIds]);
 
-  // Escape closes the sheet. Every other pop-up in the app dismisses on
-  // Escape; this one had no keyboard handling at all, so keyboard users had
-  // no way out — and from the post-publish "Story Created" screen the open
-  // sheet also sat over the Done button, which read as being stuck.
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
-
   const existingUserSet = useMemo(
     () => new Set(existingMembers ?? []),
     [existingMembers]

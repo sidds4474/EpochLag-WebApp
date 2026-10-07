@@ -13,7 +13,6 @@ import {
   PlayIcon,
   SearchIcon,
 } from "../icons";
-import { useModalA11y } from "../../../../lib/useModalA11y";
 
 export type LocationValue = {
   formattedAddress: string;
@@ -173,9 +172,7 @@ export function DateModal({
   const [viewMonth, setViewMonth] = useState(seed.getMonth());
   const [picked, setPicked] = useState<string | null>(initial);
 
-  // Monday-first, to match the Moments calendar (they used to disagree —
-  // this one started the week on Sunday with single uppercase letters).
-  const firstDayOffset = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
+  const firstDayOffset = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString(
     "en-US",
@@ -224,12 +221,10 @@ export function DateModal({
       </div>
 
       <div className="grid grid-cols-7 gap-[4px] mb-[6px]">
-        {/* Lowercase two-letter, Monday-first — identical to the Moments
-            calendar so the two don't disagree on header style. */}
-        {["mo", "tu", "we", "th", "fr", "sa", "su"].map((d, i) => (
+        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
           <div
             key={i}
-            className="text-center font-montserrat text-primary-blue/50 text-[12px] lowercase py-[4px]"
+            className="text-center font-montserrat text-primary-blue/50 text-[12px] py-[4px]"
           >
             {d}
           </div>
@@ -369,11 +364,9 @@ export function LocationModal({
       } catch (err) {
         if (cancelled) return;
         setSuggestions([]);
-        // Don't surface Google's raw status text (e.g. "REQUEST_DENIED: This
-        // API project is not authorized…") to users — log it, show a friendly
-        // line instead.
-        console.error("Location autocomplete failed:", err);
-        setError("We couldn't search locations right now. Please try again.");
+        setError(
+          err instanceof Error ? err.message : "Location search failed"
+        );
       }
     }, 250);
     return () => {
@@ -415,8 +408,7 @@ export function LocationModal({
       });
       onClose();
     } catch (err) {
-      console.error("Location select failed:", err);
-      setError("We couldn't add that location. Please try another.");
+      setError(err instanceof Error ? err.message : "Couldn't fetch place");
     }
   }
 
@@ -586,8 +578,7 @@ export function MusicPickerModal({
         setResults(data.results ?? []);
       } catch (err) {
         if (cancelled) return;
-        console.error("Music search failed:", err);
-        setError("We couldn't search music right now. Please try again.");
+        setError(err instanceof Error ? err.message : "Music search failed");
         setResults([]);
       } finally {
         if (!cancelled) setLoading(false);
@@ -751,22 +742,13 @@ function ModalShell({
   onClose: () => void;
   children: React.ReactNode;
 }) {
-  // Shared by the Date, Location and Music pickers. None of them closed on
-  // Escape or kept keyboard focus inside; the hook gives all three both.
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  useModalA11y(true, onClose, rootRef);
   return (
     <div
       className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-[16px]"
       onClick={onClose}
     >
       <div
-        ref={rootRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        tabIndex={-1}
-        className="w-full max-w-[480px] bg-white rounded-[20px] flex flex-col overflow-hidden outline-none"
+        className="w-full max-w-[480px] bg-white rounded-[20px] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-[20px] pt-[16px] pb-[8px]">

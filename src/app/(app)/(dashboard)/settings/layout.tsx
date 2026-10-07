@@ -29,7 +29,7 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
             >
               <ChevronLeftIcon width={16} height={16} />
             </button>
-            <h1 className="font-montserrat font-bold text-primary-blue text-[24px] md:text-[28px] lg:text-[32px] leading-tight">
+            <h1 className="font-montserrat font-bold text-primary-blue text-[20px] md:text-[24px] lg:text-[26px] leading-tight">
               Settings
             </h1>
           </div>

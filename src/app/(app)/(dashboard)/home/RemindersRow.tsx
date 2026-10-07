@@ -29,9 +29,7 @@ import { PlusIcon } from "../icons";
 //   • Arrow: 28×28 rounded, bg #FFD9AA
 // Desktop keeps a larger tile per user-tuned dimensions in the JSX.
 const MOBILE_TILE_HEIGHT = 143;
-// Desktop reminder card matches the Figma "Web app desktop" spec: a 327×356
-// card (cover 264 + 92px footer). We render it at 300×356 inside the rail.
-const DESKTOP_TILE_HEIGHT = 356;
+const DESKTOP_TILE_HEIGHT = 200;
 
 export default function RemindersRow({
   items,
@@ -101,7 +99,7 @@ function Carousel({
     <div>
       <div
         ref={setBothRefs}
-        className="flex gap-[16px] overflow-x-auto snap-x snap-mandatory scrollbar-hide py-[14px] px-[14px] [mask-image:linear-gradient(to_right,#000_0,#000_calc(100%-28px),transparent_100%)]"
+        className="flex gap-[16px] overflow-x-auto snap-x snap-mandatory scrollbar-hide py-[14px] px-[14px]"
       >
         {children}
       </div>
@@ -212,18 +210,6 @@ function DockingTile({ item }: { item: DockingItem }) {
       ? "Today"
       : "";
 
-  const titleText = item.title || (isHowsLife ? "How's Life" : "");
-  // Desktop footer shows a secondary description line when the BE ships a
-  // distinct `message` (e.g. How's Life: "What's been the highlight…"). When
-  // message duplicates the title (card_of_the_day sends both as the prompt),
-  // the title gets two lines instead.
-  const subtitle =
-    item.message &&
-    item.message.trim() &&
-    item.message.trim() !== titleText.trim()
-      ? item.message.trim()
-      : "";
-
   const onOpen = async () => {
     if (disabled) return;
     if (item.type === "card_of_the_day") {
@@ -264,108 +250,43 @@ function DockingTile({ item }: { item: DockingItem }) {
       type="button"
       onClick={onOpen}
       disabled={disabled}
-      className={`snap-start shrink-0 overflow-hidden text-left bg-white
+      className={`snap-start shrink-0
         w-[calc((100vw-42px)/2)] max-w-[240px] h-[143px]
-        md:w-[300px] md:max-w-none md:h-[356px]
-        rounded-[13px] md:rounded-[30px]
+        md:w-[280px] md:max-w-none md:h-[200px]
+        text-left bg-white
+        rounded-[13px] md:rounded-[24px]
         shadow-[0_0_17.8px_rgba(0,0,0,0.15)]
-        flex flex-col transition-shadow ${
+        pt-[14px] pb-[13px] px-[12px]
+        md:pt-[16px] md:pb-[24px] md:px-[16px]
+        flex flex-col justify-between transition-shadow ${
           disabled ? "opacity-70 cursor-default" : "hover:shadow-[0_2px_20px_rgba(0,0,0,0.15)] cursor-pointer"
         }`}
     >
-      {/* Mobile compact tile (< md) — mobile-app HomeTile parity: 54px circle,
-          cream arrow top-right, overline + title pinned to the bottom. */}
-      <div className="md:hidden flex flex-col justify-between h-full pt-[14px] pb-[13px] px-[12px]">
-        <div className="flex items-start justify-between">
-          <TileCover item={item} cover={cover ?? null} />
-          <CircleArrowButton
-            as="span"
-            ariaLabel="Open"
-            size={28}
-            variant="cream"
-          />
-        </div>
-        <div className="flex items-end justify-between gap-[6px]">
-          <div className="flex-1 min-w-0">
-            {overline && (
-              <p className="font-montserrat font-medium text-primary-orange text-[11px] leading-[14px] mb-[2px]">
-                {overline}
-              </p>
-            )}
-            {/* Reserve two lines so 1- and 2-line titles share a height and the
-                overlines don't stair-step across the row. */}
-            <h3 className="font-montserrat font-medium text-black text-[14px] leading-[16px] min-h-[32px] line-clamp-2">
-              {titleText}
-            </h3>
-          </div>
-          {subLabel && (
-            <p className="shrink-0 font-montserrat font-normal text-[#848484] text-[11px] leading-[16px]">
-              {subLabel}
+      <div className="flex items-start justify-between">
+        <TileCover item={item} cover={cover ?? null} />
+        <CircleArrowButton
+          as="span"
+          ariaLabel="Open"
+          size={28}
+          variant="cream"
+        />
+      </div>
+      <div className="flex items-end justify-between gap-[6px]">
+        <div className="flex-1 min-w-0">
+          {overline && (
+            <p className="font-montserrat font-medium text-primary-orange text-[11px] leading-[14px] mb-[2px] md:text-[13px] md:leading-[16px]">
+              {overline}
             </p>
           )}
+          <h3 className="font-montserrat font-medium text-black text-[14px] leading-[16px] md:text-primary-blue md:text-[15px] md:leading-[20px] line-clamp-2">
+            {item.title || (isHowsLife ? "How's Life" : "")}
+          </h3>
         </div>
-      </div>
-
-      {/* Desktop photo card (md+) — matches the Figma "Web app desktop" reminder
-          card: full-bleed cover (264 of 356), then a 92px white footer holding a
-          title, an optional description line, and a 24px grey circle arrow. The
-          orange label only shows on the cards that need it (moment/birthday). */}
-      <div className="hidden md:flex md:flex-col h-full">
-        <div className="relative flex-1 min-h-0">
-          {cover ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={cover}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-          ) : (
-            <div
-              className="absolute inset-0"
-              style={{
-                background: GRADIENT_BY_TYPE[item.type] ?? GRADIENT_FALLBACK,
-              }}
-            />
-          )}
-          {isMomentLike && subLabel && (
-            <span className="absolute top-[14px] left-[14px] rounded-full bg-primary-orange text-white font-montserrat font-semibold text-[12px] leading-[16px] px-[10px] py-[3px]">
-              {subLabel}
-            </span>
-          )}
-        </div>
-        <div className="h-[92px] shrink-0 px-[16px] pt-[24px] pb-[24px] flex items-start justify-between gap-[10px]">
-          <div className="flex-1 min-w-0">
-            <h3
-              className={`font-plusjakarta font-normal text-black text-[16px] leading-[20px] ${
-                subtitle ? "line-clamp-1" : "line-clamp-2"
-              }`}
-            >
-              {titleText}
-            </h3>
-            {subtitle && (
-              <p className="mt-[4px] font-plusjakarta font-normal text-black text-[14px] leading-[20px] line-clamp-1">
-                {subtitle}
-              </p>
-            )}
-          </div>
-          <span
-            aria-hidden
-            className="shrink-0 mt-[2px] w-[24px] h-[24px] rounded-full bg-[#EDEDED] flex items-center justify-center text-primary-blue"
-          >
-            <svg
-              width={12}
-              height={9}
-              viewBox="0 0 33 33"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={3.6}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M5.4278 16.2833H27.1389M18.9972 24.4249L27.1389 16.2833L18.9972 8.1416" />
-            </svg>
-          </span>
-        </div>
+        {subLabel && (
+          <p className="shrink-0 font-montserrat font-normal text-[#848484] text-[11px] leading-[16px] md:text-[13px] md:leading-[20px]">
+            {subLabel}
+          </p>
+        )}
       </div>
     </button>
   );
@@ -606,7 +527,7 @@ function AddMomentCTA() {
   return (
     <Link
       href="/new-story?moment=1"
-      className="shrink-0 w-[calc((100vw-42px)/2)] max-w-[240px] h-[143px] md:w-[300px] md:max-w-none md:h-[356px] bg-white rounded-[13px] md:rounded-[30px] shadow-[0_0_17.8px_rgba(0,0,0,0.15)] p-[16px] flex flex-col items-center justify-center gap-[10px] text-primary-blue/70 hover:text-primary-blue transition-colors"
+      className="shrink-0 w-[calc((100vw-42px)/2)] max-w-[240px] h-[143px] md:w-[280px] md:max-w-none md:h-[200px] bg-white rounded-[13px] md:rounded-[24px] shadow-[0_0_17.8px_rgba(0,0,0,0.15)] p-[16px] flex flex-col items-center justify-center gap-[10px] text-primary-blue/70 hover:text-primary-blue transition-colors"
     >
       <span className="w-[44px] h-[44px] rounded-full bg-primary-cream flex items-center justify-center">
         <PlusIcon width={18} height={18} strokeWidth={2} />
@@ -620,28 +541,18 @@ function AddMomentCTA() {
 
 function ReminderSkeleton() {
   return (
-    <div className="flex gap-[16px] overflow-hidden py-[14px] px-[14px] [mask-image:linear-gradient(to_right,#000_0,#000_calc(100%-28px),transparent_100%)]">
+    <div className="flex gap-[16px] overflow-hidden">
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="shrink-0 overflow-hidden w-[calc((100vw-42px)/2)] max-w-[240px] h-[143px] md:w-[300px] md:max-w-none md:h-[356px] bg-white rounded-[13px] md:rounded-[30px] shadow-[0_0_17.8px_rgba(0,0,0,0.15)] flex flex-col"
+          className="shrink-0 w-[calc((100vw-42px)/2)] max-w-[240px] h-[143px] md:w-[280px] md:max-w-none md:h-[200px] bg-white rounded-[13px] md:rounded-[24px] shadow-[0_0_17.8px_rgba(0,0,0,0.15)] p-[14px] md:p-[16px] flex flex-col gap-[12px]"
         >
-          {/* Mobile compact skeleton */}
-          <div className="md:hidden flex flex-col gap-[12px] p-[14px] h-full">
-            <div className="flex items-start justify-between">
-              <div className="w-[54px] h-[54px] rounded-full bg-black/[0.06] animate-pulse" />
-              <div className="w-[28px] h-[28px] rounded-full bg-black/[0.06] animate-pulse" />
-            </div>
-            <div className="mt-auto h-[14px] w-2/3 bg-black/[0.06] rounded animate-pulse" />
+          <div className="flex items-start justify-between">
+            <div className="w-[64px] h-[64px] rounded-full bg-black/[0.06] animate-pulse" />
+            <div className="w-[32px] h-[32px] rounded-full bg-black/[0.06] animate-pulse" />
           </div>
-          {/* Desktop photo-card skeleton */}
-          <div className="hidden md:flex md:flex-col h-full">
-            <div className="flex-1 bg-black/[0.06] animate-pulse" />
-            <div className="h-[92px] shrink-0 px-[16px] pt-[24px] flex flex-col gap-[8px]">
-              <div className="h-[16px] w-2/3 bg-black/[0.06] rounded animate-pulse" />
-              <div className="h-[14px] w-1/2 bg-black/[0.06] rounded animate-pulse" />
-            </div>
-          </div>
+          <div className="h-[14px] w-2/3 bg-black/[0.06] rounded animate-pulse" />
+          <div className="h-[12px] w-1/3 bg-black/[0.06] rounded animate-pulse" />
         </div>
       ))}
     </div>

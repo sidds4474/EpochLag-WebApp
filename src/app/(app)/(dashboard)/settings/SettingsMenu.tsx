@@ -16,9 +16,9 @@ export default function SettingsMenu() {
           <Link
             key={href}
             href={href}
-            className={`flex items-center gap-[14px] px-[14px] py-[12px] rounded-[10px] font-plusjakarta text-[16px] transition-colors ${
+            className={`flex items-center gap-[14px] px-[14px] py-[12px] rounded-[10px] font-montserrat text-[14px] transition-colors ${
               active
-                ? "bg-[#EDEDED] text-primary-blue font-medium"
+                ? "bg-[#EDEDED] text-primary-blue font-semibold"
                 : "text-primary-blue hover:bg-[#EDEDED]/60 font-medium"
             }`}
           >

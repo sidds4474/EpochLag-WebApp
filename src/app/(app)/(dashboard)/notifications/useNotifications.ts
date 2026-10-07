@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   clearAllNotifications,
   enrichDockingCards,
@@ -13,17 +13,7 @@ import type { Notification } from "../../../../types/home";
 // mount but reuse the cached list synchronously so the UI never blanks.
 let cached: Notification[] | null = null;
 let loadedAt = 0;
-// The in-progress fetch, shared across every mounted consumer. Holding the
-// promise (rather than a boolean) lets a second consumer await the same
-// request and then read the cache, instead of bailing out with its own
-// `loading` stuck at true — which is what left /notifications on "Loading…"
-// forever whenever the header bell and the page mounted together.
-let inFlight: Promise<void> | null = null;
-// The docking-card enrichment for the most recent fetch. Rows read the card
-// cache at render time, so once this settles every mounted consumer must
-// re-render — otherwise rows that drew a skeleton on first paint keep it
-// forever (which is exactly what happened: enrichment finished, nobody looked).
-let enriching: Promise<void> | null = null;
+let inFlight = false;
 const FRESHNESS_MS = 60_000;
 
 export type UseNotifications = {
@@ -38,46 +28,27 @@ export type UseNotifications = {
 export function useNotifications(): UseNotifications {
   const [items, setItems] = useState<Notification[]>(cached ?? []);
   const [loading, setLoading] = useState(cached === null);
+  const localFlight = useRef(false);
 
   const load = useCallback(async (silent: boolean) => {
+    if (inFlight || localFlight.current) return;
+    inFlight = true;
+    localFlight.current = true;
     if (!silent) setLoading(true);
-
-    if (inFlight) {
-      // Another consumer already owns the request. Wait for it, then adopt
-      // whatever landed in the shared cache so this consumer settles too.
-      try {
-        await inFlight;
-      } catch {
-        // The owner handles its own failure; we still need to stop loading.
-      }
-      setItems(cached ?? []);
-      setLoading(false);
-      // The owner's enrichment may still be running — re-render when it lands.
-      if (enriching) void enriching.finally(() => setItems((prev) => [...prev]));
-      return;
-    }
-
-    inFlight = (async () => {
-      try {
-        const { items: fresh } = await fetchNotifications();
-        cached = fresh;
-        loadedAt = Date.now();
-        setItems(fresh);
-        // Fire-and-forget enrichment; we don't block the initial paint on it.
-        // When it settles, hand out a fresh array so rows re-read the cache.
-        enriching = enrichDockingCards(fresh).catch(() => {});
-        void enriching.finally(() => setItems((prev) => [...prev]));
-      } catch {
-        if (cached === null) setItems([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
-
     try {
-      await inFlight;
+      const { items: fresh } = await fetchNotifications();
+      cached = fresh;
+      loadedAt = Date.now();
+      setItems(fresh);
+      // Fire-and-forget enrichment; row renderer re-reads from the cache once
+      // it settles. We don't block the initial paint on this.
+      enrichDockingCards(fresh).catch(() => {});
+    } catch {
+      if (cached === null) setItems([]);
     } finally {
-      inFlight = null;
+      setLoading(false);
+      inFlight = false;
+      localFlight.current = false;
     }
   }, []);
 

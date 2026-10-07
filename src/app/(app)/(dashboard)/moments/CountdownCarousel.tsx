@@ -27,8 +27,8 @@ export default function CountdownCarousel({
   }
   if (items.length === 0) {
     return (
-      <div className="h-[168px] rounded-[20px] bg-[color:var(--color-surface-muted)] flex items-center justify-center text-center px-[16px]">
-        <p className="font-montserrat text-primary-blue/50 text-[14px]">
+      <div className="h-[168px] rounded-[20px] bg-[color:var(--color-surface-muted)] flex items-center justify-center">
+        <p className="font-montserrat text-primary-blue/50 text-[13px]">
           Pin a moment to see it counted down here
         </p>
       </div>

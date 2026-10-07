@@ -129,28 +129,24 @@ export default function MomentsPage() {
           <h1 className="font-montserrat font-bold text-primary-blue text-[26px] md:text-[28px] leading-[1.1]">
             Moments
           </h1>
-          {/* Only show the carousel arrows when there's a countdown to scroll —
-              they used to render fully enabled over the empty "Pin a moment" slot. */}
-          {(countdown?.length ?? 0) > 0 && (
-            <div className="hidden lg:flex items-center gap-[6px]">
-              <button
-                type="button"
-                onClick={() => stepCarousel(-1)}
-                aria-label="Previous"
-                className="cursor-pointer hover:brightness-95 transition"
-              >
-                <CarouselArrow direction="left" />
-              </button>
-              <button
-                type="button"
-                onClick={() => stepCarousel(1)}
-                aria-label="Next"
-                className="cursor-pointer hover:brightness-95 transition"
-              >
-                <CarouselArrow direction="right" />
-              </button>
-            </div>
-          )}
+          <div className="hidden lg:flex items-center gap-[6px]">
+            <button
+              type="button"
+              onClick={() => stepCarousel(-1)}
+              aria-label="Previous"
+              className="cursor-pointer hover:brightness-95 transition"
+            >
+              <CarouselArrow direction="left" />
+            </button>
+            <button
+              type="button"
+              onClick={() => stepCarousel(1)}
+              aria-label="Next"
+              className="cursor-pointer hover:brightness-95 transition"
+            >
+              <CarouselArrow direction="right" />
+            </button>
+          </div>
         </div>
 
         <Link
@@ -212,8 +208,8 @@ export default function MomentsPage() {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-[16px] bg-[color:var(--color-surface-muted)] py-[44px] flex items-center justify-center text-center px-[16px]">
-                  <p className="font-montserrat text-primary-blue/50 text-[14px]">
+                <div className="rounded-[16px] bg-[#D9D9D9] py-[44px] flex items-center justify-center">
+                  <p className="font-montserrat text-primary-blue text-[14px]">
                     No moment today
                   </p>
                 </div>
@@ -291,8 +287,8 @@ export default function MomentsPage() {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-[16px] bg-[color:var(--color-surface-muted)] py-[44px] flex items-center justify-center text-center px-[16px]">
-                  <p className="font-montserrat text-primary-blue/50 text-[14px]">
+                <div className="rounded-[16px] bg-[#D9D9D9] py-[44px] flex items-center justify-center">
+                  <p className="font-montserrat text-primary-blue text-[14px]">
                     No moment today
                   </p>
                 </div>
@@ -351,10 +347,10 @@ function FilterPill({
             key={o.value}
             type="button"
             onClick={() => onChange(o.value)}
-            className={`cursor-pointer px-[18px] py-[8px] rounded-full font-plusjakarta font-medium text-[16px] transition-colors ${
+            className={`cursor-pointer px-[18px] py-[8px] rounded-full font-montserrat font-semibold text-[13px] transition-colors ${
               active
                 ? "bg-[#092E4A] text-white"
-                : "text-primary-blue hover:text-primary-blue"
+                : "text-primary-blue/70 hover:text-primary-blue"
             }`}
           >
             {o.label}
@@ -443,8 +439,8 @@ function EmptyState({ filter }: { filter: MomentFilter }) {
       ? "No upcoming moments yet. Tap + Add Moment to get started."
       : "No past moments yet.";
   return (
-    <div className="rounded-[16px] bg-[color:var(--color-surface-muted)] px-[16px] py-[32px] text-center">
-      <p className="font-montserrat text-primary-blue/50 text-[14px]">{copy}</p>
+    <div className="rounded-[16px] border border-dashed border-black/[0.15] px-[16px] py-[32px] text-center">
+      <p className="font-montserrat text-primary-blue/60 text-[14px]">{copy}</p>
     </div>
   );
 }

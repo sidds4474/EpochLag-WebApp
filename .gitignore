@@ -29,4 +29,3 @@ tsconfig.tsbuildinfo
 .vercel
 scripts/epochlag-web-sync.sh
 .qa-backups
-.claude/

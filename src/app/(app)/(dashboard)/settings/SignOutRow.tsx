@@ -24,7 +24,7 @@ export default function SignOutRow() {
         className="cursor-pointer w-full flex items-center gap-[12px] px-[12px] py-[10px] rounded-[10px] text-[#E90606] hover:bg-[#E90606]/5 transition-colors"
       >
         <SignOutIcon width={20} height={20} />
-        <span className="font-montserrat font-medium text-[16px]">Sign out</span>
+        <span className="font-montserrat font-medium text-[14px]">Sign out</span>
       </button>
 
       {confirmOpen && (

@@ -29,7 +29,7 @@ export default function NotificationsPage() {
             />
           </svg>
         </button>
-        <h1 className="font-montserrat font-bold text-primary-blue text-[24px] leading-none">
+        <h1 className="font-montserrat font-bold text-primary-blue text-[22px] leading-none">
           Notifications
         </h1>
         {items.length > 0 && (

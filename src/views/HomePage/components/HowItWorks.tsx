@@ -137,7 +137,6 @@ const HowItWorks = () => {
             <button
               onClick={goBack}
               disabled={currentSlide === 0}
-              aria-label="Previous"
               className="cursor-pointer w-[44px] h-[44px] md:w-[48px] md:h-[48px] rounded-full bg-primary-blue flex items-center justify-center transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
             >
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -148,7 +147,6 @@ const HowItWorks = () => {
             <button
               onClick={goForward}
               disabled={currentSlide === slides.length - 1}
-              aria-label="Next"
               className="cursor-pointer w-[44px] h-[44px] md:w-[48px] md:h-[48px] rounded-full bg-primary-blue flex items-center justify-center transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
             >
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

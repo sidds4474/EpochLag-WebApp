@@ -31,7 +31,7 @@ export default function NotificationsList({
 
   const headerTitleClass = isPopover
     ? "font-montserrat font-bold text-primary-blue text-[20px]"
-    : "font-montserrat font-bold text-primary-blue text-[24px]";
+    : "font-montserrat font-bold text-primary-blue text-[28px] md:text-[36px]";
 
   const sectionLabelClass = isPopover
     ? "font-montserrat font-bold text-primary-blue text-[13px] mt-[10px] mb-[2px] px-[16px]"

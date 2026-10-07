@@ -28,7 +28,7 @@ export default function StudioTabs({ active, onChange }: Props) {
               key={t.id}
               type="button"
               onClick={() => onChange(t.id)}
-              className={`cursor-pointer shrink-0 rounded-full px-[18px] h-[36px] inline-flex items-center font-plusjakarta font-medium text-[16px] transition-colors ${
+              className={`cursor-pointer shrink-0 rounded-full px-[18px] h-[36px] inline-flex items-center font-montserrat font-medium text-[14px] transition-colors ${
                 on
                   ? "bg-primary-blue text-white"
                   : "bg-white text-primary-blue border-[1.5px] border-primary-blue/80 hover:bg-primary-blue/[0.04]"

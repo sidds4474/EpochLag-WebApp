@@ -276,7 +276,7 @@ function LocationPickerModal({
       >
         <div className="flex items-center justify-between mb-[12px]">
           <h3 className="font-montserrat font-bold text-[16px] text-primary-blue">Add Location</h3>
-          <button type="button" aria-label="Close" onClick={onClose} className="cursor-pointer text-primary-blue/60 hover:text-primary-blue">
+          <button type="button" onClick={onClose} className="cursor-pointer text-primary-blue/60 hover:text-primary-blue">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M6 6l12 12M6 18L18 6" />
             </svg>
@@ -498,10 +498,10 @@ function Calendar({
           <span className="font-montserrat font-semibold text-primary-blue text-[15px]">
             {MONTHS[viewMonth]}
           </span>
-          <button type="button" aria-label="Previous month" onClick={prevMonth} className="cursor-pointer text-primary-blue">
+          <button type="button" onClick={prevMonth} className="cursor-pointer text-primary-blue">
             <ChevronLeftIcon width={16} height={16} />
           </button>
-          <button type="button" aria-label="Next month" onClick={nextMonth} className="cursor-pointer text-primary-blue">
+          <button type="button" onClick={nextMonth} className="cursor-pointer text-primary-blue">
             <ChevronRightIcon width={16} height={16} />
           </button>
         </div>

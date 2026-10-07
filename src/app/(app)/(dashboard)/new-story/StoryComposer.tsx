@@ -34,7 +34,6 @@ import {
   updateStory,
   updateUserCard,
   uploadToCloudinary,
-  uploadToCloudinaryWithProgress,
 } from "../../../../lib/create/api";
 import { serializeBlocksToContent, type StoryBlock } from "../../../../lib/create/content";
 import {
@@ -221,53 +220,13 @@ function readDraft(key: string): PersistedDraft | null {
   }
 }
 
-// One id per browser tab (sessionStorage is per-tab). Lets the draft slot
-// record which tab last wrote it, so two tabs editing the same story don't
-// silently overwrite each other — previously the last writer won and the
-// other tab's work vanished on its next reload.
-const DRAFT_OWNER_STALE_MS = 2 * 60_000;
-function tabId(): string {
-  if (typeof window === "undefined") return "server";
+function writeDraft(key: string, draft: PersistedDraft): void {
+  if (typeof window === "undefined") return;
   try {
-    let id = window.sessionStorage.getItem("story-composer-tab");
-    if (!id) {
-      id = Math.random().toString(36).slice(2, 10);
-      window.sessionStorage.setItem("story-composer-tab", id);
-    }
-    return id;
-  } catch {
-    return "unknown";
-  }
-}
-
-/** Returns false when another tab has written this draft within the last
- *  two minutes — the caller should stop autosaving and tell the user. A tab
- *  that has gone quiet for longer than that is treated as closed, so a draft
- *  is never locked forever. */
-function writeDraft(key: string, draft: PersistedDraft): boolean {
-  if (typeof window === "undefined") return true;
-  const me = tabId();
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (raw) {
-      const prev = JSON.parse(raw) as { tabId?: string; savedAt?: number };
-      if (
-        prev.tabId &&
-        prev.tabId !== me &&
-        typeof prev.savedAt === "number" &&
-        Date.now() - prev.savedAt < DRAFT_OWNER_STALE_MS
-      ) {
-        return false;
-      }
-    }
-    window.localStorage.setItem(
-      key,
-      JSON.stringify({ ...draft, tabId: me, savedAt: Date.now() })
-    );
+    window.localStorage.setItem(key, JSON.stringify(draft));
   } catch {
     /* quota exceeded / private mode — non-fatal */
   }
-  return true;
 }
 
 function clearDraft(key: string): void {
@@ -365,16 +324,6 @@ export default function StoryComposer({
   // blob URLs are lost — so we only persist text blocks + meta. See
   // `readDraft`/`writeDraft` below for the shape.
   const draftKey = draftKeyFor(replyPromptId, albumId);
-  // Warn once per session if another tab owns this draft (see writeDraft).
-  const draftLockWarnedRef = useRef(false);
-  // Flips true after the first successful autosave so the composer can show a
-  // quiet "Draft saved" hint — users had no sign their work was being kept.
-  const [draftSaved, setDraftSaved] = useState(false);
-  // Per-block upload progress (0..1) for image/video blocks, so the media
-  // block shows a progress bar instead of nothing while it uploads.
-  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
-    {}
-  );
   const initialDraft = useMemo(() => readDraft(draftKey), [draftKey]);
   // Edit-mode seed for the block editor. Existing media blocks land with
   // `uploadedUrl` already set + `file: null` so publish/save skips the
@@ -515,11 +464,6 @@ export default function StoryComposer({
   // ignores this state. Step 1 = title/content, Step 2 = cover + share opts.
   const [mobileStep, setMobileStep] = useState<"content" | "cover">("content");
   const [submitting, setSubmitting] = useState(false);
-  // Inline publish/validation error shown right next to the Create Story button
-  // (in addition to the toast) so the reason is visible at the point of action —
-  // the top-center toast is easy to miss, especially on mobile where the button
-  // sits at the bottom of the screen (QA #24).
-  const [publishError, setPublishError] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<ThreadResponse | null>(null);
   const [createdStory, setCreatedStory] = useState<{
     storyId: string;
@@ -682,12 +626,6 @@ export default function StoryComposer({
     if (title.trim() || hasText || hasMedia) dirtyRef.current = true;
   }, [title, blocks]);
 
-  // Clear the inline publish error once the user changes anything relevant —
-  // the message shouldn't linger after they've addressed it.
-  useEffect(() => {
-    setPublishError(null);
-  }, [title, blocks, cover.file, cover.imageUrl]);
-
   // Refresh-persistence: mirror composer state to localStorage on every
   // meaningful change so a browser reload doesn't wipe the user's work.
   // The draft stores ORDERED block descriptors — text blocks inline, media
@@ -735,7 +673,7 @@ export default function StoryComposer({
       clearDraft(draftKey);
       return;
     }
-    const saved = writeDraft(draftKey, {
+    writeDraft(draftKey, {
       title,
       blocks: persistedBlocks,
       coverImageUrl: cover.imageUrl,
@@ -744,17 +682,6 @@ export default function StoryComposer({
       music,
       allowShare,
     });
-    if (saved) {
-      // React no-ops when the value is unchanged, so this won't re-render
-      // on every keystroke once it's true.
-      setDraftSaved(true);
-    } else if (!draftLockWarnedRef.current) {
-      draftLockWarnedRef.current = true;
-      toast.error(
-        "This story is open in another tab. To avoid losing work, this tab won't autosave until that one closes.",
-        { id: "draft-owned-elsewhere", duration: 8000 }
-      );
-    }
   }, [
     title,
     blocks,
@@ -853,42 +780,6 @@ export default function StoryComposer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // #63 — unsaved-changes guard. Text and media auto-save to a local draft, so
-  // most work survives a back-out, but an in-progress voice recording is never
-  // persisted, and the composer otherwise leaves instantly with no prompt. Warn
-  // on the browser's refresh/close path (native dialog) for new stories with
-  // real content. Edit sessions are excluded (no draft; content is pre-loaded,
-  // so "dirty" can't be told apart from "unchanged" here).
-  useEffect(() => {
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isEdit || createdStory) return;
-      const recording = blocksRef.current.some(
-        (b) => b.type === "audio" && b.recording
-      );
-      if (dirtyRef.current || recording) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [isEdit, createdStory]);
-
-  // In-app Back guard — same intent as the beforeunload above, for the
-  // composer's own Back button (SPA nav doesn't fire beforeunload).
-  function handleBack() {
-    const recording = blocks.some(
-      (b) => b.type === "audio" && b.recording
-    );
-    if (!isEdit && !createdStory && (dirtyRef.current || recording)) {
-      const msg = recording
-        ? "A voice recording is still in progress and will be lost if you leave. Leave anyway?"
-        : "Leave the composer? Your draft is saved automatically and will be here when you return.";
-      if (!window.confirm(msg)) return;
-    }
-    onBack();
-  }
-
   function openPreview() {
     if (!user) return;
     // Convert editor blocks → serializable blocks. For un-uploaded media we
@@ -949,7 +840,6 @@ export default function StoryComposer({
   // block so publish skips re-upload; on failure, silently drops the tracker
   // and publish's fallback loop will retry synchronously.
   function startBackgroundUpload(blockId: string, file: File) {
-    setUploadProgress((p) => ({ ...p, [blockId]: 0 }));
     const promise = (async () => {
       const { storyId } = await ensureIds();
       const token = await getUploadToken(storyId, {
@@ -957,16 +847,7 @@ export default function StoryComposer({
         fileSize: file.size,
         mimeType: file.type,
       });
-      // Progress-reporting XHR upload so the media block can show a bar.
-      const uploaded = await uploadToCloudinaryWithProgress(
-        token,
-        file,
-        (frac) =>
-          setUploadProgress((p) => ({
-            ...p,
-            [blockId]: Math.max(0, Math.min(1, frac)),
-          }))
-      ).promise;
+      const uploaded = await uploadToCloudinary(token, file);
       setBlocks((prev) =>
         prev.map((b) =>
           b.id === blockId && b.type !== "text"
@@ -975,57 +856,37 @@ export default function StoryComposer({
         )
       );
     })().catch(() => {
-      // Don't throw — publish's fallback loop will re-upload if needed. But
-      // do say so: a dropped connection here used to be completely silent,
-      // leaving the author with no idea the photo hadn't gone up.
-      const what = file.type.startsWith("video/") ? "video" : "photo";
-      toast.error(
-        `Couldn't upload that ${what} right now — we'll try again when you publish.`,
-        { id: `upload-failed-${blockId}` }
-      );
+      // Swallow — publish's fallback loop will re-upload if needed.
     });
     uploadPromisesRef.current.set(blockId, promise);
     void promise.finally(() => {
       uploadPromisesRef.current.delete(blockId);
-      // Clear progress whether it succeeded (block now has uploadedUrl) or
-      // failed (toast shown); leaving a stuck bar would be misleading.
-      setUploadProgress((p) => {
-        const { [blockId]: _drop, ...rest } = p;
-        void _drop;
-        return rest;
-      });
     });
   }
 
   async function handlePublish() {
     if (submitting) return;
-    // Surface the reason both as a toast and inline next to the button.
-    const fail = (msg: string) => {
-      setPublishError(msg);
-      toast.error(msg);
-    };
     if (!title.trim()) {
-      fail("Give your story a title");
+      toast.error("Give your story a title");
       return;
     }
     const hasContent = blocks.some((b) =>
       b.type === "text" ? b.text.trim().length > 0 : true
     );
     if (!hasContent) {
-      fail("Add some text or media to your story");
+      toast.error("Add some text or media to your story");
       return;
     }
     // Answering a prompt or adding to an existing thread inherits the
     // source cover — don't force a pick.
     if (!replyPromptId && !isReplyFlow && !cover.file && !cover.imageUrl) {
-      fail("Choose a cover image");
+      toast.error("Choose a cover image");
       return;
     }
     if (recording) {
-      fail("Stop the recording before publishing");
+      toast.error("Stop the recording before publishing");
       return;
     }
-    setPublishError(null);
     setSubmitting(true);
     try {
       const { promptId, storyId } = await ensureIds();
@@ -1157,9 +1018,6 @@ export default function StoryComposer({
         err instanceof ApiError
           ? err.message
           : "Something went wrong. Please try again.";
-      // Inline (by the button) + toast, so a failed publish is obvious at the
-      // point of action and the user knows to retry (QA #26).
-      setPublishError(message);
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -1202,26 +1060,21 @@ export default function StoryComposer({
     if (submitting) return;
     const storyId = storyIdRef.current;
     if (!storyId) return;
-    const fail = (msg: string) => {
-      setPublishError(msg);
-      toast.error(msg);
-    };
     if (!title.trim()) {
-      fail("Give your story a title");
+      toast.error("Give your story a title");
       return;
     }
     const hasContent = blocksRef.current.some((b) =>
       b.type === "text" ? b.text.trim().length > 0 : true
     );
     if (!hasContent) {
-      fail("Add some text or media to your story");
+      toast.error("Add some text or media to your story");
       return;
     }
     if (recording) {
-      fail("Stop the recording before saving");
+      toast.error("Stop the recording before saving");
       return;
     }
-    setPublishError(null);
     // Wait on any background uploads still in flight. If those uploads
     // FAILED (background upload swallows errors), the block keeps its
     // `file` with no `uploadedUrl` — the fallback loop below will retry
@@ -1357,7 +1210,6 @@ export default function StoryComposer({
         err instanceof ApiError
           ? err.message
           : "Couldn't save. Try again.";
-      setPublishError(message);
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -1380,9 +1232,6 @@ export default function StoryComposer({
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const rafRef = useRef<number | null>(null);
-  // The idle audio block a recording is being started for, so a mic-denied
-  // retry re-targets the same block instead of adding a new one.
-  const pendingRecordBlockRef = useRef<string | null>(null);
   const timerRef = useRef<number | null>(null);
 
   // Track which block is currently focused. All Aa/media insertions key off
@@ -1477,20 +1326,8 @@ export default function StoryComposer({
     // need to add one here.
   }
 
-  // Insert an audio block in its idle state (no mic access yet). The user then
-  // taps "Record" on the block to actually start — previously tapping Voice
-  // began recording immediately, with no chance to cancel before the mic went
-  // live.
-  function addIdleAudioBlock() {
-    const id = makeBlockId("audio");
-    insertAfterFocus([
-      { id, type: "audio", file: null, preview: null, recording: false },
-    ]);
-  }
-
-  async function startRecording(existingBlockId?: string) {
+  async function startRecording() {
     if (recording) return;
-    pendingRecordBlockRef.current = existingBlockId ?? null;
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1520,21 +1357,11 @@ export default function StoryComposer({
     rec.start(200);
     recorderRef.current = rec;
 
-    // Either flip the existing idle block into recording, or (fallback) insert
-    // a fresh recording block.
-    let id = existingBlockId;
-    if (id) {
-      setBlocks((prev) =>
-        prev.map((b) =>
-          b.id === id && b.type === "audio" ? { ...b, recording: true } : b
-        )
-      );
-    } else {
-      id = makeBlockId("audio");
-      insertAfterFocus([
-        { id, type: "audio", file: null, preview: null, recording: true },
-      ]);
-    }
+    // Insert a placeholder audio block that renders as the inline recorder.
+    const id = makeBlockId("audio");
+    insertAfterFocus([
+      { id, type: "audio", file: null, preview: null, recording: true },
+    ]);
     setRecording({ blockId: id, seconds: 0, levels: [], paused: false });
     tickWaveform();
     startTimer();
@@ -1735,18 +1562,6 @@ export default function StoryComposer({
     );
   }
 
-  // The <img>/<video> preview couldn't be decoded — corrupt or unsupported
-  // file. Drop the block and say so; previously a bad file was accepted
-  // silently and simply never played.
-  function handleInvalidMedia(id: string) {
-    const block = blocksRef.current.find((b) => b.id === id);
-    const what = block?.type === "video" ? "video" : "photo";
-    removeBlock(id);
-    toast.error(`Couldn't add that ${what}. Please try a different ${what}.`, {
-      id: `invalid-media-${id}`,
-    });
-  }
-
   function removeBlock(id: string) {
     setBlocks((prev) => {
       const next = prev.filter((b) => {
@@ -1817,21 +1632,13 @@ export default function StoryComposer({
                 setMobileStep("content");
                 return;
               }
-              handleBack();
+              onBack();
             }}
             aria-label="Back"
             className="cursor-pointer w-[36px] h-[36px] rounded-full bg-white lg:bg-[#ededed] text-primary-blue flex items-center justify-center hover:brightness-95 lg:hover:bg-[#e3e3e3] transition-[filter] shrink-0"
           >
             <ChevronLeftIcon width={16} height={16} />
           </button>
-          {!isEdit && draftSaved && (
-            <span className="hidden lg:inline-flex items-center gap-[4px] ml-[12px] font-montserrat text-[12px] text-primary-blue/50">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Draft saved
-            </span>
-          )}
           <h1 className="hidden lg:block font-montserrat font-bold text-primary-blue text-[28px] leading-tight truncate">
             {isEdit ? "Edit Lag" : "New Lag"}
           </h1>
@@ -1847,10 +1654,10 @@ export default function StoryComposer({
               type="button"
               aria-label="Help"
               onClick={() => setShowHelp((v) => !v)}
-              className={`cursor-pointer w-[36px] h-[36px] rounded-full flex items-center justify-center transition-[filter,background-color] ${
+              className={`cursor-pointer w-[32px] h-[32px] rounded-full flex items-center justify-center transition-colors ${
                 showHelp
                   ? "bg-primary-blue text-white"
-                  : "bg-white text-primary-blue hover:brightness-95"
+                  : "text-primary-blue hover:bg-black/[0.04]"
               }`}
             >
               <HelpIcon width={20} height={20} />
@@ -1866,7 +1673,7 @@ export default function StoryComposer({
             type="button"
             onClick={openPreview}
             aria-label="Preview"
-            className="lg:hidden cursor-pointer w-[36px] h-[36px] rounded-full bg-white text-primary-blue flex items-center justify-center hover:brightness-95 transition-[filter]"
+            className="lg:hidden cursor-pointer w-[32px] h-[32px] rounded-full text-primary-blue flex items-center justify-center hover:bg-black/[0.04] transition-colors"
           >
             <EyeIcon width={20} height={20} />
           </button>
@@ -1919,28 +1726,18 @@ export default function StoryComposer({
           </button>
         </div>
       </div>
-      {publishError && (
-        <p
-          role="alert"
-          className="hidden lg:block px-[40px] pb-[8px] text-right font-montserrat font-medium text-[13px] text-[#C0392B]"
-        >
-          {publishError}
-        </p>
-      )}
       <div className="mx-[16px] md:mx-[24px] lg:mx-[40px] h-px bg-[#d9d9d9]" />
 
       {/* Desktop (lg+) two-column body — unchanged. Mobile renders a separate
           step-based layout below. */}
-      {/* max-w caps the body on very wide screens — without it the title field
-          stretched to ~1875px at 2560px while the search bar above stayed narrow. */}
-      <div className="hidden lg:flex flex-1 min-h-0 flex-row gap-[32px] w-full max-w-[1200px] mx-auto px-[40px] pt-[20px] pb-[120px]">
+      <div className="hidden lg:flex flex-1 min-h-0 flex-row gap-[32px] px-[40px] pt-[20px] pb-[120px]">
         {/* MAIN COLUMN */}
         <div className="flex-1 min-w-0 flex flex-col gap-[16px]">
           {prompt && !hidePromptStrip && <PromptStrip prompt={prompt} />}
           <TitleInput value={title} onChange={setTitle} />
           {isPureEmptyState ? (
             <EmptyStateGrid
-              onVoice={addIdleAudioBlock}
+              onVoice={startRecording}
               onPhoto={() => setUploadModal("image")}
               onVideo={() => setUploadModal("video")}
               onText={handleEmptyStateAddText}
@@ -1953,12 +1750,9 @@ export default function StoryComposer({
               recording={recording}
               onUpdate={updateBlock}
               onRemove={removeBlock}
-              onInvalid={handleInvalidMedia}
-              uploadProgress={uploadProgress}
               onReorder={reorderBlocks}
               onFocusBlock={setEditingBlockId}
               onFocusHandled={() => setPendingFocusId(null)}
-              onStartRecording={startRecording}
               onStopRecording={stopRecording}
               onTogglePauseRecording={togglePauseRecording}
               onCancelRecording={cancelRecording}
@@ -2080,7 +1874,7 @@ export default function StoryComposer({
             />
             {isPureEmptyState ? (
               <EmptyStateGrid
-                onVoice={addIdleAudioBlock}
+                onVoice={startRecording}
                 onPhoto={() => setUploadModal("image")}
                 onVideo={() => setUploadModal("video")}
                 onText={handleEmptyStateAddText}
@@ -2093,13 +1887,10 @@ export default function StoryComposer({
                 recording={recording}
                 onUpdate={updateBlock}
                 onRemove={removeBlock}
-                onInvalid={handleInvalidMedia}
-                uploadProgress={uploadProgress}
                 onReorder={reorderBlocks}
                 onFocusBlock={setEditingBlockId}
                 onFocusHandled={() => setPendingFocusId(null)}
-                onStartRecording={startRecording}
-              onStopRecording={stopRecording}
+                onStopRecording={stopRecording}
                 onTogglePauseRecording={togglePauseRecording}
                 onCancelRecording={cancelRecording}
               />
@@ -2125,10 +1916,9 @@ export default function StoryComposer({
                   <div className="flex flex-col items-center gap-[12px] text-primary-blue">
                     <ImageIcon width={44} height={44} />
                     <span className="font-montserrat font-medium text-[14px] text-center">
-                      {/* Matches the desktop button ("Choose Cover") so the same
-                          control doesn't carry two labels. Was "Click to upload a
-                          cover photo" — wrong verb on a touchscreen. */}
-                      Choose Cover
+                      Click to upload a
+                      <br />
+                      cover photo
                     </span>
                   </div>
                 )}
@@ -2163,14 +1953,6 @@ export default function StoryComposer({
           Create Story. The floating BlockPicker is only visible in step 1 —
           rendered below with a step-aware `visible` prop. */}
       <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 px-[16px] pb-[16px] pt-[12px] bg-[#FFEFDC]">
-        {publishError && (
-          <p
-            role="alert"
-            className="mb-[8px] text-center font-montserrat font-medium text-[13px] text-[#C0392B]"
-          >
-            {publishError}
-          </p>
-        )}
         <button
           type="button"
           onClick={() => {
@@ -2210,7 +1992,7 @@ export default function StoryComposer({
           onAddText={handleAddTextBlock}
           onAddImage={() => setUploadModal("image")}
           onAddVideo={() => setUploadModal("video")}
-          onAddAudio={recording ? stopRecording : addIdleAudioBlock}
+          onAddAudio={recording ? stopRecording : startRecording}
           recording={recording !== null}
           mobileStep={mobileStep}
         />
@@ -2250,7 +2032,7 @@ export default function StoryComposer({
         onClose={() => setMicErrorKind(null)}
         onRetry={() => {
           setMicErrorKind(null);
-          void startRecording(pendingRecordBlockRef.current ?? undefined);
+          void startRecording();
         }}
       />
     </div>
@@ -2272,7 +2054,7 @@ function EmptyStateGrid({
   onText: () => void;
 }) {
   return (
-    <div className="flex-1 min-h-[240px] flex items-start lg:items-center justify-center pt-[12px] lg:pt-0">
+    <div className="flex-1 min-h-[240px] flex items-center justify-center">
       <div className="w-full max-w-[416px] lg:max-w-[372px] grid grid-cols-2 gap-[15px] lg:gap-[12px]">
         <EmptyStateTile
           onClick={onVoice}
@@ -2296,22 +2078,9 @@ function EmptyStateGrid({
           onClick={onText}
           ariaLabel="Add text"
           icon={
-            // Line-drawn "text" glyph (serif T) so it matches the stroke weight
-            // of the mic / image / camera icons instead of a heavy "Aa".
-            <svg
-              width={32}
-              height={32}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M5 6V4h14v2" />
-              <path d="M12 4v16" />
-              <path d="M9 20h6" />
-            </svg>
+            <span className="font-montserrat font-medium text-primary-blue text-[28px] leading-none">
+              Aa
+            </span>
           }
           label="Text"
         />
@@ -2446,10 +2215,6 @@ function BlockPill({
   return (
     <button
       type="button"
-      // Don't let pressing the pill blur the active text block: an empty block
-      // is cleaned up on blur, which unmounted this picker mid-click so the tap
-      // did nothing (QA #49). preventDefault keeps focus; the click still fires.
-      onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       aria-label={ariaLabel}
       className={`cursor-pointer h-[48px] px-[30px] rounded-full flex items-center justify-center transition-colors ${
@@ -2489,27 +2254,18 @@ function TitleInput({
   onChange: (v: string) => void;
 }) {
   return (
-    <div>
-      <label className="relative block">
-        <span className="absolute left-[18px] top-1/2 -translate-y-1/2 text-primary-blue/60 pointer-events-none">
-          <PencilIcon width={18} height={18} />
-        </span>
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Title your story"
-          maxLength={150}
-          className="w-full h-[48px] bg-white lg:bg-[#ededed] rounded-full pl-[46px] pr-[16px] font-montserrat font-medium text-primary-blue text-[16px] placeholder:text-[#848484] focus:outline-none focus:ring-2 focus:ring-primary-blue/15"
-        />
-      </label>
-      {/* Counter appears as the title nears the 150 cap. */}
-      {value.length > 120 && (
-        <p className="mt-[4px] pr-[16px] text-right font-montserrat text-[11px] text-primary-blue/50">
-          {value.length}/150
-        </p>
-      )}
-    </div>
+    <label className="relative block">
+      <span className="absolute left-[18px] top-1/2 -translate-y-1/2 text-primary-blue/60 pointer-events-none">
+        <PencilIcon width={18} height={18} />
+      </span>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Title your story"
+        className="w-full h-[48px] bg-white lg:bg-[#ededed] rounded-full pl-[46px] pr-[16px] font-montserrat font-medium text-primary-blue text-[16px] placeholder:text-[#848484] focus:outline-none focus:ring-2 focus:ring-primary-blue/15"
+      />
+    </label>
   );
 }
 
@@ -2531,12 +2287,9 @@ function BlocksEditor({
   recording,
   onUpdate,
   onRemove,
-  onInvalid,
-  uploadProgress,
   onReorder,
   onFocusBlock,
   onFocusHandled,
-  onStartRecording,
   onStopRecording,
   onTogglePauseRecording,
   onCancelRecording,
@@ -2547,12 +2300,9 @@ function BlocksEditor({
   recording: RecordingState;
   onUpdate: (id: string, patch: Partial<EditorBlock>) => void;
   onRemove: (id: string) => void;
-  onInvalid: (id: string) => void;
-  uploadProgress: Record<string, number>;
   onReorder: (fromId: string, toId: string) => void;
   onFocusBlock: (id: string | null) => void;
   onFocusHandled: () => void;
-  onStartRecording: (blockId: string) => void;
   onStopRecording: () => void;
   onTogglePauseRecording: () => void;
   onCancelRecording: () => void;
@@ -2599,11 +2349,8 @@ function BlocksEditor({
               }
               onUpdate={onUpdate}
               onRemove={onRemove}
-              onInvalid={onInvalid}
-              progress={uploadProgress[block.id]}
               onFocusBlock={onFocusBlock}
               onFocusHandled={onFocusHandled}
-              onStartRecording={onStartRecording}
               onStopRecording={onStopRecording}
               onTogglePauseRecording={onTogglePauseRecording}
               onCancelRecording={onCancelRecording}
@@ -2625,11 +2372,8 @@ function SortableBlockRow({
   recording,
   onUpdate,
   onRemove,
-  onInvalid,
-  progress,
   onFocusBlock,
   onFocusHandled,
-  onStartRecording,
   onStopRecording,
   onTogglePauseRecording,
   onCancelRecording,
@@ -2643,11 +2387,8 @@ function SortableBlockRow({
   recording: RecordingState;
   onUpdate: (id: string, patch: Partial<EditorBlock>) => void;
   onRemove: (id: string) => void;
-  onInvalid: (id: string) => void;
-  progress?: number;
   onFocusBlock: (id: string | null) => void;
   onFocusHandled: () => void;
-  onStartRecording: (blockId: string) => void;
   onStopRecording: () => void;
   onTogglePauseRecording: () => void;
   onCancelRecording: () => void;
@@ -2701,21 +2442,6 @@ function SortableBlockRow({
               <TrashIcon />
             </button>
           )}
-          {/* Text blocks had no way to be removed at all — media blocks have
-              an X on the preview, text blocks only had the drag handle. This
-              column only renders when there's more than one block, so the
-              sole remaining block can't be deleted. */}
-          {block.type === "text" && (
-            <button
-              type="button"
-              onClick={() => onRemove(block.id)}
-              aria-label="Remove block"
-              title="Remove block"
-              className="cursor-pointer w-[20px] h-[20px] rounded-[6px] text-primary-blue/45 hover:text-red-600 hover:bg-black/[0.04] flex items-center justify-center transition-colors"
-            >
-              <TrashIcon />
-            </button>
-          )}
         </div>
       )}
       <div className="flex-1 min-w-0 relative">
@@ -2743,20 +2469,8 @@ function SortableBlockRow({
             duration={block.duration}
             onRemove={() => onRemove(block.id)}
           />
-        ) : block.type === "audio" ? (
-          // Idle audio block: no clip yet and not recording. The mic only
-          // goes live when the user taps Record here.
-          <IdleAudioView
-            onStart={() => onStartRecording(block.id)}
-            onRemove={() => onRemove(block.id)}
-          />
         ) : (
-          <MediaBlockView
-            block={block}
-            progress={progress}
-            onRemove={() => onRemove(block.id)}
-            onInvalid={() => onInvalid(block.id)}
-          />
+          <MediaBlockView block={block} onRemove={() => onRemove(block.id)} />
         )}
       </div>
     </div>
@@ -2797,43 +2511,26 @@ function TextBlockView({
   }, [autoFocus, onFocusHandled]);
 
   return (
-    <div className="relative">
-      <textarea
-        ref={ref}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        maxLength={10000}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        placeholder={placeholder}
-        className={`w-full resize-none bg-white lg:bg-[#ededed] rounded-[20px] p-[16px] font-montserrat font-medium text-primary-blue text-[16px] leading-[22px] placeholder:text-[#848484] focus:outline-none focus:ring-2 focus:ring-primary-blue/15 ${
-          isOnly ? "min-h-[320px] md:min-h-[386px]" : "min-h-[80px]"
-        }`}
-      />
-      {/* Counter appears as the block nears the 10,000-char cap. */}
-      {value.length > 9000 && (
-        <span className="absolute bottom-[10px] right-[14px] font-montserrat text-[11px] text-primary-blue/50 bg-white/85 lg:bg-[#ededed]/85 rounded px-[4px] pointer-events-none">
-          {value.length.toLocaleString()}/10,000
-        </span>
-      )}
-    </div>
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      placeholder={placeholder}
+      className={`w-full resize-none bg-white lg:bg-[#ededed] rounded-[20px] p-[16px] font-montserrat font-medium text-primary-blue text-[16px] leading-[22px] placeholder:text-[#848484] focus:outline-none focus:ring-2 focus:ring-primary-blue/15 ${
+        isOnly ? "min-h-[320px] md:min-h-[386px]" : "min-h-[80px]"
+      }`}
+    />
   );
 }
 
 function MediaBlockView({
   block,
-  progress,
   onRemove,
-  onInvalid,
 }: {
   block: Extract<EditorBlock, { type: "image" | "video" | "audio" }>;
-  /** Upload progress 0..1 while the block uploads in the background;
-   *  undefined once done (or never started). */
-  progress?: number;
   onRemove: () => void;
-  /** The browser couldn't decode the chosen file (corrupt / unsupported).
-   *  Without this a bad video was accepted silently and just never played. */
-  onInvalid?: () => void;
 }) {
   // Null preview means we're hydrating from IDB. Show a lightweight skeleton
   // in-place so the layout doesn't shift when the blob arrives ~ms later.
@@ -2849,7 +2546,6 @@ function MediaBlockView({
         <img
           src={block.preview}
           alt=""
-          onError={onInvalid}
           className="block w-full max-h-[420px] object-contain bg-[#ededed]"
         />
       )}
@@ -2857,7 +2553,6 @@ function MediaBlockView({
         <video
           src={block.preview}
           controls
-          onError={onInvalid}
           className="block w-full max-h-[420px] bg-black"
         />
       )}
@@ -2869,23 +2564,6 @@ function MediaBlockView({
       >
         <CloseIcon width={12} height={12} />
       </button>
-      {/* Upload progress — previously there was no feedback while media
-          uploaded, so on a slow connection nothing appeared to happen. */}
-      {typeof progress === "number" && progress < 1 && (
-        <div className="absolute inset-x-0 bottom-0">
-          <div className="flex items-center gap-[8px] px-[12px] py-[8px] bg-black/55">
-            <div className="flex-1 h-[4px] rounded-full bg-white/30 overflow-hidden">
-              <div
-                className="h-full bg-white rounded-full transition-[width] duration-200"
-                style={{ width: `${Math.round(progress * 100)}%` }}
-              />
-            </div>
-            <span className="shrink-0 font-montserrat text-white text-[11px] tabular-nums">
-              {Math.round(progress * 100)}%
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -2895,40 +2573,6 @@ function MediaBlockView({
 // waveform, pause/resume button right. Stop is exposed via the composer's
 // block-picker mic pill (which turns active while recording) so the row
 // stays compact.
-// Idle audio block — shown after the user adds a Voice block but before the
-// mic is live. Tapping Record is what actually requests microphone access.
-function IdleAudioView({
-  onStart,
-  onRemove,
-}: {
-  onStart: () => void;
-  onRemove: () => void;
-}) {
-  return (
-    <div className="relative w-full rounded-[20px] bg-white lg:bg-[#ededed] px-[16px] py-[18px] flex items-center gap-[14px]">
-      <button
-        type="button"
-        onClick={onStart}
-        aria-label="Start recording"
-        className="cursor-pointer shrink-0 w-[48px] h-[48px] rounded-full bg-primary-orange text-white flex items-center justify-center hover:brightness-95 transition-[filter]"
-      >
-        <MicIcon width={24} height={24} />
-      </button>
-      <span className="flex-1 min-w-0 font-montserrat font-medium text-primary-blue text-[15px]">
-        Tap to record a voice note
-      </span>
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label="Remove block"
-        className="cursor-pointer shrink-0 w-[32px] h-[32px] rounded-full text-primary-blue/60 hover:text-red-600 hover:bg-black/[0.04] flex items-center justify-center transition-colors"
-      >
-        <TrashIcon />
-      </button>
-    </div>
-  );
-}
-
 function InlineRecorderView({
   session,
   onStop,
@@ -3375,12 +3019,8 @@ function MobileMetaChipRow({
       : `${tagPeopleDisplayName(taggedPeople[0])} + ${taggedPeople.length - 1}`;
   const peopleActive = taggedPeople.length > 0;
   return (
-    <div
-      className="-mx-[16px] px-[16px] py-[6px] min-h-[48px] overflow-x-auto overflow-y-visible scrollbar-hide shrink-0 [mask-image:linear-gradient(to_right,#000_90%,transparent)] [-webkit-mask-image:linear-gradient(to_right,#000_90%,transparent)]"
-    >
-      {/* Right-edge fade signals the row scrolls — chips used to cut off
-          mid-word at the screen edge with no indication there was more. */}
-      <div className="flex gap-[10px] w-max pr-[20px]">
+    <div className="-mx-[16px] px-[16px] py-[6px] min-h-[48px] overflow-x-auto overflow-y-visible scrollbar-hide shrink-0">
+      <div className="flex gap-[10px] w-max">
         <LocationChip value={location} onChange={onLocation} variant="compact" />
         <DateChip value={dateOfStory} onChange={onDate} variant="compact" />
         <MusicChip value={music} onChange={onMusic} variant="compact" />

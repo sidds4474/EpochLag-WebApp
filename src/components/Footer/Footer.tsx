@@ -49,30 +49,28 @@ const Footer = () => {
 
           <hr className="border-primary-white w-full block lg:hidden" />
 
-          {/* Allowed to wrap: four `shrink-0` links on one line are ~408px,
-              which forced the whole page to scroll sideways on 320–393px phones. */}
-          <div className="flex flex-wrap justify-center items-center gap-x-[16px] gap-y-[8px] xxs:gap-x-[24px]">
+          <div className="flex items-center gap-[16px] xxs:gap-[24px]">
             <Link
               href="/privacy-policy"
-              className="cursor-pointer shrink-0 inline-flex items-center min-h-[44px] font-myriadpro text-primary-white text-[12px] xxs:text-[14px] font-normal underline"
+              className="cursor-pointer shrink-0 font-myriadpro text-primary-white text-[12px] xxs:text-[14px] font-normal underline"
             >
               Privacy Policy
             </Link>
             <Link
               href="/child-safety-policy"
-              className="cursor-pointer shrink-0 inline-flex items-center min-h-[44px] font-myriadpro text-primary-white text-[12px] xxs:text-[14px] font-normal underline"
+              className="cursor-pointer shrink-0 font-myriadpro text-primary-white text-[12px] xxs:text-[14px] font-normal underline"
             >
               Child Safety Policy
             </Link>
             <Link
               href="/delete-account"
-              className="cursor-pointer shrink-0 inline-flex items-center min-h-[44px] font-myriadpro text-primary-white text-[12px] xxs:text-[14px] font-normal underline"
+              className="cursor-pointer shrink-0 font-myriadpro text-primary-white text-[12px] xxs:text-[14px] font-normal underline"
             >
               Account Deletion
             </Link>
             <Link
               href="/terms-of-service"
-              className="cursor-pointer shrink-0 inline-flex items-center min-h-[44px] font-myriadpro text-primary-white text-[12px] xxs:text-[14px] font-normal underline"
+              className="cursor-pointer shrink-0 font-myriadpro text-primary-white text-[12px] xxs:text-[14px] font-normal underline"
             >
               Terms of Service
             </Link>

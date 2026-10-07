@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import LogoDark from "../../../assets/images/logo-dark.webp";
 import {
+  ChevronRightIcon,
   HomeIcon,
   LibraryIcon,
   InteractionsIcon,
@@ -84,7 +85,7 @@ export default function Sidebar() {
               className="relative text-white"
             />
           </div>
-          <span className="font-plusjakarta font-medium text-primary-blue text-[16px]">
+          <span className="font-montserrat font-semibold text-primary-blue text-[15px]">
             Create
           </span>
         </Link>
@@ -96,14 +97,23 @@ export default function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-[12px] px-[12px] py-[12px] rounded-[12px] font-plusjakarta font-medium text-[16px] text-black transition-colors ${
-                  active ? "bg-[#EDEDED]" : "hover:bg-black/[0.03]"
+                className={`flex items-center gap-[12px] px-[12px] py-[12px] rounded-[12px] font-montserrat text-[15px] transition-colors ${
+                  active
+                    ? "bg-[#EDEDED] text-primary-blue font-semibold"
+                    : "text-primary-blue/85 font-medium hover:bg-black/[0.03]"
                 }`}
               >
                 <span className="w-[26px] h-[26px] shrink-0 flex items-center justify-center">
                   {item.icon}
                 </span>
                 <span className="flex-1">{item.label}</span>
+                {active && (
+                  <ChevronRightIcon
+                    width={14}
+                    height={14}
+                    className="text-primary-blue/60"
+                  />
+                )}
               </Link>
             );
           })}
@@ -111,7 +121,7 @@ export default function Sidebar() {
 
         <div className="flex-1" />
 
-        <p className="font-myriadpro text-[#092E4A] text-[14px]">
+        <p className="font-montserrat text-[#092E4A] text-[11px]">
           © {new Date().getFullYear()} Epoch Lag. All rights reserved.
         </p>
       </aside>

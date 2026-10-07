@@ -61,7 +61,9 @@ export const EMPTY_STATE_CARDS: EmptyStateCard[] = [
       },
       {
         type: "video",
-        src: "/empty-state-cards/card1/Epoch_Lag_Hero.mp4",
+        // Same file as the landing hero — one copy, not three (was 50 MB of
+        // identical video in the public folder).
+        src: "/videos/Epoch_Lag_Hero.mp4",
       },
       { type: "heading", text: "Why “epoch lag”?" },
       {

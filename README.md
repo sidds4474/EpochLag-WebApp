@@ -34,9 +34,11 @@ npm run build          # production build
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_API_UPSTREAM` | Backend origin (defaults to `https://dev.epochlag.com`). Proxied via `/api/*` rewrite in `next.config.mjs`. |
-| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Enables the Location chip's autocomplete. **Must be enabled on Vercel + Amplify env** — `NEXT_PUBLIC_` vars are inlined at build time. |
+| `NEXT_PUBLIC_API_URL` | Backend origin (defaults to `https://dev.epochlag.com`). Proxied via `/api/*` rewrite in `next.config.mjs`. (`NEXT_PUBLIC_API_UPSTREAM` is also accepted as an alias.) |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google OAuth Web Client ID. |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Enables the Places map, the Location chip's autocomplete, and the onboarding location step. **Must be set on Vercel + Amplify env** — `NEXT_PUBLIC_` vars are inlined at build time. |
+| `NEXT_PUBLIC_PUBLIC_STORY_BASE` | Base URL used when building public story/share links (e.g. `https://epochlag.com`). |
+| `NEXT_PUBLIC_ENABLE_ANALYTICS` | Set to `true` **only on the live production deployment** to load Google Analytics + the Meta pixel. Leave unset on local, preview, and the dev site so test traffic stays out of the real numbers. |
 
 Google Cloud Console requirements: **Places API (New)** + **Maps JavaScript
 API** enabled, HTTP referrer restrictions listing localhost + your Vercel

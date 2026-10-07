@@ -25,7 +25,6 @@ const COMMON_ROUTES = [
   "/notifications",
   "/friends-and-family",
   "/friends",
-  "/bookmarks",
   "/interactions",
   "/inspiration",
   "/why-epoch-lag",

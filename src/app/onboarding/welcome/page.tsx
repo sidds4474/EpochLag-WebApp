@@ -44,7 +44,7 @@ export default function WelcomePage() {
         <div className="flex flex-col items-center text-center text-primary-blue">
           <div className="w-full max-w-[720px] h-[360px] rounded-[24px] overflow-hidden bg-primary-blue/5">
             <video
-              src="/onboarding/ValueProp1.mp4"
+              src="/videos/Epoch_Lag_Hero.mp4"
               poster="/onboarding/Epoch_Lag_Hero_poster.jpg"
               autoPlay
               muted
@@ -65,7 +65,7 @@ export default function WelcomePage() {
       mobileContent={
         <div className="relative w-full min-h-dvh overflow-hidden">
           <video
-            src="/onboarding/ValueProp1.mp4"
+            src="/videos/Epoch_Lag_Hero.mp4"
             poster="/onboarding/Epoch_Lag_Hero_poster.jpg"
             autoPlay
             muted

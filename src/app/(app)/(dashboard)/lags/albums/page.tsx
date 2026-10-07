@@ -187,7 +187,7 @@ export default function LibraryAlbumsPage() {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[24px] pt-[28px] pb-[28px] scrollbar-hide">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[24px] pt-[28px] pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-[28px] scrollbar-hide">
         {error ? (
           <p className="font-montserrat text-primary-orange text-[14px] mt-[8px]">
             {error}

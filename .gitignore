@@ -28,3 +28,4 @@ tsconfig.tsbuildinfo
 *.sw?
 .vercel
 scripts/epochlag-web-sync.sh
+.qa-backups

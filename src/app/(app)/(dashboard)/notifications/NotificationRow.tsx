@@ -115,12 +115,26 @@ export default function NotificationRow({
   // button so keyboard users get the same tap behavior as the click handler.
   const clickable = rendered.clickable !== false;
 
+  // Row is tappable but can contain inline action buttons (friend request
+  // Accept/Decline). Nested <button> inside <button> is invalid HTML and
+  // throws a hydration error, so we render the row as a div with
+  // role="button" + keyboard handling instead.
   return (
     <li className="relative">
-      <button
-        type="button"
+      <div
+        role={clickable ? "button" : undefined}
+        tabIndex={clickable ? 0 : undefined}
         onClick={clickable ? handleTap : undefined}
-        disabled={!clickable}
+        onKeyDown={
+          clickable
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleTap();
+                }
+              }
+            : undefined
+        }
         className={`w-full text-left flex items-center gap-[12px] px-[16px] py-[12px] pr-[40px] rounded-[10px] transition-colors ${
           clickable
             ? "cursor-pointer hover:bg-black/[0.03]"
@@ -143,7 +157,7 @@ export default function NotificationRow({
             </div>
           )}
         </div>
-      </button>
+      </div>
       {dot}
     </li>
   );

@@ -1,7 +1,12 @@
 import { AppDownloadBanner } from '@/components/replies/AppDownloadBanner';
 import { AnswerButton } from '@/components/replies/AnswerButton';
 import { toResponsiveImage } from '@/lib/cloudinary';
-import type { StoryPrompt, Platform } from '@/types/story';
+import { getInitials } from '@/lib/formatters';
+import type {
+  Platform,
+  PublicSender,
+  StoryPrompt,
+} from '@/types/story';
 import type { ReplyAs } from '@/lib/replies/publicReplies';
 
 type Props = {
@@ -9,10 +14,17 @@ type Props = {
   publicCode: string;
   platform: Platform;
   replyAs?: ReplyAs;
+  sender?: PublicSender | null;
 };
 
-const PromptLanding = ({ prompt, publicCode, platform, replyAs }: Props) => {
-  const firstName = prompt?.author?.firstName ?? '';
+const PromptLanding = ({ prompt, publicCode, platform, replyAs, sender }: Props) => {
+  // Attribution rule (per BE spec):
+  //   sender === null → prompter shared their own prompt (common case)
+  //   sender !== null → someone else in the thread shared the link
+  // Headline uses sender when present; a tiny "Shared by X" chip renders
+  // under the title in that case.
+  const promptAuthorFirstName = prompt?.author?.firstName ?? '';
+  const firstName = sender?.firstName || promptAuthorFirstName;
   const coverUrl = prompt?.imageUrl ?? null;
   const promptText = prompt?.content ?? '';
 
@@ -21,9 +33,33 @@ const PromptLanding = ({ prompt, publicCode, platform, replyAs }: Props) => {
       <AppDownloadBanner platform={platform} publicCode={publicCode} />
 
       <main className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-6 sm:pt-10 pb-8">
-        <h2 className="font-lora text-[20px] sm:text-[22px] text-primary-blue text-center mb-6">
+        <h2 className="font-lora text-[20px] sm:text-[22px] text-primary-blue text-center mb-2">
           {firstName ? `${firstName} Sent you a prompt!` : 'You received a prompt!'}
         </h2>
+        {sender && promptAuthorFirstName && (
+          <div
+            className="flex items-center gap-2 mb-4"
+            aria-label={`Shared by ${sender.firstName}, posted by ${promptAuthorFirstName}`}
+          >
+            {sender.profilePicture ? (
+              <img
+                src={sender.profilePicture}
+                alt=""
+                aria-hidden="true"
+                className="w-5 h-5 rounded-full object-cover bg-primary-cream"
+                loading="lazy"
+              />
+            ) : (
+              <div className="w-5 h-5 rounded-full bg-primary-orange text-white font-plus-jakarta font-semibold text-[9px] flex items-center justify-center">
+                {getInitials(sender.firstName)}
+              </div>
+            )}
+            <span className="font-plus-jakarta text-[12px] text-primary-blue/70">
+              Shared by {sender.firstName}
+            </span>
+          </div>
+        )}
+        {(!sender || !promptAuthorFirstName) && <div className="mb-4" />}
 
         {/* Card */}
         <div className="w-full max-w-[380px] sm:max-w-[420px] bg-primary-white rounded-[28px] shadow-card overflow-hidden">

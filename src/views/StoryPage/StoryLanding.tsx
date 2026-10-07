@@ -9,8 +9,14 @@ import DownloadModal from './components/DownloadModal';
 import { toResponsiveImage } from '@/lib/cloudinary';
 import { APP_STORE_URL, PLAY_STORE_URL } from '@/utils/storeLinks';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { getInitials } from '@/lib/formatters';
 import type { ReplyAs } from '@/lib/replies/publicReplies';
-import type { PublicStoryData, Platform, StoryMedia } from '@/types/story';
+import type {
+  Platform,
+  PublicSender,
+  PublicStoryData,
+  StoryMedia,
+} from '@/types/story';
 
 type Props = {
   data: PublicStoryData;
@@ -54,15 +60,32 @@ const StoryLanding = ({ data, publicCode, platform, replyAs }: Props) => {
     }
   };
 
-  const { prompt, stories } = data;
+  const { prompt, stories, sender } = data;
   const firstStory = stories?.[0];
-  const firstName = prompt?.author?.firstName ?? '';
+  // Attribution rule (per BE spec):
+  //   sender === null  → prompt's author shared their own story (common case)
+  //   sender !== null  → someone else in the thread made the link
+  // Headline name follows sender when present; the sub-line "Shared by X"
+  // only renders when the sharer isn't the prompter.
+  const promptAuthorFirstName = prompt?.author?.firstName ?? '';
+  const firstName = sender?.firstName || promptAuthorFirstName;
   const headline = prompt?.isTitleAvailable ? firstStory?.title : prompt?.content;
 
+  // Resolution order:
+  //   1. prompt.imageUrl       — cover attached by the prompter
+  //   2. firstStory.coverImageUrl — cover picked in the reply/new-ask composer
+  //   3. media entry marked `_cover.jpg` — legacy prompt-authored covers that
+  //      landed in the media array instead of prompt.imageUrl
+  // Reply-flow covers won't resolve until BE echoes them on the public story
+  // read; frontend wiring is in place for whenever that lands.
   const firstCoverMedia = firstStory?.media?.find(
     (m: StoryMedia) => m?.type === 'image' && m?.url?.includes('_cover.jpg')
   );
-  const coverUrl = prompt?.imageUrl || firstCoverMedia?.url || null;
+  const coverUrl =
+    prompt?.imageUrl ||
+    firstStory?.coverImageUrl ||
+    firstCoverMedia?.url ||
+    null;
 
   // Expanded view uses its own full-bleed layout — no landing chrome.
   if (expanded && firstStory) {
@@ -71,6 +94,9 @@ const StoryLanding = ({ data, publicCode, platform, replyAs }: Props) => {
         story={firstStory}
         author={prompt?.author || firstStory.author}
         onBack={() => setExpanded(false)}
+        publicCode={publicCode}
+        participants={data.participants ?? []}
+        participantsOverflow={data.participantsOverflow ?? 0}
       />
     );
   }
@@ -80,9 +106,13 @@ const StoryLanding = ({ data, publicCode, platform, replyAs }: Props) => {
       <AppDownloadBanner platform={platform} publicCode={publicCode} />
 
       <main className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-6 sm:pt-10 pb-8">
-        <h2 className="font-lora text-[20px] sm:text-[22px] text-primary-blue text-center mb-6">
+        <h2 className="font-lora text-[20px] sm:text-[22px] text-primary-blue text-center mb-2">
           {firstName ? `${firstName} Sent you a Story!` : 'You received a Story!'}
         </h2>
+        {sender && promptAuthorFirstName && (
+          <SharedByChip sender={sender} authorFirstName={promptAuthorFirstName} />
+        )}
+        <div className="mb-6" />
 
         {/* Card */}
         <div className="w-full max-w-[380px] sm:max-w-[420px] bg-primary-white rounded-[28px] shadow-card overflow-hidden">
@@ -166,3 +196,37 @@ const StoryLanding = ({ data, publicCode, platform, replyAs }: Props) => {
 };
 
 export default StoryLanding;
+
+// Small sub-headline chip rendered when the link's sharer isn't the prompt's
+// author. Keeps the story owner the hero but credits the sharer alongside.
+function SharedByChip({
+  sender,
+  authorFirstName,
+}: {
+  sender: PublicSender;
+  authorFirstName: string;
+}) {
+  return (
+    <div
+      className="flex items-center gap-2 mb-4"
+      aria-label={`Shared by ${sender.firstName}, posted by ${authorFirstName}`}
+    >
+      {sender.profilePicture ? (
+        <img
+          src={sender.profilePicture}
+          alt=""
+          aria-hidden="true"
+          className="w-5 h-5 rounded-full object-cover bg-primary-cream"
+          loading="lazy"
+        />
+      ) : (
+        <div className="w-5 h-5 rounded-full bg-primary-orange text-white font-plus-jakarta font-semibold text-[9px] flex items-center justify-center">
+          {getInitials(sender.firstName)}
+        </div>
+      )}
+      <span className="font-plus-jakarta text-[12px] text-primary-blue/70">
+        Shared by {sender.firstName}
+      </span>
+    </div>
+  );
+}

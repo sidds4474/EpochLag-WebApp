@@ -98,6 +98,7 @@ export default async function Page({ params, searchParams }: RouteParams) {
       publicCode={publicCode}
       platform={platform}
       replyAs={replyAs}
+      sender={result.data.sender ?? null}
     />
   );
 }

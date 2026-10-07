@@ -9,7 +9,12 @@ import { parseContentToBlocks } from '@/lib/parseStoryContent';
 import { toResponsiveImage } from '@/lib/cloudinary';
 import { bustUrl } from '@/lib/images';
 import { getInitials } from '@/lib/formatters';
-import type { Story, StoryAuthor, StoryMedia } from '@/types/story';
+import type {
+  PublicParticipant,
+  Story,
+  StoryAuthor,
+  StoryMedia,
+} from '@/types/story';
 
 type FlowBlock = { type: 'text'; text: string } | { type: 'audio'; url: string };
 type GridMedia = { type: 'image' | 'video'; url: string };
@@ -18,29 +23,34 @@ type Props = {
   story: Story;
   author?: StoryAuthor & { profilePicture?: string | null };
   onBack: () => void;
-  // Static placeholder data — swap for BE when `GET /api/public/story/:code`
-  // starts returning participants + totals.
-  participants?: { avatarUrl?: string | null; initials?: string }[];
+  // publicCode drives the comments endpoint; falling back to no fetch when
+  // omitted keeps the component usable in storybook / previews.
+  publicCode?: string;
+  // Participant avatar stack — up to 5 entries with first name + photo only.
+  // Empty array when backend returns none; +N chip hides when overflow is 0.
+  participants?: PublicParticipant[];
   participantsOverflow?: number;
-  totalComments?: number;
-  totalLikes?: number;
-  isLovedByMe?: boolean;
 };
 
 export default function StoryViewing({
   story,
   author,
   onBack,
-  participants = STATIC_PARTICIPANTS,
-  participantsOverflow = 4,
-  totalComments = 6,
-  totalLikes = 6,
-  isLovedByMe = false,
+  publicCode,
+  participants = [],
+  participantsOverflow = 0,
 }: Props) {
   const router = useRouter();
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const blocks = parseContentToBlocks(story.content || '');
+
+  // Pull engagement off the story object itself (spec: per-story fields,
+  // not thread-level). Fall back to 0 while BE hasn't backfilled older rows
+  // so counts never render as `undefined`.
+  const totalLikes = story.totalLikes ?? 0;
+  const totalComments = story.totalComments ?? 0;
+  const isLoved = Boolean(story.isLoved);
 
   const goToSignUp = () => {
     if (typeof window === 'undefined') return;
@@ -205,18 +215,23 @@ export default function StoryViewing({
       {/* Sticky footer bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-warm-cream border-t border-primary-blue/10">
         <div className="w-full max-w-[480px] md:max-w-[640px] lg:max-w-[720px] mx-auto h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          {/* Avatar stack + overflow */}
+          {/* Avatar stack + overflow — spec: first name + photo only, up to 5 shown */}
           <div className="flex items-center">
             <div className="flex -space-x-2">
-              {participants.slice(0, 3).map((p, i) => (
+              {participants.slice(0, 5).map((p) => (
                 <div
-                  key={i}
+                  key={p._id}
                   className="w-7 h-7 rounded-full border-2 border-warm-cream overflow-hidden bg-primary-orange flex items-center justify-center text-white font-plus-jakarta text-[10px] font-semibold"
+                  title={p.firstName}
                 >
-                  {p.avatarUrl ? (
-                    <img src={p.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  {p.profilePicture ? (
+                    <img
+                      src={p.profilePicture}
+                      alt={p.firstName}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
-                    p.initials || '?'
+                    getInitials(p.firstName) || '?'
                   )}
                 </div>
               ))}
@@ -243,9 +258,9 @@ export default function StoryViewing({
               type="button"
               onClick={goToSignUp}
               className="flex items-center gap-1.5 text-primary-blue hover:opacity-70 active:opacity-50 transition-opacity"
-              aria-label={isLovedByMe ? 'Unlike' : 'Like'}
+              aria-label={isLoved ? 'Unlike' : 'Like'}
             >
-              <HeartIcon filled={isLovedByMe} />
+              <HeartIcon filled={isLoved} />
               <span className="font-plus-jakarta text-[14px]">{totalLikes}</span>
             </button>
           </div>
@@ -256,6 +271,9 @@ export default function StoryViewing({
         isOpen={commentsOpen}
         onClose={() => setCommentsOpen(false)}
         onSignUp={goToSignUp}
+        publicCode={publicCode}
+        storyId={story._id}
+        totalComments={totalComments}
       />
 
       <MediaViewer
@@ -268,13 +286,6 @@ export default function StoryViewing({
     </div>
   );
 }
-
-// Static placeholder avatars — remove once BE returns participant data
-const STATIC_PARTICIPANTS: { avatarUrl?: string | null; initials?: string }[] = [
-  { initials: 'S' },
-  { initials: 'M' },
-  { initials: 'N' },
-];
 
 // Static waveform decoration — pseudo-random heights.
 // A real amplitude analysis could replace this later.

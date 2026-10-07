@@ -24,10 +24,17 @@ const StoryPage = ({ data, publicCode, platform }: StoryPageProps) => {
   // images with "_img...jpg". When prompt.imageUrl is missing, lift the first
   // cover-marked image up to the hero. The body always filters out cover-marked
   // images so they never render inline.
+  //
+  // Reply + new-ask stories ship cover separately at story.coverImageUrl —
+  // falls between prompt.imageUrl and the legacy media-marker path.
   const firstCoverMedia = firstStory?.media?.find(
     (m: StoryMedia) => m?.type === "image" && m?.url?.includes("_cover.jpg")
   );
-  const coverUrl = prompt?.imageUrl || firstCoverMedia?.url || null;
+  const coverUrl =
+    prompt?.imageUrl ||
+    firstStory?.coverImageUrl ||
+    firstCoverMedia?.url ||
+    null;
 
   return (
     <main className="bg-warm-cream min-h-screen">

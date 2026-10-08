@@ -13,6 +13,7 @@ import {
   PlayIcon,
   SearchIcon,
 } from "../icons";
+import { useModalA11y } from "../../../../lib/useModalA11y";
 
 export type LocationValue = {
   formattedAddress: string;
@@ -364,9 +365,11 @@ export function LocationModal({
       } catch (err) {
         if (cancelled) return;
         setSuggestions([]);
-        setError(
-          err instanceof Error ? err.message : "Location search failed"
-        );
+        // Don't surface Google's raw status text (e.g. "REQUEST_DENIED: This
+        // API project is not authorized…") to users — log it, show a friendly
+        // line instead.
+        console.error("Location autocomplete failed:", err);
+        setError("We couldn't search locations right now. Please try again.");
       }
     }, 250);
     return () => {
@@ -408,7 +411,8 @@ export function LocationModal({
       });
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't fetch place");
+      console.error("Location select failed:", err);
+      setError("We couldn't add that location. Please try another.");
     }
   }
 
@@ -578,7 +582,8 @@ export function MusicPickerModal({
         setResults(data.results ?? []);
       } catch (err) {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Music search failed");
+        console.error("Music search failed:", err);
+        setError("We couldn't search music right now. Please try again.");
         setResults([]);
       } finally {
         if (!cancelled) setLoading(false);
@@ -742,13 +747,22 @@ function ModalShell({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  // Shared by the Date, Location and Music pickers. None of them closed on
+  // Escape or kept keyboard focus inside; the hook gives all three both.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useModalA11y(true, onClose, rootRef);
   return (
     <div
       className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-[16px]"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[480px] bg-white rounded-[20px] flex flex-col overflow-hidden"
+        ref={rootRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+        className="w-full max-w-[480px] bg-white rounded-[20px] flex flex-col overflow-hidden outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-[20px] pt-[16px] pb-[8px]">

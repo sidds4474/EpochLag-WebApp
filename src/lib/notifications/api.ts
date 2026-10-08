@@ -34,11 +34,38 @@ export async function fetchDockingCard(
 ): Promise<DockingCard | null> {
   const cached = dockingCardCache.get(cardId);
   if (cached !== undefined) return cached;
+  // Primary source: the docking-station card store. This holds challenge /
+  // hows-life / announcement cards but NOT prompt (card_of_the_day) cards —
+  // those 404 here and live under /api/user-card instead. Without the fallback
+  // below, every prompt-type notification row fell back to a generic label and
+  // no image (QA: rows show placeholder text, four card-detail requests fail).
   try {
     const res = await api.get<Envelope<DockingCard>>(
       `/api/docking-station/cards/${cardId}`
     );
-    const card = res.data ?? null;
+    if (res.data) {
+      dockingCardCache.set(cardId, res.data);
+      return res.data;
+    }
+  } catch {
+    // fall through to the user-card lookup
+  }
+  try {
+    const res = await api.get<Envelope<Record<string, unknown>>>(
+      `/api/user-card/${cardId}`
+    );
+    const uc = res.data;
+    const card: DockingCard | null = uc
+      ? {
+          _id: (uc._id as string) ?? cardId,
+          title:
+            (uc.title as string) || (uc.content as string) || null,
+          message: (uc.content as string) ?? null,
+          imagePath:
+            (uc.imageUrl as string) ?? (uc.imagePath as string) ?? null,
+          cardType: (uc.type as string) ?? "card_of_the_day",
+        }
+      : null;
     dockingCardCache.set(cardId, card);
     return card;
   } catch {

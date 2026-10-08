@@ -6,6 +6,7 @@ import {
   type GradientCover,
 } from "../../../../lib/create/api";
 import { compressImage } from "../../../../lib/images";
+import { useModalA11y } from "../../../../lib/useModalA11y";
 import { CloseIcon, UploadIcon } from "../icons";
 
 // Result the picker returns to the composer. Curated → { imageUrl }, upload
@@ -22,6 +23,18 @@ type Props = {
   /** Optional — highlights the currently-selected curated URL in the grid. */
   selectedUrl?: string | null;
 };
+
+// Soft gradient fallbacks so a tile is never blank when its curated image is
+// slow or fails (the image server can 429 when many tiles load at once). Keyed
+// by index so the grid stays visually varied.
+const FALLBACK_GRADIENTS = [
+  "linear-gradient(135deg, #f2d0a4 0%, #d78a5a 55%, #6b3a2a 100%)",
+  "linear-gradient(135deg, #a8c5e0 0%, #6d8fb5 55%, #3a5877 100%)",
+  "linear-gradient(135deg, #f5b7a1 0%, #d97a5a 55%, #6b3a2a 100%)",
+  "linear-gradient(135deg, #d0dae5 0%, #8ca3b7 100%)",
+  "linear-gradient(135deg, #f5c9a1 0%, #d78a5a 100%)",
+  "linear-gradient(135deg, #cdd7c2 0%, #8fa37a 100%)",
+];
 
 // Curated grid module-level cache — the endpoint returns a static list of
 // gradient covers, so re-fetching on every open wastes bandwidth. First open
@@ -61,20 +74,20 @@ export default function ChooseCoverModal({
     };
   }, [open]);
 
+  // Escape + focus trap + focus restore (Escape already worked here, but Tab
+  // walked straight out of the panel into the page behind it).
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useModalA11y(open, onClose, rootRef);
+
   useEffect(() => {
     if (!open) return;
     setPicked(selectedUrl ?? null);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [open, selectedUrl, onClose]);
+  }, [open, selectedUrl]);
 
   async function handleUpload(file: File | null | undefined) {
     if (!file || !file.type.startsWith("image/")) return;
@@ -101,7 +114,12 @@ export default function ChooseCoverModal({
   return (
     <div className="fixed inset-0 z-[60] bg-black/30 flex justify-end" onClick={onClose}>
       <div
-        className="w-full lg:max-w-[440px] h-full bg-white lg:shadow-[-10px_0_40px_rgba(0,0,0,0.15)] flex flex-col overflow-hidden animate-[slide-in-right_200ms_ease-out]"
+        ref={rootRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Choose Cover"
+        tabIndex={-1}
+        className="w-full lg:max-w-[440px] h-full bg-white lg:shadow-[-10px_0_40px_rgba(0,0,0,0.15)] flex flex-col overflow-hidden animate-[slide-in-right_200ms_ease-out] outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-[24px] pt-[24px] pb-[16px]">
@@ -179,6 +197,10 @@ export default function ChooseCoverModal({
                     key={c._id ?? `${url}-${i}`}
                     type="button"
                     onClick={() => setPicked(url)}
+                    style={{
+                      background:
+                        FALLBACK_GRADIENTS[i % FALLBACK_GRADIENTS.length],
+                    }}
                     className={`relative cursor-pointer aspect-square rounded-[12px] overflow-hidden focus:outline-none transition-[box-shadow] ${
                       active
                         ? "ring-[3px] ring-primary-orange"
@@ -191,6 +213,11 @@ export default function ChooseCoverModal({
                       alt=""
                       className="absolute inset-0 w-full h-full object-cover"
                       loading="lazy"
+                      // Blank tiles were the curated image 429-ing / failing to
+                      // load — drop the broken img so the gradient shows instead.
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
                     />
                   </button>
                 );

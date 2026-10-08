@@ -220,13 +220,53 @@ function readDraft(key: string): PersistedDraft | null {
   }
 }
 
-function writeDraft(key: string, draft: PersistedDraft): void {
-  if (typeof window === "undefined") return;
+// One id per browser tab (sessionStorage is per-tab). Lets the draft slot
+// record which tab last wrote it, so two tabs editing the same story don't
+// silently overwrite each other — previously the last writer won and the
+// other tab's work vanished on its next reload.
+const DRAFT_OWNER_STALE_MS = 2 * 60_000;
+function tabId(): string {
+  if (typeof window === "undefined") return "server";
   try {
-    window.localStorage.setItem(key, JSON.stringify(draft));
+    let id = window.sessionStorage.getItem("story-composer-tab");
+    if (!id) {
+      id = Math.random().toString(36).slice(2, 10);
+      window.sessionStorage.setItem("story-composer-tab", id);
+    }
+    return id;
+  } catch {
+    return "unknown";
+  }
+}
+
+/** Returns false when another tab has written this draft within the last
+ *  two minutes — the caller should stop autosaving and tell the user. A tab
+ *  that has gone quiet for longer than that is treated as closed, so a draft
+ *  is never locked forever. */
+function writeDraft(key: string, draft: PersistedDraft): boolean {
+  if (typeof window === "undefined") return true;
+  const me = tabId();
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw) {
+      const prev = JSON.parse(raw) as { tabId?: string; savedAt?: number };
+      if (
+        prev.tabId &&
+        prev.tabId !== me &&
+        typeof prev.savedAt === "number" &&
+        Date.now() - prev.savedAt < DRAFT_OWNER_STALE_MS
+      ) {
+        return false;
+      }
+    }
+    window.localStorage.setItem(
+      key,
+      JSON.stringify({ ...draft, tabId: me, savedAt: Date.now() })
+    );
   } catch {
     /* quota exceeded / private mode — non-fatal */
   }
+  return true;
 }
 
 function clearDraft(key: string): void {
@@ -599,6 +639,8 @@ export default function StoryComposer({
 
   const dirtyRef = useRef(false);
   const draftSavingRef = useRef(false);
+  // Warn once per session if another tab owns this draft (see writeDraft).
+  const draftLockWarnedRef = useRef(false);
 
   // Free blob URLs for any in-memory media on real unmount so we don't leak
   // ObjectURLs. Ref-tracked so the effect can read latest without deps.
@@ -613,6 +655,42 @@ export default function StoryComposer({
       }
     };
   }, []);
+
+  // Unsaved-changes guard. Text and media auto-save to a local draft, so most
+  // work survives a back-out, but an in-progress voice recording is never
+  // persisted, and the composer otherwise leaves instantly with no prompt.
+  // Warn on the browser's refresh/close path (native dialog) for new stories
+  // with real content. Edit sessions are excluded (no draft; content is
+  // pre-loaded, so "dirty" can't be told apart from "unchanged" here).
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isEdit || createdStory) return;
+      const recording = blocksRef.current.some(
+        (b) => b.type === "audio" && b.recording
+      );
+      if (dirtyRef.current || recording) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isEdit, createdStory]);
+
+  // In-app Back guard — same intent as the beforeunload above, for the
+  // composer's own Back button (SPA nav doesn't fire beforeunload).
+  function handleBack() {
+    const recording = blocks.some(
+      (b) => b.type === "audio" && b.recording
+    );
+    if (!isEdit && !createdStory && (dirtyRef.current || recording)) {
+      const msg = recording
+        ? "A voice recording is still in progress and will be lost if you leave. Leave anyway?"
+        : "Leave the composer? Your draft is saved automatically and will be here when you return.";
+      if (!window.confirm(msg)) return;
+    }
+    onBack();
+  }
 
   // Track any change that would make a draft worth saving. Cover changes
   // don't count on their own — the whole point of the draft save is to keep
@@ -673,7 +751,7 @@ export default function StoryComposer({
       clearDraft(draftKey);
       return;
     }
-    writeDraft(draftKey, {
+    const saved = writeDraft(draftKey, {
       title,
       blocks: persistedBlocks,
       coverImageUrl: cover.imageUrl,
@@ -682,6 +760,13 @@ export default function StoryComposer({
       music,
       allowShare,
     });
+    if (!saved && !draftLockWarnedRef.current) {
+      draftLockWarnedRef.current = true;
+      toast.error(
+        "This story is open in another tab. To avoid losing work, this tab won't autosave until that one closes.",
+        { id: "draft-owned-elsewhere", duration: 8000 }
+      );
+    }
   }, [
     title,
     blocks,
@@ -856,7 +941,14 @@ export default function StoryComposer({
         )
       );
     })().catch(() => {
-      // Swallow — publish's fallback loop will re-upload if needed.
+      // Don't throw — publish's fallback loop will re-upload if needed. But
+      // do say so: a dropped connection here used to be completely silent,
+      // leaving the author with no idea the photo hadn't gone up.
+      const what = file.type.startsWith("video/") ? "video" : "photo";
+      toast.error(
+        `Couldn't upload that ${what} right now — we'll try again when you publish.`,
+        { id: `upload-failed-${blockId}` }
+      );
     });
     uploadPromisesRef.current.set(blockId, promise);
     void promise.finally(() => {
@@ -1632,7 +1724,7 @@ export default function StoryComposer({
                 setMobileStep("content");
                 return;
               }
-              onBack();
+              handleBack();
             }}
             aria-label="Back"
             className="cursor-pointer w-[36px] h-[36px] rounded-full bg-white lg:bg-[#ededed] text-primary-blue flex items-center justify-center hover:brightness-95 lg:hover:bg-[#e3e3e3] transition-[filter] shrink-0"

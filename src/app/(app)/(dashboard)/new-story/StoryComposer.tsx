@@ -679,6 +679,13 @@ export default function StoryComposer({
 
   // In-app Back guard — same intent as the beforeunload above, for the
   // composer's own Back button (SPA nav doesn't fire beforeunload).
+  //
+  // Mobile parity: when the user explicitly backs out, the draft is pushed to
+  // the server (via the unmount effect's saveDraftSilently) and shows up in
+  // Studio → Drafts; the LOCAL draft (localStorage + IndexedDB media) is
+  // then nuked so the next Create a Lag entry starts fresh. This is distinct
+  // from a browser refresh / tab close — those paths keep localStorage so
+  // the user can recover accidentally-lost work on reload.
   function handleBack() {
     const recording = blocks.some(
       (b) => b.type === "audio" && b.recording
@@ -686,8 +693,12 @@ export default function StoryComposer({
     if (!isEdit && !createdStory && (dirtyRef.current || recording)) {
       const msg = recording
         ? "A voice recording is still in progress and will be lost if you leave. Leave anyway?"
-        : "Leave the composer? Your draft is saved automatically and will be here when you return.";
+        : "Leave the composer? Your draft will be saved to the Drafts tab.";
       if (!window.confirm(msg)) return;
+    }
+    if (!isEdit && !createdStory) {
+      clearDraft(draftKey);
+      void clearAllMedia();
     }
     onBack();
   }

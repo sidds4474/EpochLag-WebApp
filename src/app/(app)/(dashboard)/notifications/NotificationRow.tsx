@@ -11,6 +11,7 @@ import {
   resolvePromptRoute,
   respondToFriendRequest,
 } from "../../../../lib/notifications/api";
+import { updateDockingItemProgress } from "../../../../lib/home/api";
 import type { Notification } from "../../../../types/home";
 import { getTimeDifference } from "../../../../lib/notifications/api";
 import { PersonIcon } from "../icons";
@@ -22,6 +23,21 @@ type Props = {
 };
 
 type ConnectionState = "pending" | "accepted" | "declined";
+
+// Docking-card payload lives at navigation.dockingDetails for in-app
+// (/api/notifications) rows, but web-push payloads come in flat at the root
+// (`{ type, cardType, cardId, action, imageUrl }`). Normalize both so the
+// router doesn't care which shape it got.
+type DockingPayload = { cardId?: string; cardType?: string };
+
+function pickDocking(n: Notification): DockingPayload {
+  const nested = n.navigation?.dockingDetails ?? {};
+  const flat = n as unknown as DockingPayload;
+  return {
+    cardId: nested.cardId || flat.cardId,
+    cardType: nested.cardType || flat.cardType,
+  };
+}
 
 // The generic per-cardType fallback when docking enrichment resolved to null.
 function fallbackDockingLabel(cardType?: string): string {
@@ -243,8 +259,15 @@ function renderContent(n: Notification, firstName: string): Rendered | null {
     case "commented_story":
       return { copy: <>{b(firstName)} commented on your Story.</> };
     case "accept_request":
+    case "accepted_request":
       return {
         copy: <>{b(firstName)} accepted your connection request.</>,
+      };
+    case "rejected_request":
+      return { copy: <>{b(firstName)} declined your connection request.</> };
+    case "birthday":
+      return {
+        copy: <>Today is {b(firstName)}&rsquo;s birthday!</>,
       };
     case "connection_request":
       return { copy: <>{b(firstName)} wants to connect</> };
@@ -334,9 +357,45 @@ function renderContent(n: Notification, firstName: string): Rendered | null {
           </>
         ),
       };
+    case "moment_today":
+      return {
+        copy: (
+          <>
+            Today is {b(details?.momentTitle || "a special")} moment
+          </>
+        ),
+      };
+    case "family_invite": {
+      const familyDetails = details?.familyDetails as
+        | { relationshipSlug?: string; storyCount?: number }
+        | undefined;
+      const rel = familyDetails?.relationshipSlug;
+      const count = familyDetails?.storyCount;
+      return {
+        copy: (
+          <>
+            {b(firstName)} added you as their {b(rel || "family")}
+            {typeof count === "number" && count > 0
+              ? ` and shared ${count} ${count === 1 ? "story" : "stories"}`
+              : ""}
+          </>
+        ),
+      };
+    }
+    case "family_invite_accepted":
+      return {
+        copy: <>{b(firstName)} accepted your family invitation</>,
+      };
+    case "lag_reminder":
+      return {
+        copy: <>Lag your day &mdash; take a moment to capture it.</>,
+      };
     case "content_moderated":
+      // No ContentRemoved screen on web — leave the row visible but
+      // unclickable so users see the message without a dead-end tap.
       return {
         copy: <>Your content was removed for violating our guidelines.</>,
+        clickable: false,
       };
     case "account_banned":
       return {
@@ -356,6 +415,7 @@ function renderContent(n: Notification, firstName: string): Rendered | null {
             has been reported.
           </>
         ),
+        clickable: false,
       };
     case "weekly_prompts":
       return { copy: <>Your prompts have arrived!</> };
@@ -523,16 +583,42 @@ async function resolveRoute(n: Notification): Promise<string | null> {
       if (threadId) return `/thread/${threadId}`;
       return null;
     }
-    case "accept_request": {
+    case "accept_request":
+    case "accepted_request":
+    case "rejected_request":
+    case "birthday": {
       const userId = n.profileDetails?.user?._id;
       return userId ? `/profile/${userId}` : "/profile";
     }
+    case "moment_today": {
+      const momentId = extractMomentId(n);
+      return momentId ? `/moments/${momentId}` : null;
+    }
+    case "family_invite":
+    case "family_invite_accepted":
+      // No dedicated tree tab on web — closest surface is the F&F page.
+      return "/friends-and-family";
+    case "lag_reminder":
+      // Closest to mobile's LagYourDayEntry — the quick-create entry point.
+      return "/new-lag";
+    case "album_deleted":
+      // Row is `clickable: false` in renderContent, so this is defensive —
+      // if the row ever becomes tappable, land on the Albums tab.
+      return "/lags/albums";
+    case "content_moderated":
+    case "content_reported":
+    case "account_banned":
+      // No ContentRemoved screen on web; row is marked unclickable in
+      // renderContent so this branch is only hit if BE changes copy later.
+      return null;
     case "added_to_group":
     case "member_added_to_group":
     case "member_left_group": {
+      // Groups live under /friends-and-family/groups/<id> on web; the old
+      // top-level /groups/<id> was a dead link.
       const groupId =
         n.navigation?.groupId || n.profileDetails?.groupId || null;
-      return groupId ? `/groups/${groupId}` : null;
+      return groupId ? `/friends-and-family/groups/${groupId}` : null;
     }
     case "album_user_added":
     case "story_added_to_album": {
@@ -564,9 +650,37 @@ async function resolveRoute(n: Notification): Promise<string | null> {
       return momentId ? `/moments/${momentId}` : null;
     }
     case "weekly_prompts":
-      return "/home";
-    case "docking_station_card":
-      return "/home";
+      // Mobile routes to FindInspiration — the Inspiration tab, not Home.
+      return "/inspiration";
+    case "docking_station_card": {
+      // Previously everything collapsed to /home — meaning a tap on an inspo-
+      // card notification did nothing. Mirror mobile's handleDockingAction
+      // dispatcher: branch on cardType, fall back to Home only for unknowns.
+      const { cardId, cardType } = pickDocking(n);
+      if (!cardId) return "/home";
+      switch (cardType) {
+        case "prompt":
+          return `/prompt/detail/${encodeURIComponent(cardId)}`;
+        case "moment":
+          return `/moments/${encodeURIComponent(cardId)}`;
+        case "challenge":
+          // Fire-and-forget progress tick so BE tracks the start regardless
+          // of whether the user actually completes the challenge afterwards.
+          // Web has no dedicated /challenges/<id> surface yet; land on the
+          // Inspiration grid with a highlight hint.
+          updateDockingItemProgress(cardId, {
+            status: "started",
+            cardType: "challenge",
+          }).catch(() => {
+            /* non-blocking telemetry */
+          });
+          return `/inspiration?card=${encodeURIComponent(cardId)}`;
+        default:
+          // "other" or any new cardType BE ships — keep user on Home where
+          // the docking station is visible.
+          return "/home";
+      }
+    }
     default:
       // Unknown/new notification type — the BE can ship types faster than the
       // client knows them. Rather than dead-end the tap, route on whatever
@@ -580,7 +694,7 @@ async function resolveRoute(n: Notification): Promise<string | null> {
         const albumId = nav?.albumId || n.profileDetails?.albumId;
         if (albumId) return `/lags/albums/${albumId}`;
         const groupId = nav?.groupId || n.profileDetails?.groupId;
-        if (groupId) return `/groups/${groupId}`;
+        if (groupId) return `/friends-and-family/groups/${groupId}`;
         const promptId = nav?.promptDetails?.prompt?._id;
         if (promptId) {
           return `/new-story?promptId=${encodeURIComponent(promptId)}`;

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { ApiError } from "../../../../lib/api/client";
-import { shareUserCard } from "../../../../lib/create/api";
+import { createUserCard, shareUserCard } from "../../../../lib/create/api";
 import { fetchInspirationFeed, seedUserCard } from "../../../../lib/home/api";
 import type { UserCard } from "../../../../types/home";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "../icons";
@@ -295,7 +295,20 @@ export default function InspirationPage() {
   ) => {
     if (!shareCard) return;
     try {
-      await shareUserCard(shareCard._id, {
+      // Inspo cards come from an external prompt service — their _id doesn't
+      // exist in BE's UserCard collection, so POST /api/user-card/:id/share
+      // 404s with "Card not found". Materialize a real user-owned UserCard
+      // first (same pattern as new-ask's ensurePromptId), then share that.
+      let cardId = shareCard._id;
+      if (shareCard.isGenerated) {
+        const minted = await createUserCard({
+          content: shareCard.content ?? "",
+          type: "WHITE",
+          imageUrl: shareCard.imageUrl ?? undefined,
+        });
+        cardId = minted._id;
+      }
+      await shareUserCard(cardId, {
         shareWith: userIds,
         groupIds,
         // sendSeparately dropped in v1 — see share drawer migration notes.

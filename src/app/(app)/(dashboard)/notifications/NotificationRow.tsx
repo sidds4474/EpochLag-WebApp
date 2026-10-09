@@ -8,7 +8,6 @@ import { bustUrl } from "../../../../lib/images";
 import {
   getCachedDockingCard,
   markNotificationSeen,
-  resolvePromptRoute,
   respondToFriendRequest,
 } from "../../../../lib/notifications/api";
 import { updateDockingItemProgress } from "../../../../lib/home/api";
@@ -555,26 +554,44 @@ async function resolveRoute(n: Notification): Promise<string | null> {
     case "received_prompt":
     case "birthday_prompt":
     case "schedule_prompt": {
-      const promptId = n.navigation?.promptDetails?.prompt?._id;
+      // Payload shape confirmed live:
+      //   received_prompt → nav.promptDetails.promptId (direct string)
+      //   received_story  → nav.promptDetails.prompt._id + prompt.threadId
+      // Different shapes for different notification types, so we read both.
+      // No network wait — mobile's 3-layer cache doesn't exist on web, so a
+      // network round-trip here was the "very delayed" complaint. If the
+      // payload inlines a thread id, go straight to the thread; otherwise
+      // land on the prompt detail page (which can itself redirect to a
+      // thread when one exists).
+      const pDetails = n.navigation?.promptDetails as
+        | { promptId?: string; prompt?: { _id?: string; threadId?: string } }
+        | undefined;
+      const promptId = pDetails?.promptId || pDetails?.prompt?._id;
       if (!promptId) return null;
-      try {
-        const data = (await resolvePromptRoute(promptId)) as
-          | { storyThread?: { _id?: string } | null }
-          | undefined;
-        const threadId = data?.storyThread?._id;
-        if (threadId) return `/thread/${threadId}`;
-        return `/new-story?promptId=${encodeURIComponent(promptId)}`;
-      } catch {
-        return `/new-story?promptId=${encodeURIComponent(promptId)}`;
-      }
+      const inlineThreadId = pDetails?.prompt?.threadId;
+      if (inlineThreadId) return `/thread/${inlineThreadId}`;
+      return `/prompt/detail/${encodeURIComponent(promptId)}`;
+    }
+    case "connection_request": {
+      // Row has inline Accept/Decline, but tapping the row body outside those
+      // buttons was dead-ending because this case was missing from the
+      // resolver. Mobile sends you to the requester's profile.
+      const userId = n.profileDetails?.user?._id;
+      return userId ? `/profile/${userId}` : "/profile";
     }
     case "received_story":
     case "loved_story":
     case "commented_story": {
-      // BE isn't consistent about where the thread id lands — check every
-      // field a story notification can carry before giving up, otherwise the
-      // tap does nothing (QA: "clicking doesn't open the affiliated Lag").
+      // BE actually puts the thread id nested at
+      //   navigation.promptDetails.prompt.threadId
+      // (confirmed via live payload probe). The top-level nav.threadId
+      // path we used to check is never populated for these types. Keep
+      // the other fallbacks as defensive scraps in case BE changes shape.
+      const promptObj = n.navigation?.promptDetails?.prompt as
+        | { threadId?: string }
+        | undefined;
       const threadId =
+        promptObj?.threadId ||
         n.navigation?.threadId ||
         n.navigation?.storyId ||
         n.profileDetails?.threadId ||
@@ -676,9 +693,12 @@ async function resolveRoute(n: Notification): Promise<string | null> {
           });
           return `/inspiration?card=${encodeURIComponent(cardId)}`;
         default:
-          // "other" or any new cardType BE ships — keep user on Home where
-          // the docking station is visible.
-          return "/home";
+          // Unknown cardType — live traffic ships values like "WHITE" that
+          // aren't in the mobile spec's enum. Rather than dumping users on
+          // /home (where they'd see no indication of which card the
+          // notification was about), land on /inspiration with the cardId
+          // hint so the grid can scroll/highlight it.
+          return `/inspiration?card=${encodeURIComponent(cardId)}`;
       }
     }
     default:

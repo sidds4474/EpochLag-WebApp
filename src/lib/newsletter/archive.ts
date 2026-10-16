@@ -111,6 +111,196 @@ const definition: Section = {
 
 export const ARCHIVE: Issue[] = [
   {
+    slug: "issue-07",
+    number: 7,
+    date: "September 30, 2026",
+    dateISO: "2026-09-30",
+    title: "More inspiring ways to build your Lag",
+    teaser:
+      "Four new features — Conversations, Day in Review, Places, and Find Inspiration — plus Bella on recording her grandparents’ stories.",
+    cover: "/newsletters/issue-07/features.png",
+    sections: [
+      definition,
+      { kind: "paragraph", text: "More inspiring ways to build your Lag." },
+      { kind: "heading", text: "Explore Features" },
+      { kind: "paragraph", text: "Use new features to craft your Lag." },
+      {
+        kind: "image",
+        src: "/newsletters/issue-07/stories-feed.png",
+        alt: "Stories weren’t meant to disappear in a feed",
+      },
+      {
+        kind: "paragraph",
+        text: "Stories weren’t meant to disappear in a feed.",
+      },
+      {
+        kind: "image",
+        src: "/newsletters/issue-07/features.png",
+        alt: "Conversations, Day in Review, Places, and Find Inspiration",
+      },
+      {
+        kind: "paragraph",
+        text: "We’ve added four new features (Conversations, Day in Review, Places, Find Inspiration) to simplify and strengthen how you can build your Lags.",
+      },
+      {
+        kind: "image",
+        src: "/newsletters/issue-07/day-in-review.png",
+        alt: "Day in Review feature",
+      },
+      {
+        kind: "paragraph",
+        text: "“Day in Review” allows you to build upon memories traveling back in time.",
+      },
+      {
+        kind: "image",
+        src: "/newsletters/issue-07/places.png",
+        alt: "Places feature on the map",
+      },
+      {
+        kind: "paragraph",
+        text: "Travel the map to revisit fond memories, easily crafting stories and building Lags as you go.",
+      },
+      {
+        kind: "image",
+        src: "/newsletters/issue-07/find-inspiration.png",
+        alt: "Find Inspiration feature",
+      },
+      {
+        kind: "paragraph",
+        text: "Looking for inspiration? Each week we share prompts to foster ideas for new Lags.",
+      },
+      {
+        kind: "paragraph",
+        text: "Or send prompts to friends and family to more deeply connect, learn something new, and hear their stories.",
+      },
+      { kind: "heading", text: "A Prompt Worth Sending This Week" },
+      {
+        kind: "prompt",
+        question: "What’s the moment you knew a friendship was going to last?",
+        followup:
+          "Share the prompt with a friend, or share an answer to the prompt with a friend, telling them your side of the story.",
+        image: { src: "/newsletters/issue-07/prompt.png", alt: "Prompt card" },
+      },
+      { kind: "heading", text: "A Note From a User" },
+      { kind: "paragraph", text: "On connecting with grandparents —" },
+      {
+        kind: "story",
+        body: [
+          "“They tell me a lot of stories, but I like to record them because I’m not confident that I’ll be able to remember all these little details.",
+          "It’s really nice to just hear their voice and remember the moment of them telling me that story, and just envision part of their life.”",
+        ],
+        attribution: "From Bella Cartiera, 20, Connecticut",
+        image: { src: "/newsletters/issue-07/bella-video.png", alt: "Bella’s video thumbnail" },
+      },
+      { kind: "paragraph", text: "Click on the video to learn more." },
+      { kind: "heading", text: "Other Opportunities" },
+      opportunities(),
+    ],
+  },
+  {
+    slug: "issue-06",
+    number: 6,
+    date: "September 17, 2026",
+    dateISO: "2026-09-17",
+    title: "Lag from any device",
+    teaser:
+      "Our new web app is here — build and share your Lags from anywhere, plus Brittany on turning her biggest regret into a story for her family.",
+    cover: "/newsletters/issue-06/webapp-hero.png",
+    sections: [
+      definition,
+      {
+        kind: "paragraph",
+        text: "Record your Lag whenever and wherever the moment strikes.",
+      },
+      { kind: "heading", text: "Explore our new web app" },
+      { kind: "paragraph", text: "Create and share your Lags from anywhere." },
+      {
+        kind: "image",
+        src: "/newsletters/issue-06/webapp-hero.png",
+        alt: "Epoch Lag web app",
+      },
+      {
+        kind: "linkParagraph",
+        prefix: "Login through our site: ",
+        linkText: "www.epochlag.com",
+        linkHref: "https://www.epochlag.com",
+        suffix: ".",
+      },
+      {
+        kind: "image",
+        src: "/newsletters/issue-06/browser-build.png",
+        alt: "Building a Lag in the browser",
+      },
+      {
+        kind: "paragraph",
+        text: "Build your Lag from start to finish, right in your browser.",
+      },
+      {
+        kind: "paragraph",
+        text: "Add files straight from your device, or record audio and video in the moment.",
+      },
+      {
+        kind: "image",
+        src: "/newsletters/issue-06/write-prompt.png",
+        alt: "Write your own prompt",
+      },
+      { kind: "paragraph", text: "Want to write your own prompt?" },
+      {
+        kind: "paragraph",
+        text: "Our web app lets you ask yourself or a loved one the questions you’ve always wanted to explore.",
+      },
+      {
+        kind: "image",
+        src: "/newsletters/issue-06/inspiration-tab.png",
+        alt: "Inspiration tab in the web app",
+      },
+      {
+        kind: "paragraph",
+        text: "If you’re looking for some ideas about what to talk about next, explore the inspiration tab.",
+      },
+      {
+        kind: "paragraph",
+        text: "See what memories other users have been sharing to inspire your next Lag.",
+      },
+      { kind: "heading", text: "A Prompt Worth Sending This Week" },
+      {
+        kind: "prompt",
+        question:
+          "What’s something you learned about yourself during a challenging time?",
+        followup:
+          "Sharing what you learn during difficult times helps you connect more deeply with loved ones who are facing challenges of their own.",
+        image: { src: "/newsletters/issue-06/prompt.png", alt: "Prompt card" },
+      },
+      {
+        kind: "paragraph",
+        text: "Would you be willing to offer feedback on our new web app?",
+      },
+      {
+        kind: "paragraph",
+        text: "Please sign up for a 15 minute demo of our web app and receive a $15 Amazon gift card.",
+      },
+      {
+        kind: "linkParagraph",
+        prefix: "",
+        linkText: "Click to sign up for your 15 minute virtual demo",
+        linkHref: VIRTUAL_DEMO_FORM,
+        suffix: " — thank you!",
+      },
+      { kind: "heading", text: "A Note From a User" },
+      {
+        kind: "story",
+        body: [
+          "“Thanks to a prompt that I came across on Epoch Lag, I was inspired to tell a story about my biggest regret in life, which is not living my life more fully and letting fear get in the way of new experiences.",
+          "I hope that, in turn, my story can serve as a valuable lesson for my family when they read it.”",
+        ],
+        attribution: "From Brittany, 36, Chicago",
+        image: { src: "/newsletters/issue-06/brittany.png", alt: "Brittany’s photo" },
+      },
+      { kind: "heading", text: "Other Opportunities" },
+      opportunities(),
+    ],
+  },
+  {
     slug: "issue-05",
     number: 5,
     date: "September 2, 2026",

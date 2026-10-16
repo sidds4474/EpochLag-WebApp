@@ -3,29 +3,60 @@
 import { useEffect, useState } from "react";
 import { CloseIcon } from "./icons";
 import { APP_STORE_URL, PLAY_STORE_URL } from "../../../utils/storeLinks";
+import { tryOpenApp } from "@/lib/replies/installDetection";
 
 const STORAGE_KEY = "epoch:app-download-banner-dismissed";
+const IOS_DEEP_LINK = "epochlag://";
+const ANDROID_PACKAGE = "com.epochlag.app";
 
-function detectStoreUrl(): string {
-  if (typeof navigator === "undefined") return APP_STORE_URL;
+type Platform = "ios" | "android" | "other";
+
+function detectPlatform(): Platform {
+  if (typeof navigator === "undefined") return "other";
   const ua = navigator.userAgent || "";
-  if (/android/i.test(ua)) return PLAY_STORE_URL;
-  return APP_STORE_URL;
+  if (/android/i.test(ua)) return "android";
+  if (/iphone|ipad|ipod/i.test(ua)) return "ios";
+  return "other";
+}
+
+// Chrome Android honors S.browser_fallback_url: opens the app if installed,
+// otherwise navigates to the fallback. No timer or error page needed.
+function androidIntentUrl(): string {
+  const fallback = encodeURIComponent(PLAY_STORE_URL);
+  return `intent://#Intent;scheme=epochlag;package=${ANDROID_PACKAGE};S.browser_fallback_url=${fallback};end`;
 }
 
 export default function AppDownloadBanner() {
   const [visible, setVisible] = useState(false);
-  const [storeUrl, setStoreUrl] = useState(APP_STORE_URL);
+  const [platform, setPlatform] = useState<Platform>("other");
+  const [pending, setPending] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const dismissed = window.localStorage.getItem(STORAGE_KEY) === "1";
     if (dismissed) return;
-    setStoreUrl(detectStoreUrl());
+    setPlatform(detectPlatform());
     setVisible(true);
   }, []);
 
   if (!visible) return null;
+
+  const handleDownloadClick = () => {
+    if (pending) return;
+    if (platform === "android") {
+      window.location.href = androidIntentUrl();
+      return;
+    }
+    if (platform === "ios") {
+      setPending(true);
+      tryOpenApp(IOS_DEEP_LINK, () => {
+        setPending(false);
+        window.location.href = APP_STORE_URL;
+      });
+      return;
+    }
+    window.location.href = APP_STORE_URL;
+  };
 
   return (
     <div
@@ -40,14 +71,14 @@ export default function AppDownloadBanner() {
           Get the Epoch Lag App
         </p>
       </div>
-      <a
-        href={storeUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="shrink-0 bg-primary-blue text-white rounded-full px-[14px] py-[6px] font-montserrat font-semibold text-[12px]"
+      <button
+        type="button"
+        onClick={handleDownloadClick}
+        disabled={pending}
+        className="shrink-0 bg-primary-blue text-white rounded-full px-[14px] py-[6px] font-montserrat font-semibold text-[12px] disabled:opacity-60 disabled:cursor-wait"
       >
         Download
-      </a>
+      </button>
       <button
         type="button"
         onClick={() => {

@@ -32,7 +32,14 @@ const NewsletterMailFooter = () => {
             className="w-[130px] sm:w-[150px] md:w-[180px] h-auto object-contain"
           />
         </Link>
-        <div className="flex items-center gap-[10px] md:gap-[12px] text-white">
+        <div className="flex flex-col sm:flex-row items-center gap-[12px] sm:gap-[22px] text-white">
+          <Link
+            href="/privacy-policy"
+            className="text-[13px] sm:text-[14px] underline underline-offset-2 hover:text-white/70 transition-colors"
+          >
+            Privacy Policy
+          </Link>
+          <div className="flex items-center gap-[10px] md:gap-[12px]">
           <a
             href="https://www.instagram.com/epoch_lag"
             target="_blank"
@@ -60,6 +67,7 @@ const NewsletterMailFooter = () => {
           >
             <FacebookIcon className="w-[17px] h-[17px] md:w-[18px] md:h-[18px]" />
           </a>
+          </div>
         </div>
       </div>
     </footer>

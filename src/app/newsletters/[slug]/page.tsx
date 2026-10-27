@@ -399,7 +399,7 @@ function renderSection(section: Section, index: number) {
       return (
         <div
           key={index}
-          className="mt-[20px] md:mt-[24px] mx-auto sm:max-w-[440px] rounded-[16px] overflow-hidden bg-white"
+          className={`mt-[20px] md:mt-[24px] mx-auto overflow-hidden bg-white ${section.rounded === false ? "" : "rounded-[16px]"} ${section.width === "wide" ? "sm:max-w-[760px]" : "sm:max-w-[440px]"}`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

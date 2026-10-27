@@ -43,7 +43,13 @@ export type Section =
       attribution: string;
       image?: { src: string; alt: string };
     }
-  | { kind: "image"; src: string; alt: string }
+  | {
+      kind: "image";
+      src: string;
+      alt: string;
+      width?: "default" | "wide";
+      rounded?: boolean;
+    }
   | { kind: "gallery"; images: { src: string; alt: string }[] }
   | { kind: "steps"; items: string[] }
   | {
@@ -110,6 +116,68 @@ const definition: Section = {
 };
 
 export const ARCHIVE: Issue[] = [
+  {
+    slug: "issue-08",
+    number: 8,
+    date: "October 21, 2026",
+    dateISO: "2026-10-21",
+    title: "What we believe.",
+    teaser:
+      "A short manifesto on the beliefs that guide every decision at Epoch Lag.",
+    cover: "/newsletters/issue-08/hudson-river.png",
+    sections: [
+      { kind: "paragraph", text: "Life is a wonderful journey." },
+      { kind: "paragraph", text: "Everyone has a powerful story." },
+      { kind: "paragraph", text: "In humanity and human connection." },
+      { kind: "paragraph", text: "The future belongs to optimists." },
+      { kind: "paragraph", text: "There is much to be optimistic about." },
+      {
+        kind: "paragraph",
+        text: "The past holds truths that make the present more interesting.",
+      },
+      {
+        kind: "paragraph",
+        text: "Learning from the past helps make the future more exciting.",
+      },
+      {
+        kind: "paragraph",
+        text:
+          "Few things surpass a good question, followed by deeper ones, leading to stronger understanding and connection.",
+      },
+      { kind: "paragraph", text: "Listening drives connection." },
+      { kind: "paragraph", text: "Connection is rooted in trust." },
+      { kind: "paragraph", text: "Trust is built on understanding." },
+      {
+        kind: "paragraph",
+        text: "Understanding leads to empathy and compassion.",
+      },
+      { kind: "paragraph", text: "Compassion makes us better people." },
+      {
+        kind: "paragraph",
+        text:
+          "It’s ultimately about people and sharing life together — stories, ups and downs, memories, lessons, moments of joy.",
+      },
+      { kind: "paragraph", text: "Reflecting on life comprises epochs." },
+      {
+        kind: "paragraph",
+        text: "There’s a lag in our epochs that we carry forward.",
+      },
+      { kind: "paragraph", text: "This makes life richer." },
+      { kind: "paragraph", text: "Epoch Lag." },
+      {
+        kind: "image",
+        src: "/newsletters/issue-08/hudson-river.png",
+        alt: "Hudson River Scene by John Frederick Kensett, 1857.",
+        width: "wide",
+        rounded: false,
+      },
+      {
+        kind: "paragraph",
+        align: "center",
+        text: "John Frederick Kensett (1816–1872), 1857.",
+      },
+    ],
+  },
   {
     slug: "issue-07",
     number: 7,

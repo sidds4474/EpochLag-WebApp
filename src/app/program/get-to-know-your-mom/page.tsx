@@ -8,8 +8,13 @@ import {
   type FormEvent,
 } from "react";
 import NewsletterMailFooter from "../../newsletters/NewsletterMailFooter";
-import { subscribeToNewsletter } from "../../../lib/newsletter/api";
+import { subscribeToProgram } from "../../../lib/program-signup/api";
 import "./page.css";
+
+// Program-page source. Kebab-case, matches the backend list key — see
+// Program signups — Frontend guide (Oct 27, 2026). Must stay stable;
+// renaming it would split signups across two program lists.
+const PROGRAM_SOURCE = "get-to-know-your-mother";
 
 const ASSET = "/program/get-to-know-your-mom";
 
@@ -30,15 +35,13 @@ export default function Page() {
       return;
     }
     setSubmitting(true);
-    const res = await subscribeToNewsletter({
+    const res = await subscribeToProgram({
       email,
-      source: "program-get-to-know-your-mom",
+      source: PROGRAM_SOURCE,
     });
     setSubmitting(false);
     if (res.ok) {
-      setFormMsg(
-        "You’re on the waitlist. We’ll email you when the program opens.",
-      );
+      setFormMsg(res.message);
       if (input) input.value = "";
     } else {
       setFormMsg(res.message);

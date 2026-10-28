@@ -363,6 +363,7 @@ export default function Page() {
       );
       const heroFollow: Array<[HTMLElement | null, number]> = [
         [root.querySelector<HTMLElement>(".hero .lede"), 0.45],
+        [root.querySelector<HTMLElement>(".hero .hero-form"), 0.75],
         [root.querySelector<HTMLElement>(".hero-photo"), 1.15],
       ].filter((x) => x[0]) as Array<[HTMLElement, number]>;
       heroFollow.forEach((x) => {
@@ -631,6 +632,29 @@ export default function Page() {
           <p className="lede">
             You send the questions. She answers them. Her stories gather into a
             digital archive you&rsquo;ll keep forever.
+          </p>
+          <form
+            className="form hero-form"
+            id="wl-hero"
+            noValidate
+            onSubmit={onSubmit}
+          >
+            <label htmlFor="email-hero">Email</label>
+            <input
+              id="email-hero"
+              type="email"
+              name="email"
+              placeholder="Email"
+              autoComplete="email"
+              required
+              disabled={submitting}
+            />
+            <button type="submit" disabled={submitting}>
+              {submitting ? "Joining…" : "Join the waitlist"}
+            </button>
+          </form>
+          <p className="form-msg" id="wl-msg-hero" role="status">
+            {formMsg}
           </p>
           <div className="hero-photo">
             <video

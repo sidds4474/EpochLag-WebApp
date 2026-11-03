@@ -1,52 +1,14 @@
 "use client";
 
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import NewsletterMailFooter from "../../newsletters/NewsletterMailFooter";
-import { subscribeToProgram } from "../../../lib/program-signup/api";
+import Stores from "./Stores";
 import "./page.css";
-
-// Program-page source. Kebab-case, matches the backend list key — see
-// Program signups — Frontend guide (Oct 27, 2026). Must stay stable;
-// renaming it would split signups across two program lists.
-const PROGRAM_SOURCE = "get-to-know-your-mother";
 
 const ASSET = "/program/get-to-know-your-mom";
 
 export default function Page() {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [formMsg, setFormMsg] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const input = (e.currentTarget.elements.namedItem(
-      "email",
-    ) as HTMLInputElement) ?? null;
-    const email = (input?.value ?? "").trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setFormMsg("Enter a valid email address.");
-      input?.focus();
-      return;
-    }
-    setSubmitting(true);
-    const res = await subscribeToProgram({
-      email,
-      source: PROGRAM_SOURCE,
-    });
-    setSubmitting(false);
-    if (res.ok) {
-      setFormMsg(res.message);
-      if (input) input.value = "";
-    } else {
-      setFormMsg(res.message);
-    }
-  }
 
   // Use layout effect so DOM mutations (class toggles, baseline opacity:0)
   // land before the browser paints, matching the inline <head> script in the
@@ -256,8 +218,8 @@ export default function Page() {
         [".how .pill"],
         [".archive .copy p"],
         [".phone", 0.15],
-        [".waitlist .copy p:not(.form-msg)"],
-        [".waitlist .form"],
+        [".waitlist .copy p"],
+        [".waitlist .stores"],
         [".snap.one"],
         [".snap.two", 0.15],
         [".snap-m"],
@@ -268,7 +230,7 @@ export default function Page() {
           el.classList.add("rv");
           el.style.setProperty(
             "--d",
-            ((g[1] || 0) * i + (/copy p|form/.test(g[0]) ? 0.3 : 0)) + "s",
+            ((g[1] || 0) * i + (/copy p|stores/.test(g[0]) ? 0.3 : 0)) + "s",
           );
           els.push(el);
         });
@@ -363,7 +325,7 @@ export default function Page() {
       );
       const heroFollow: Array<[HTMLElement | null, number]> = [
         [root.querySelector<HTMLElement>(".hero .lede"), 0.45],
-        [root.querySelector<HTMLElement>(".hero .hero-form"), 0.75],
+        [root.querySelector<HTMLElement>(".hero .stores"), 0.8],
         [root.querySelector<HTMLElement>(".hero-photo"), 1.15],
       ].filter((x) => x[0]) as Array<[HTMLElement, number]>;
       heroFollow.forEach((x) => {
@@ -633,29 +595,7 @@ export default function Page() {
             You send the questions. She answers them. Her stories gather into a
             digital archive you&rsquo;ll keep forever.
           </p>
-          <form
-            className="form hero-form"
-            id="wl-hero"
-            noValidate
-            onSubmit={onSubmit}
-          >
-            <label htmlFor="email-hero">Email</label>
-            <input
-              id="email-hero"
-              type="email"
-              name="email"
-              placeholder="Email"
-              autoComplete="email"
-              required
-              disabled={submitting}
-            />
-            <button type="submit" disabled={submitting}>
-              {submitting ? "Joining…" : "Join the waitlist"}
-            </button>
-          </form>
-          <p className="form-msg" id="wl-msg-hero" role="status">
-            {formMsg}
-          </p>
+          <Stores />
           <div className="hero-photo">
             <video
               id="hero-video"
@@ -1186,28 +1126,8 @@ export default function Page() {
 
               <div className="copy">
                 <h2 id="wait-title">Start with one question.</h2>
-                <p>
-                  And start building an archive of beautiful memories. <br />
-                  Join the waitlist and be first in when the program opens.
-                </p>
-                <form className="form" id="wl" noValidate onSubmit={onSubmit}>
-                  <label htmlFor="email">Email</label>
-                  <input
-                    id="email"
-                    type="email"
-                    name="email"
-                    placeholder="Email"
-                    autoComplete="email"
-                    required
-                    disabled={submitting}
-                  />
-                  <button type="submit" disabled={submitting}>
-                    {submitting ? "Joining…" : "Join the waitlist"}
-                  </button>
-                </form>
-                <p className="form-msg" id="wl-msg" role="status">
-                  {formMsg}
-                </p>
+                <p>And start building an archive of beautiful memories.</p>
+                <Stores />
               </div>
               <div className="snap-m">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

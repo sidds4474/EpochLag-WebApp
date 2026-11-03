@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Get to know your Mom, one question at a time",
   description:
-    "Epoch Lag helps you get to know your mom, one question at a time. You send the questions, she answers with a voice message, photo, video or a few typed words, and her stories gather into a digital archive you'll keep forever. Join the waitlist.",
+    "Epoch Lag helps you get to know your mom, one question at a time. You send the questions, she answers with a voice message, photo, video or a few typed words, and her stories gather into a digital archive you'll keep forever. Available on the App Store and Google Play.",
   openGraph: {
     type: "website",
     siteName: "Epoch Lag",

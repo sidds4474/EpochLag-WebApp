@@ -53,6 +53,12 @@ export type Section =
   | { kind: "gallery"; images: { src: string; alt: string }[] }
   | { kind: "steps"; items: string[] }
   | {
+      kind: "featureList";
+      items: { lead: string; body: string }[];
+    }
+  | { kind: "pullquote"; text: string }
+  | { kind: "ctaButton"; label: string; href: string }
+  | {
       kind: "split";
       image: { src: string; alt: string };
       imageSide: "left" | "right";
@@ -116,6 +122,87 @@ const definition: Section = {
 };
 
 export const ARCHIVE: Issue[] = [
+  {
+    slug: "issue-09",
+    number: 9,
+    date: "November 4, 2026",
+    dateISO: "2026-11-04",
+    title: "Why we hold on to voicemails, and what we do next.",
+    teaser:
+      "On voicemails, why a regular Tuesday is the best day to record, and three prompts worth sending this week.",
+    cover: "/newsletters/issue-09/stella-levi.jpg",
+    sections: [
+      definition,
+      {
+        kind: "image",
+        src: "/newsletters/issue-09/stella-levi.jpg",
+        alt: "Artwork of colourful painted silhouettes in profile with speech bubbles above and between them.",
+        width: "wide",
+        rounded: false,
+      },
+      {
+        kind: "paragraph",
+        align: "center",
+        text: "Artist: Stella Levi, 2025.",
+      },
+      {
+        kind: "paragraph",
+        text:
+          "Capture even part of a story, starting with just a simple voicemail or message. Epoch Lag helps you record the voices of the people you love while they’re here to share their stories, in their own words.",
+      },
+      { kind: "heading", text: "Voices and Stories" },
+      {
+        kind: "featureList",
+        items: [
+          {
+            lead: "Record their voice.",
+            body:
+              "Sit down with a parent or grandparent and capture their stories as they tell them, laugh and all.",
+          },
+          {
+            lead: "Never wonder what to ask.",
+            body:
+              "Our prompts give you easy conversation starters, from “What was your first job?” to “How did you meet Grandma?”",
+          },
+          {
+            lead: "Keep it all in one place.",
+            body:
+              "Their voice and their stories live together, so they don’t vanish with your next phone upgrade.",
+          },
+        ],
+      },
+      {
+        kind: "pullquote",
+        text: "The best time to record is a regular Tuesday, not a hard day.",
+      },
+      {
+        kind: "image",
+        src: "/newsletters/issue-09/recording-screen.png",
+        alt: "Epoch Lag recording screen showing a live waveform, a 0:34 timer, and record / media controls.",
+      },
+      {
+        kind: "ctaButton",
+        label: "Start recording in Epoch Lag →",
+        href: "https://www.epochlag.com",
+      },
+      { kind: "heading", text: "Prompts Worth Sending This Week" },
+      {
+        kind: "prompt",
+        question: "What’s a phrase your parents always used to say?",
+      },
+      {
+        kind: "prompt",
+        question: "What family tradition do you cherish the most, and why?",
+      },
+      {
+        kind: "prompt",
+        question:
+          "Who in your family do you wish you had more time with?",
+      },
+      { kind: "heading", text: "Other Opportunities" },
+      opportunities(),
+    ],
+  },
   {
     slug: "issue-08",
     number: 8,

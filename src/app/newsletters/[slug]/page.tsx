@@ -445,6 +445,44 @@ function renderSection(section: Section, index: number) {
           ))}
         </ul>
       );
+    case "featureList":
+      return (
+        <ul
+          key={index}
+          className="mt-[16px] md:mt-[20px] pl-[20px] md:pl-[24px] list-disc marker:text-primary-orange space-y-[12px] md:space-y-[14px]"
+        >
+          {section.items.map((item, i) => (
+            <li
+              key={i}
+              className="font-montserrat text-primary-blue text-[14px] md:text-[16px] leading-[170%]"
+            >
+              <strong className="font-semibold">{item.lead}</strong> {item.body}
+            </li>
+          ))}
+        </ul>
+      );
+    case "pullquote":
+      return (
+        <blockquote
+          key={index}
+          className="mt-[28px] md:mt-[36px] font-ivy italic text-primary-blue text-[20px] sm:text-[22px] md:text-[26px] leading-[140%] text-center max-w-[560px] mx-auto"
+        >
+          “{section.text}”
+        </blockquote>
+      );
+    case "ctaButton":
+      return (
+        <div key={index} className="mt-[24px] md:mt-[32px] flex justify-center">
+          <a
+            href={section.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="cursor-pointer bg-primary-orange text-white rounded-[8px] px-[28px] md:px-[36px] py-[14px] md:py-[16px] font-montserrat font-semibold text-[15px] md:text-[16px] text-center hover:opacity-90 transition-opacity"
+          >
+            {section.label}
+          </a>
+        </div>
+      );
     case "opportunities":
       return (
         <div key={index} className="mt-[24px] md:mt-[32px] grid grid-cols-1 md:grid-cols-3 gap-[16px] md:gap-[24px]">

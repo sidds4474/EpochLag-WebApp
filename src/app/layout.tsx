@@ -43,6 +43,9 @@ export const metadata = {
     description:
       "Epoch Lag helps you preserve and share meaningful memories with the people who matter most.",
   },
+  other: {
+    "facebook-domain-verification": "4kacd047ys4toefp06rxzyni0wra33",
+  },
 };
 
 export const viewport = {

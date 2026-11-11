@@ -536,14 +536,14 @@
 .motion .hp2 .contact-form.in .btn{opacity:1;transform:none}
 /* ================= Legal pages (Privacy Policy) ================= */
 /* Dark header band */
-.hp2 .header-dark .site-header{background:var(--ink)}
-.hp2 .header-dark .nav{border-bottom-color:rgba(243,241,235,.45)}
-.hp2 .header-dark .nav-links a:not(.btn){color:#F3F1EB}
-.hp2 .header-dark .account svg{fill:#F3F1EB}
-.hp2 .header-dark .menu-toggle span{background:#F3F1EB}
+.hp2.header-dark .site-header{background:var(--ink)}
+.hp2.header-dark .nav{border-bottom-color:rgba(243,241,235,.45)}
+.hp2.header-dark .nav-links a:not(.btn){color:#F3F1EB}
+.hp2.header-dark .account svg{fill:#F3F1EB}
+.hp2.header-dark .menu-toggle span{background:#F3F1EB}
 .hp2 .logo .logo-light{display:none}
-.hp2 .header-dark .logo .logo-dark{display:none}
-.hp2 .header-dark .logo .logo-light{display:block}
+.hp2.header-dark .logo .logo-dark{display:none}
+.hp2.header-dark .logo .logo-light{display:block}
 .hp2 .legal-hero{background:var(--ink);color:#F3F1EB;text-align:center;padding:68px 0 72px}
 .hp2 .legal-hero h1{color:#F3F1EB}
 .hp2 .legal-updated{margin-top:14px;color:rgba(243,241,235,.92)}

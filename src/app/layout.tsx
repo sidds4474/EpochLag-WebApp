@@ -67,7 +67,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${lora.variable} ${plusJakarta.variable}`}>
+    <html
+      lang="en"
+      className={`${lora.variable} ${plusJakarta.variable}`}
+      // The pre-paint motion script below mutates <html>'s classList before
+      // React hydrates. Tell React this element is allowed to differ — the
+      // mismatch is intentional and only touches this one attribute.
+      suppressHydrationWarning
+    >
       <head>
         {/* Pre-paint motion flag used by the hp2 chrome (homepage + contact + legal).
             Mirrors the inline script in the designer's HTML: toggle the class before

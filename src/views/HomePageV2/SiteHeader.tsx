@@ -5,7 +5,8 @@ import { APP_STORE_URL, getStoreUrl } from "../../utils/storeLinks";
 // Shared header for the hp2 chrome (home, contact, legal). Presentational only
 // — the mobile-drawer interactions and heading-split animations are wired up
 // by useSiteChrome, so each page can mount this component without duplicating
-// setup code. Nav links use /#newsletter so they work from any route.
+// setup code. "Newsletter" points at the dedicated /newsletters archive, not
+// the homepage's in-page section, so it works consistently from every route.
 
 export default function SiteHeader() {
   function handleGetAppClick(e: React.MouseEvent<HTMLAnchorElement>) {
@@ -35,7 +36,7 @@ export default function SiteHeader() {
             />
           </a>
           <div className="nav-links">
-            <a href="/#newsletter">Newsletter</a>
+            <a href="/newsletters">Newsletter</a>
             <a href="/contact">Contact Us</a>
             <a
               className="btn"
@@ -91,7 +92,7 @@ export default function SiteHeader() {
           </button>
           <nav aria-label="Mobile">
             <a href="/login">Login</a>
-            <a href="/#newsletter">Newsletter</a>
+            <a href="/newsletters">Newsletter</a>
             <a href="/contact">Contact</a>
           </nav>
         </div>

@@ -69,6 +69,16 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${lora.variable} ${plusJakarta.variable}`}>
       <head>
+        {/* Pre-paint motion flag used by the hp2 chrome (homepage + contact + legal).
+            Mirrors the inline script in the designer's HTML: toggle the class before
+            first paint so the baseline-hidden rules apply instantly and we don't flash
+            a form in its uninitialised state. Scoped to .hp2 descendants via the CSS. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches&&'IntersectionObserver' in window){document.documentElement.classList.add('motion');}",
+          }}
+        />
         <link
           rel="preload"
           href="/fonts/Montserrat-VariableFont_wght.ttf"

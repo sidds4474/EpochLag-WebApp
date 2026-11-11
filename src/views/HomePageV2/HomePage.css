@@ -334,12 +334,12 @@
   .hp2 .mobile-menu-panel:focus{outline:none}
   .hp2 .mobile-menu nav a:focus-visible{outline:2px solid var(--orange-deep);outline-offset:2px;border-radius:4px}
   /* Menu link text rises out of a mask, like the headings */
-  .hp2.motion .mobile-menu nav a .w{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:.12em;margin-bottom:-.12em}
-  .hp2.motion .mobile-menu nav a .w > span{display:inline-block;transform:translateY(110%);transition:transform .7s var(--ease-out,ease);transition-delay:var(--d,0ms)}
-  .hp2.motion .mobile-menu nav.in a .w > span{transform:none}
-  .hp2.motion .mobile-menu nav a{border-bottom-color:transparent;transition:border-color .5s ease;transition-delay:var(--d,0ms)}
-  .hp2.motion .mobile-menu nav.in a{border-bottom-color:#C9C9C9}
-  .hp2.motion .mobile-menu nav.in a:last-child{border-bottom-color:transparent}
+  .motion .hp2 .mobile-menu nav a .w{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:.12em;margin-bottom:-.12em}
+  .motion .hp2 .mobile-menu nav a .w > span{display:inline-block;transform:translateY(110%);transition:transform .7s var(--ease-out,ease);transition-delay:var(--d,0ms)}
+  .motion .hp2 .mobile-menu nav.in a .w > span{transform:none}
+  .motion .hp2 .mobile-menu nav a{border-bottom-color:transparent;transition:border-color .5s ease;transition-delay:var(--d,0ms)}
+  .motion .hp2 .mobile-menu nav.in a{border-bottom-color:#C9C9C9}
+  .motion .hp2 .mobile-menu nav.in a:last-child{border-bottom-color:transparent}
   .hp2 .nav-links{display:none}
   .hp2 .logo img{height:27px}
   .hp2 .hero{padding-top:20px}
@@ -427,16 +427,16 @@
 /* ================= Motion & hover ================= */
 .hp2{--ease-out:cubic-bezier(.2,.7,.2,1)}
 /* Scroll reveal: content fades and rises as each section arrives */
-.hp2.motion .reveal{opacity:0;transform:translateY(28px);transition:opacity .9s ease,transform 1s var(--ease-out);transition-delay:var(--d,0ms)}
-.hp2.motion .reveal.in{opacity:1;transform:none}
-.hp2.motion .reveal-fade{opacity:0;transition:opacity 1.2s ease;transition-delay:var(--d,0ms)}
-.hp2.motion .reveal-fade.in{opacity:1}
-.hp2.motion .reveal-soft{opacity:0;transform:translateY(12px);transition:opacity .8s ease,transform .9s var(--ease-out);transition-delay:var(--d,0ms)}
-.hp2.motion .reveal-soft.in{opacity:1;transform:none}
+.motion .hp2 .reveal{opacity:0;transform:translateY(28px);transition:opacity .9s ease,transform 1s var(--ease-out);transition-delay:var(--d,0ms)}
+.motion .hp2 .reveal.in{opacity:1;transform:none}
+.motion .hp2 .reveal-fade{opacity:0;transition:opacity 1.2s ease;transition-delay:var(--d,0ms)}
+.motion .hp2 .reveal-fade.in{opacity:1}
+.motion .hp2 .reveal-soft{opacity:0;transform:translateY(12px);transition:opacity .8s ease,transform .9s var(--ease-out);transition-delay:var(--d,0ms)}
+.motion .hp2 .reveal-soft.in{opacity:1;transform:none}
 /* Headings: words rise out of a mask, one after another */
-.hp2.motion .split .w{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:.12em;margin-bottom:-.12em}
-.hp2.motion .split .w > span{display:inline-block;transform:translateY(110%);transition:transform 1s var(--ease-out);transition-delay:calc(var(--i) * 70ms + var(--d,0ms))}
-.hp2.motion .split.in .w > span{transform:none}
+.motion .hp2 .split .w{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:.12em;margin-bottom:-.12em}
+.motion .hp2 .split .w > span{display:inline-block;transform:translateY(110%);transition:transform 1s var(--ease-out);transition-delay:calc(var(--i) * 70ms + var(--d,0ms))}
+.motion .hp2 .split.in .w > span{transform:none}
 /* Buttons and badges */
 .hp2 .badge{transition:transform .3s var(--ease-out)}
 .hp2 .badge:active{transform:translateY(0) scale(.98)}
@@ -520,20 +520,20 @@
 }
 /* Form lines fade in one after another when the form comes into view */
 .hp2 .contact-form .field{position:relative}
-.hp2.motion .contact-form input{border-bottom-color:transparent}
-.hp2.motion .contact-form .field:not(.field--message)::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:#9C9A93;
+.motion .hp2 .contact-form input{border-bottom-color:transparent}
+.motion .hp2 .contact-form .field:not(.field--message)::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:#9C9A93;
   opacity:0;transition:opacity .7s ease,background-color .2s ease;}
-.hp2.motion .contact-form .field:nth-of-type(1)::after{transition-delay:250ms,0s}
-.hp2.motion .contact-form .field:nth-of-type(2)::after{transition-delay:450ms,0s}
-.hp2.motion .contact-form.in .field::after{opacity:1}
-.hp2.motion .contact-form .field:focus-within::after{background:var(--ink)}
-.hp2.motion .contact-form .field:has([aria-invalid="true"])::after{background:var(--orange-deep)}
-.hp2.motion .contact-form textarea{border-color:transparent;transition:border-color .7s ease 650ms}
-.hp2.motion .contact-form.in textarea{border-color:#9C9A93}
-.hp2.motion .contact-form.in textarea:focus{border-color:var(--ink);transition-delay:0s}
-.hp2.motion .contact-form.in textarea[aria-invalid="true"]{transition-delay:0s}
-.hp2.motion .contact-form .btn{opacity:0;transform:translateY(10px);transition:opacity .6s ease 850ms,transform .7s var(--ease-out) 850ms,background-color .2s ease}
-.hp2.motion .contact-form.in .btn{opacity:1;transform:none}
+.motion .hp2 .contact-form .field:nth-of-type(1)::after{transition-delay:250ms,0s}
+.motion .hp2 .contact-form .field:nth-of-type(2)::after{transition-delay:450ms,0s}
+.motion .hp2 .contact-form.in .field::after{opacity:1}
+.motion .hp2 .contact-form .field:focus-within::after{background:var(--ink)}
+.motion .hp2 .contact-form .field:has([aria-invalid="true"])::after{background:var(--orange-deep)}
+.motion .hp2 .contact-form textarea{border-color:transparent;transition:border-color .7s ease 650ms}
+.motion .hp2 .contact-form.in textarea{border-color:#9C9A93}
+.motion .hp2 .contact-form.in textarea:focus{border-color:var(--ink);transition-delay:0s}
+.motion .hp2 .contact-form.in textarea[aria-invalid="true"]{transition-delay:0s}
+.motion .hp2 .contact-form .btn{opacity:0;transform:translateY(10px);transition:opacity .6s ease 850ms,transform .7s var(--ease-out) 850ms,background-color .2s ease}
+.motion .hp2 .contact-form.in .btn{opacity:1;transform:none}
 /* ================= Legal pages (Privacy Policy) ================= */
 /* Dark header band */
 .hp2 .header-dark .site-header{background:var(--ink)}

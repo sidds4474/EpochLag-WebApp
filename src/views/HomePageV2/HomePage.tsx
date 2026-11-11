@@ -1,26 +1,16 @@
 "use client";
 
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
+import { useRef, useState, type FormEvent } from "react";
 import {
   APP_STORE_URL,
   PLAY_STORE_URL,
   getStoreUrl,
 } from "../../utils/storeLinks";
 import { subscribeToNewsletter } from "../../lib/newsletter/api";
+import SiteHeader from "./SiteHeader";
+import SiteFooter from "./SiteFooter";
+import { useSiteChrome } from "./useSiteChrome";
 import "./HomePage.css";
-
-// Full homepage redesign ported from the designer's static HTML. All
-// markup, pixel values, and animation choreography (word-split heading
-// reveal, scroll-staggered groups, parallax background, hero video with
-// poster fade, FAQ height animation, mobile drawer) match the source
-// verbatim. CSS is scoped under .hp2 so none of the design tokens
-// (--bg, --orange, etc.) bleed into other routes.
 
 const ASSET = "/home";
 
@@ -234,8 +224,6 @@ export default function HomePage() {
     }
   }
 
-  // Store-click handler mirroring the HTML: iPhone/iPad → App Store, Android → Play Store,
-  // desktop → whichever badge they clicked (default behavior).
   function handleGetAppClick(e: React.MouseEvent<HTMLAnchorElement>) {
     const url = getStoreUrl();
     if (url) {
@@ -244,546 +232,186 @@ export default function HomePage() {
     }
   }
 
-  const useIsoLayoutEffect =
-    typeof window !== "undefined" ? useLayoutEffect : useEffect;
-  useIsoLayoutEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
+  useSiteChrome(rootRef, {
+    revealGroups: [
+      [".hero|.badges, .btn--mobile", 0, 450],
+      [".built-copy|p, .checklist li", 70, 250],
+      [".how-grid|.how-item", 140],
+      [".daily-copy|p, ul, .btn", 90, 250],
+      [".about-body|p", 90, 150],
+      [".faq-intro|p, .btn", 90, 200],
+      [".faq-list|details", 45, 150],
+      [".loop|p, .arrow-link, .signup", 90, 200],
+      [".cta-inner|p, .badges, .qr, .qr-caption, .btn--mobile", 80, 250],
+    ],
+    revealMarks: [
+      [".phone-stage", "reveal"],
+      [".daily-collage", "reveal"],
+      [".review-grid", "reveal"],
+      [".pol", "reveal-fade"],
+    ],
+    revealOverrides: [
+      [".phone-stage", "150ms"],
+      [".daily-collage", "200ms"],
+    ],
+    extra: (root, cleanups) => {
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
 
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    if (!reduceMotion) root.classList.add("motion");
-
-    const cleanups: Array<() => void> = [];
-
-    // ---------- Hero video: play / pause toggle + poster fade ----------
-    (function heroVideo() {
-      const v = videoRef.current;
-      if (!v) return;
-      const box = v.closest(".hero-media") as HTMLElement | null;
-      const btn = root.querySelector<HTMLButtonElement>(".video-toggle");
-      let userPaused = false;
-      function setPressed(paused: boolean) {
-        if (!btn) return;
-        btn.setAttribute("aria-pressed", String(paused));
-        btn.setAttribute("aria-label", paused ? "Play video" : "Pause video");
-      }
-      function tryPlay() {
-        v!.muted = true;
-        v!.defaultMuted = true;
-        const p = v!.play();
-        if (p && typeof (p as Promise<void>).catch === "function") {
-          (p as Promise<void>).catch(() => {
-            setPressed(true);
-            const resume = () => {
-              if (!userPaused) tryPlay();
-              window.removeEventListener("pointerdown", resume);
-              window.removeEventListener("touchstart", resume);
-              window.removeEventListener("keydown", resume);
-            };
-            window.addEventListener("pointerdown", resume, { once: true });
-            window.addEventListener("touchstart", resume, {
-              once: true,
-              passive: true,
-            });
-            window.addEventListener("keydown", resume, { once: true });
-          });
+      // ---------- Hero video: play / pause toggle + poster fade ----------
+      (function heroVideo() {
+        const v = videoRef.current;
+        if (!v) return;
+        const box = v.closest(".hero-media") as HTMLElement | null;
+        const btn = root.querySelector<HTMLButtonElement>(".video-toggle");
+        let userPaused = false;
+        function setPressed(paused: boolean) {
+          if (!btn) return;
+          btn.setAttribute("aria-pressed", String(paused));
+          btn.setAttribute("aria-label", paused ? "Play video" : "Pause video");
         }
-      }
-      const onTime = () => {
-        if (v.currentTime > 0.05 && box) box.classList.add("is-playing");
-      };
-      const onPlay = () => setPressed(false);
-      const onPause = () => setPressed(true);
-      const onToggle = (e: MouseEvent) => {
-        e.stopPropagation();
-        if (v.paused) {
-          userPaused = false;
-          tryPlay();
-        } else {
-          userPaused = true;
-          v.pause();
-        }
-      };
-      v.addEventListener("timeupdate", onTime);
-      v.addEventListener("play", onPlay);
-      v.addEventListener("pause", onPause);
-      btn?.addEventListener("click", onToggle);
-      tryPlay();
-      cleanups.push(() => {
-        v.removeEventListener("timeupdate", onTime);
-        v.removeEventListener("play", onPlay);
-        v.removeEventListener("pause", onPause);
-        btn?.removeEventListener("click", onToggle);
-      });
-    })();
-
-    // ---------- Statement background parallax ----------
-    (function parallax() {
-      if (reduceMotion) return;
-      const sec = root.querySelector<HTMLElement>(".statement");
-      const bg = sec?.querySelector<HTMLElement>(".statement-bg");
-      if (!sec || !bg) return;
-      const SPEED = 0.2;
-      let ticking = false;
-      function update() {
-        ticking = false;
-        const r = sec!.getBoundingClientRect();
-        const vh = window.innerHeight;
-        if (r.bottom < -100 || r.top > vh + 100) return;
-        const progress = Math.max(
-          -1,
-          Math.min(
-            1,
-            (r.top + r.height / 2 - vh / 2) / (vh / 2 + r.height / 2),
-          ),
-        );
-        bg!.style.transform = `translate3d(0,${(-progress * r.height * SPEED).toFixed(1)}px,0)`;
-      }
-      const onScroll = () => {
-        if (!ticking) {
-          ticking = true;
-          requestAnimationFrame(update);
-        }
-      };
-      window.addEventListener("scroll", onScroll, { passive: true });
-      window.addEventListener("resize", onScroll);
-      update();
-      cleanups.push(() => {
-        window.removeEventListener("scroll", onScroll);
-        window.removeEventListener("resize", onScroll);
-      });
-    })();
-
-    if (!reduceMotion) {
-      // ---------- Word-split heading reveal ----------
-      function split(el: HTMLElement) {
-        const nodes = Array.from(el.childNodes);
-        el.setAttribute(
-          "aria-label",
-          (el.textContent || "").replace(/\s+/g, " ").trim(),
-        );
-        let i = 0;
-        nodes.forEach((n) => {
-          if (n.nodeType !== 3) return;
-          const frag = document.createDocumentFragment();
-          (n.textContent || "").split(/(\s+)/).forEach((part) => {
-            if (!part) return;
-            if (/^\s+$/.test(part)) {
-              frag.appendChild(document.createTextNode(" "));
-              return;
-            }
-            const w = document.createElement("span");
-            w.className = "w";
-            w.setAttribute("aria-hidden", "true");
-            const inner = document.createElement("span");
-            inner.textContent = part;
-            inner.style.setProperty("--i", String(i++));
-            w.appendChild(inner);
-            frag.appendChild(w);
-          });
-          el.replaceChild(frag, n);
-        });
-        el.classList.add("split");
-      }
-      root
-        .querySelectorAll<HTMLElement>(
-          "section h1, section h2, .statement p",
-        )
-        .forEach(split);
-
-      // ---------- Scroll-reveal: mark + stagger inside groups ----------
-      const mark = (sel: string, cls = "reveal", step = 0) => {
-        root.querySelectorAll<HTMLElement>(sel).forEach((el, idx) => {
-          el.classList.add(cls);
-          if (step) el.style.setProperty("--d", idx * step + "ms");
-        });
-      };
-      const group = (
-        parentSel: string,
-        childSel: string,
-        step: number,
-        base = 0,
-      ) => {
-        root.querySelectorAll<HTMLElement>(parentSel).forEach((p) => {
-          p.querySelectorAll<HTMLElement>(childSel).forEach((el, idx) => {
-            el.classList.add("reveal");
-            el.style.setProperty("--d", base + idx * step + "ms");
-          });
-        });
-      };
-      group(".hero", ".badges, .btn--mobile", 0, 450);
-      group(".built-copy", "p, .checklist li", 70, 250);
-      mark(".phone-stage");
-      group(".how-grid", ".how-item", 140);
-      group(".daily-copy", "p, ul, .btn", 90, 250);
-      mark(".daily-collage");
-      group(".about-body", "p", 90, 150);
-      mark(".review-grid");
-      group(".faq-intro", "p, .btn", 90, 200);
-      group(".faq-list", "details", 45, 150);
-      group(".loop", "p, .arrow-link, .signup", 90, 200);
-      group(".cta-inner", "p, .badges, .qr, .qr-caption, .btn--mobile", 80, 250);
-      mark(".pol", "reveal-fade");
-      const ph = root.querySelector<HTMLElement>(".phone-stage");
-      if (ph) ph.style.setProperty("--d", "150ms");
-      const dc = root.querySelector<HTMLElement>(".daily-collage");
-      if (dc) dc.style.setProperty("--d", "200ms");
-
-      // ---------- IntersectionObserver: each element animates once ----------
-      const io = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((e) => {
-            if (e.isIntersecting) {
-              e.target.classList.add("in");
-              io.unobserve(e.target);
-            }
-          });
-        },
-        { rootMargin: "0px 0px -8% 0px", threshold: 0 },
-      );
-      root
-        .querySelectorAll<HTMLElement>(
-          ".reveal, .reveal-fade, .reveal-soft, .split",
-        )
-        .forEach((el) => {
-          if (el.closest(".hero")) return;
-          io.observe(el);
-        });
-
-      // Hero animates straight away
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          root
-            .querySelectorAll<HTMLElement>(".hero .split, .hero .reveal")
-            .forEach((el) => el.classList.add("in"));
-        });
-      });
-      cleanups.push(() => io.disconnect());
-    }
-
-    // ---------- FAQ accordion with height animation ----------
-    (function faqAccordion() {
-      if (reduceMotion) return;
-      root
-        .querySelectorAll<HTMLDetailsElement>(".faq-list details")
-        .forEach((d) => {
-          const s = d.querySelector<HTMLElement>("summary");
-          const a = d.querySelector<HTMLElement>(".faq-a");
-          if (!s || !a || !a.animate) return;
-          let anim: Animation | null = null;
-          const onClick = (e: Event) => {
-            e.preventDefault();
-            if (anim) {
-              anim.cancel();
-              d.classList.remove("closing");
-            }
-            if (d.open) {
-              anim = a.animate(
-                [
-                  { height: a.offsetHeight + "px", opacity: 1 },
-                  { height: "0px", opacity: 0 },
-                ],
-                { duration: 260, easing: "ease" },
-              );
-              anim.onfinish = () => {
-                d.open = false;
-                d.classList.remove("closing");
-                anim = null;
+        function tryPlay() {
+          v!.muted = true;
+          v!.defaultMuted = true;
+          const p = v!.play();
+          if (p && typeof (p as Promise<void>).catch === "function") {
+            (p as Promise<void>).catch(() => {
+              setPressed(true);
+              const resume = () => {
+                if (!userPaused) tryPlay();
+                window.removeEventListener("pointerdown", resume);
+                window.removeEventListener("touchstart", resume);
+                window.removeEventListener("keydown", resume);
               };
-              d.classList.add("closing");
-            } else {
-              d.open = true;
-              anim = a.animate(
-                [
-                  { height: "0px", opacity: 0 },
-                  { height: a.offsetHeight + "px", opacity: 1 },
-                ],
-                { duration: 340, easing: "cubic-bezier(.2,.7,.2,1)" },
-              );
-              anim.onfinish = () => {
-                anim = null;
-              };
-            }
-          };
-          s.addEventListener("click", onClick);
-          cleanups.push(() => s.removeEventListener("click", onClick));
-        });
-    })();
-
-    // ---------- Mobile menu: slide-in drawer ----------
-    (function mobileMenu() {
-      const btn = root.querySelector<HTMLButtonElement>(".menu-toggle");
-      const menu = root.querySelector<HTMLElement>("#mobile-menu");
-      if (!btn || !menu) return;
-      const panel = menu.querySelector<HTMLElement>(".mobile-menu-panel");
-      const list = menu.querySelector<HTMLElement>("nav");
-      if (!panel || !list) return;
-      const animate = root.classList.contains("motion");
-      if (animate) {
-        list.querySelectorAll<HTMLAnchorElement>("a").forEach((a, i) => {
-          const label = (a.textContent || "").trim();
-          a.setAttribute("aria-label", label);
-          a.innerHTML = `<span class="w" aria-hidden="true"><span>${label}</span></span>`;
-          a.style.setProperty("--d", 180 + i * 80 + "ms");
-        });
-      }
-      let timer: ReturnType<typeof setTimeout> | null = null;
-      let revealTimer: ReturnType<typeof setTimeout> | null = null;
-      function focusables() {
-        return Array.from(panel!.querySelectorAll<HTMLElement>("a,button"));
-      }
-      function open(e?: MouseEvent) {
-        const byKeyboard = e?.detail === 0;
-        if (timer) clearTimeout(timer);
-        menu!.classList.remove("is-closing");
-        menu!.hidden = false;
-        root!.classList.add("menu-open");
-        if (!reduceMotion) {
-          menu!.classList.add("is-opening");
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              menu!.classList.remove("is-opening");
+              window.addEventListener("pointerdown", resume, { once: true });
+              window.addEventListener("touchstart", resume, {
+                once: true,
+                passive: true,
+              });
+              window.addEventListener("keydown", resume, { once: true });
             });
-          });
-        }
-        btn!.setAttribute("aria-expanded", "true");
-        if (byKeyboard) {
-          const first = panel!.querySelector<HTMLElement>("nav a");
-          if (first) first.focus({ preventScroll: true });
-        } else {
-          panel!.focus({ preventScroll: true });
-        }
-        if (animate) {
-          if (revealTimer) clearTimeout(revealTimer);
-          list!.classList.remove("in");
-          void list!.offsetWidth;
-          revealTimer = setTimeout(() => list!.classList.add("in"), 20);
-        }
-      }
-      function close(returnFocus: boolean) {
-        if (menu!.hidden) return;
-        btn!.setAttribute("aria-expanded", "false");
-        root!.classList.remove("menu-open");
-        if (reduceMotion) {
-          menu!.hidden = true;
-        } else {
-          menu!.classList.add("is-closing");
-          timer = setTimeout(() => {
-            menu!.hidden = true;
-            menu!.classList.remove("is-closing");
-            if (animate) list!.classList.remove("in");
-          }, 380);
-        }
-        if (returnFocus) btn!.focus({ preventScroll: true });
-      }
-      const onBtn = (e: MouseEvent) => open(e);
-      btn.addEventListener("click", onBtn);
-      const onMenuClick = (e: Event) => {
-        const t = e.target as HTMLElement;
-        if (t.closest("[data-close]")) close(true);
-        else if (t.closest("nav a")) close(false);
-      };
-      menu.addEventListener("click", onMenuClick);
-      const onKey = (e: KeyboardEvent) => {
-        if (menu.hidden) return;
-        if (e.key === "Escape") {
-          close(true);
-          return;
-        }
-        if (e.key === "Tab") {
-          const f = focusables();
-          const first = f[0];
-          const last = f[f.length - 1];
-          if (e.shiftKey && document.activeElement === first) {
-            e.preventDefault();
-            last.focus();
-          } else if (!e.shiftKey && document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
           }
         }
-      };
-      document.addEventListener("keydown", onKey);
-      const mq = window.matchMedia("(min-width:769px)");
-      const onMq = (m: MediaQueryListEvent) => {
-        if (m.matches) close(false);
-      };
-      mq.addEventListener("change", onMq);
-      cleanups.push(() => {
-        btn.removeEventListener("click", onBtn);
-        menu.removeEventListener("click", onMenuClick);
-        document.removeEventListener("keydown", onKey);
-        mq.removeEventListener("change", onMq);
-        if (timer) clearTimeout(timer);
-        if (revealTimer) clearTimeout(revealTimer);
-      });
-    })();
-
-    // ---------- Smooth in-page anchor scroll ----------
-    (function smoothScroll() {
-      if (reduceMotion) return;
-      const SCROLL = { base: 900, perPixel: 0.12, max: 1800 };
-      function scrollTo(y: number) {
-        const start = window.scrollY;
-        const dist = y - start;
-        if (Math.abs(dist) < 2) {
-          window.scrollTo(0, y);
-          return;
-        }
-        const dur = Math.min(
-          SCROLL.max,
-          SCROLL.base + Math.abs(dist) * SCROLL.perPixel,
-        );
-        let t0: number | null = null;
-        let stop = false;
-        const cancel = () => {
-          stop = true;
+        const onTime = () => {
+          if (v.currentTime > 0.05 && box) box.classList.add("is-playing");
         };
-        (["wheel", "touchstart", "keydown"] as const).forEach((ev) =>
-          window.addEventListener(ev, cancel, { once: true, passive: true }),
-        );
-        function ease(p: number) {
-          return p < 0.5
-            ? 4 * p * p * p
-            : 1 - Math.pow(-2 * p + 2, 3) / 2;
-        }
-        function step(ts: number) {
-          if (stop) return;
-          if (t0 === null) t0 = ts;
-          const p = Math.min(1, (ts - t0) / dur);
-          window.scrollTo(0, start + dist * ease(p));
-          if (p < 1) requestAnimationFrame(step);
-        }
-        requestAnimationFrame(step);
-      }
-      const onClick = (e: MouseEvent) => {
-        const a = (e.target as HTMLElement)?.closest?.(
-          'a[href^="#"]',
-        ) as HTMLAnchorElement | null;
-        if (
-          !a ||
-          e.metaKey ||
-          e.ctrlKey ||
-          e.shiftKey ||
-          a.getAttribute("href") === "#"
-        )
-          return;
-        const href = a.getAttribute("href") || "";
-        const id = href.slice(1);
-        if (!id) return;
-        const el = root.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
-        if (!el) return;
-        e.preventDefault();
-        const y = Math.min(
-          el.getBoundingClientRect().top + window.scrollY,
-          document.documentElement.scrollHeight - window.innerHeight,
-        );
-        scrollTo(Math.max(0, y));
-        try {
-          history.pushState(null, "", "#" + id);
-        } catch {
-          // ignore
-        }
-      };
-      root.addEventListener("click", onClick);
-      cleanups.push(() => root.removeEventListener("click", onClick));
-    })();
+        const onPlay = () => setPressed(false);
+        const onPause = () => setPressed(true);
+        const onToggle = (e: MouseEvent) => {
+          e.stopPropagation();
+          if (v.paused) {
+            userPaused = false;
+            tryPlay();
+          } else {
+            userPaused = true;
+            v.pause();
+          }
+        };
+        v.addEventListener("timeupdate", onTime);
+        v.addEventListener("play", onPlay);
+        v.addEventListener("pause", onPause);
+        btn?.addEventListener("click", onToggle);
+        tryPlay();
+        cleanups.push(() => {
+          v.removeEventListener("timeupdate", onTime);
+          v.removeEventListener("play", onPlay);
+          v.removeEventListener("pause", onPause);
+          btn?.removeEventListener("click", onToggle);
+        });
+      })();
 
-    return () => {
-      cleanups.forEach((f) => {
-        try {
-          f();
-        } catch {
-          // ignore
+      // ---------- Statement background parallax ----------
+      (function parallax() {
+        if (reduceMotion) return;
+        const sec = root.querySelector<HTMLElement>(".statement");
+        const bg = sec?.querySelector<HTMLElement>(".statement-bg");
+        if (!sec || !bg) return;
+        const SPEED = 0.2;
+        let ticking = false;
+        function update() {
+          ticking = false;
+          const r = sec!.getBoundingClientRect();
+          const vh = window.innerHeight;
+          if (r.bottom < -100 || r.top > vh + 100) return;
+          const progress = Math.max(
+            -1,
+            Math.min(
+              1,
+              (r.top + r.height / 2 - vh / 2) / (vh / 2 + r.height / 2),
+            ),
+          );
+          bg!.style.transform = `translate3d(0,${(-progress * r.height * SPEED).toFixed(1)}px,0)`;
         }
-      });
-    };
-  }, []);
+        const onScroll = () => {
+          if (!ticking) {
+            ticking = true;
+            requestAnimationFrame(update);
+          }
+        };
+        window.addEventListener("scroll", onScroll, { passive: true });
+        window.addEventListener("resize", onScroll);
+        update();
+        cleanups.push(() => {
+          window.removeEventListener("scroll", onScroll);
+          window.removeEventListener("resize", onScroll);
+        });
+      })();
+
+      // ---------- FAQ accordion with height animation ----------
+      (function faqAccordion() {
+        if (reduceMotion) return;
+        root
+          .querySelectorAll<HTMLDetailsElement>(".faq-list details")
+          .forEach((d) => {
+            const s = d.querySelector<HTMLElement>("summary");
+            const a = d.querySelector<HTMLElement>(".faq-a");
+            if (!s || !a || !a.animate) return;
+            let anim: Animation | null = null;
+            const onClick = (e: Event) => {
+              e.preventDefault();
+              if (anim) {
+                anim.cancel();
+                d.classList.remove("closing");
+              }
+              if (d.open) {
+                anim = a.animate(
+                  [
+                    { height: a.offsetHeight + "px", opacity: 1 },
+                    { height: "0px", opacity: 0 },
+                  ],
+                  { duration: 260, easing: "ease" },
+                );
+                anim.onfinish = () => {
+                  d.open = false;
+                  d.classList.remove("closing");
+                  anim = null;
+                };
+                d.classList.add("closing");
+              } else {
+                d.open = true;
+                anim = a.animate(
+                  [
+                    { height: "0px", opacity: 0 },
+                    { height: a.offsetHeight + "px", opacity: 1 },
+                  ],
+                  { duration: 340, easing: "cubic-bezier(.2,.7,.2,1)" },
+                );
+                anim.onfinish = () => {
+                  anim = null;
+                };
+              }
+            };
+            s.addEventListener("click", onClick);
+            cleanups.push(() => s.removeEventListener("click", onClick));
+          });
+      })();
+    },
+  });
 
   return (
     <div ref={rootRef} className="hp2" id="top">
-      <header className="site-header">
-        <div className="container">
-          <nav className="nav" aria-label="Main">
-            <a className="logo" href="#top">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                className="logo-dark"
-                src={`${ASSET}/logo-dark.svg`}
-                alt="Epoch Lag"
-              />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                className="logo-light"
-                src={`${ASSET}/logo-light.svg`}
-                alt="Epoch Lag"
-              />
-            </a>
-            <div className="nav-links">
-              <a href="#newsletter">Newsletter</a>
-              <a href="/contact">Contact Us</a>
-              <a
-                className="btn"
-                href={APP_STORE_URL}
-                onClick={handleGetAppClick}
-              >
-                Get the app
-              </a>
-              <a className="account" href="/login" aria-label="Account">
-                <svg viewBox="0 0 24 24" fill="#232323">
-                  <circle cx="12" cy="7.5" r="4.5" />
-                  <path d="M3.5 21c0-4.4 3.8-7.5 8.5-7.5s8.5 3.1 8.5 7.5z" />
-                </svg>
-              </a>
-            </div>
-            <button
-              className="menu-toggle"
-              type="button"
-              aria-expanded="false"
-              aria-controls="mobile-menu"
-              aria-haspopup="dialog"
-              aria-label="Open menu"
-            >
-              <span />
-              <span />
-              <span />
-            </button>
-          </nav>
-        </div>
-        <div className="mobile-menu" id="mobile-menu" hidden>
-          <div className="mobile-menu-backdrop" data-close />
-          <div
-            className="mobile-menu-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Menu"
-            tabIndex={-1}
-          >
-            <button
-              className="mobile-menu-close"
-              type="button"
-              aria-label="Close menu"
-              data-close
-            >
-              <svg viewBox="0 0 12 12" aria-hidden="true">
-                <path
-                  d="M1.5 1.5l9 9M10.5 1.5l-9 9"
-                  stroke="#111"
-                  strokeWidth={1.6}
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-            <nav aria-label="Mobile">
-              <a href="/login">Login</a>
-              <a href="#newsletter">Newsletter</a>
-              <a href="/contact">Contact</a>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main>
         {/* Hero */}
@@ -1181,49 +809,7 @@ export default function HomePage() {
         </section>
       </main>
 
-      <footer className="site-footer">
-        <div className="container">
-          <small>© 2026 Epoch Lag. All rights reserved.</small>
-          <div className="socials">
-            <a
-              href="https://www.facebook.com/profile.php?id=61580265058728"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Epoch Lag on Facebook (opens in a new tab)"
-            >
-              <svg viewBox="0 0 24 24">
-                <path d="M24 12a12 12 0 1 0-13.9 11.9v-8.4H7.1V12h3V9.4c0-3 1.8-4.7 4.5-4.7 1.3 0 2.7.2 2.7.2v3h-1.5c-1.5 0-2 .9-2 1.9V12h3.4l-.5 3.5h-2.9v8.4A12 12 0 0 0 24 12z" />
-              </svg>
-            </a>
-            <a
-              href="https://www.instagram.com/epoch_lag"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Epoch Lag on Instagram (opens in a new tab)"
-            >
-              <svg viewBox="0 0 24 24">
-                <path d="M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.8.2 2.3.4a4.6 4.6 0 0 1 1.7 1.1 4.6 4.6 0 0 1 1.1 1.7c.2.5.4 1.1.4 2.3.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.2 1.8-.4 2.3a4.6 4.6 0 0 1-1.1 1.7 4.6 4.6 0 0 1-1.7 1.1c-.5.2-1.1.4-2.3.4-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.8-.2-2.3-.4a4.6 4.6 0 0 1-1.7-1.1 4.6 4.6 0 0 1-1.1-1.7c-.2-.5-.4-1.1-.4-2.3C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9c.1-1.2.2-1.8.4-2.3a4.6 4.6 0 0 1 1.1-1.7 4.6 4.6 0 0 1 1.7-1.1c.5-.2 1.1-.4 2.3-.4 1.3-.1 1.7-.1 4.9-.1zm0 2c-3.1 0-3.5 0-4.7.1-1.1.1-1.7.2-2 .4-.5.2-.9.4-1.3.8-.4.4-.6.8-.8 1.3-.1.3-.3.9-.4 2-.1 1.2-.1 1.6-.1 4.7s0 3.5.1 4.7c.1 1.1.2 1.7.4 2 .2.5.4.9.8 1.3.4.4.8.6 1.3.8.3.1.9.3 2 .4 1.2.1 1.6.1 4.7.1s3.5 0 4.7-.1c1.1-.1 1.7-.2 2-.4.5-.2.9-.4 1.3-.8.4-.4.6-.8.8-1.3.1-.3.3-.9.4-2 .1-1.2.1-1.6.1-4.7s0-3.5-.1-4.7c-.1-1.1-.2-1.7-.4-2-.2-.5-.4-.9-.8-1.3-.4-.4-.8-.6-1.3-.8-.3-.1-.9-.3-2-.4-1.2-.1-1.6-.1-4.7-.1zm0 3.4a4.4 4.4 0 1 1 0 8.8 4.4 4.4 0 0 1 0-8.8zm0 2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8zm5.6-2.2a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" />
-              </svg>
-            </a>
-            <a
-              href="https://www.linkedin.com/company/epoch-lag/"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Epoch Lag on LinkedIn (opens in a new tab)"
-            >
-              <svg viewBox="0 0 24 24">
-                <path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2M8.339 18.338H5.667v-8.59h2.672zM7.004 8.574a1.548 1.548 0 1 1 0-3.096 1.548 1.548 0 0 1 0 3.096m11.335 9.764H15.67v-4.177c0-.996-.017-2.278-1.387-2.278-1.389 0-1.601 1.086-1.601 2.207v4.248h-2.667v-8.59h2.56v1.174h.037c.355-.675 1.227-1.387 2.524-1.387 2.704 0 3.203 1.778 3.203 4.092z" />
-              </svg>
-            </a>
-          </div>
-          <nav className="legal" aria-label="Legal">
-            <a href="/privacy-policy">Privacy Policy</a>
-            <a href="/terms-of-service">Terms of Service</a>
-            <a href="/delete-account">Account deletion</a>
-            <a href="/child-safety-policy">Child Safety Policy</a>
-          </nav>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

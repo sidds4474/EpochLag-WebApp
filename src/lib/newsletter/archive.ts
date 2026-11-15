@@ -130,7 +130,7 @@ export const ARCHIVE: Issue[] = [
     title: "Why we hold on to voicemails, and what we do next.",
     teaser:
       "On voicemails, why a regular Tuesday is the best day to record, and three prompts worth sending this week.",
-    cover: "/newsletters/issue-09/stella-levi.jpg",
+    cover: "/newsletters/issue-09/cover.webp",
     sections: [
       definition,
       {
@@ -211,7 +211,7 @@ export const ARCHIVE: Issue[] = [
     title: "What we believe.",
     teaser:
       "A short manifesto on the beliefs that guide every decision at Epoch Lag.",
-    cover: "/newsletters/issue-08/hudson-river.png",
+    cover: "/newsletters/issue-08/cover.webp",
     sections: [
       { kind: "paragraph", text: "Life is a wonderful journey." },
       { kind: "paragraph", text: "Everyone has a powerful story." },
@@ -273,7 +273,7 @@ export const ARCHIVE: Issue[] = [
     title: "More inspiring ways to build your Lag",
     teaser:
       "Four new features — Conversations, Day in Review, Places, and Find Inspiration — plus Bella on recording her grandparents’ stories.",
-    cover: "/newsletters/issue-07/features.png",
+    cover: "/newsletters/issue-07/cover.webp",
     sections: [
       definition,
       { kind: "paragraph", text: "More inspiring ways to build your Lag." },
@@ -360,7 +360,7 @@ export const ARCHIVE: Issue[] = [
     title: "Lag from any device",
     teaser:
       "Our new web app is here — build and share your Lags from anywhere, plus Brittany on turning her biggest regret into a story for her family.",
-    cover: "/newsletters/issue-06/webapp-hero.png",
+    cover: "/newsletters/issue-06/cover.webp",
     sections: [
       definition,
       {
@@ -463,7 +463,7 @@ export const ARCHIVE: Issue[] = [
     title: "Give every memory a time, place, and story",
     teaser:
       "What a Lag is, how to make your first one, and Alexis on capturing the moments that make her family’s memories.",
-    cover: "/newsletters/issue-05/alexis.png",
+    cover: "/newsletters/issue-05/cover.webp",
     sections: [
       definition,
       {
@@ -542,7 +542,7 @@ export const ARCHIVE: Issue[] = [
     dateISO: "2026-08-19",
     title: "A simple step to bring you closer",
     teaser: "Too many of our users have zero connections. Here’s how to fix that — plus Eileen’s story.",
-    cover: "/newsletters/issue-04/eileen-video.png",
+    cover: "/newsletters/issue-04/cover.webp",
     sections: [
       definition,
       { kind: "paragraph", text: "Connect before it’s too late." },
@@ -603,7 +603,7 @@ export const ARCHIVE: Issue[] = [
     dateISO: "2026-08-07",
     title: "Your moments, together",
     teaser: "Introducing the Moments tab — countdowns for the milestones you don’t want to miss.",
-    cover: "/newsletters/issue-03/moments-1.png",
+    cover: "/newsletters/issue-03/cover.webp",
     sections: [
       definition,
       { kind: "paragraph", text: "Your moment. Our time together." },
@@ -658,7 +658,7 @@ export const ARCHIVE: Issue[] = [
     dateISO: "2026-07-22",
     title: "Share a cherished memory this week",
     teaser: "The traditions we hope never change — and a story from Isabel about a day at the beach with her grandmother.",
-    cover: "/newsletters/issue-02/story.png",
+    cover: "/newsletters/issue-02/cover.webp",
     sections: [
       definition,
       { kind: "heading", text: "This Week’s How-To" },
@@ -706,7 +706,7 @@ export const ARCHIVE: Issue[] = [
     title: "Your family’s whole story, in one private place",
     teaser:
       "Three new prompt categories, how to send your first story in about 60 seconds, and a family’s story about an old oak tree.",
-    cover: "/newsletters/issue-01/opportunities-cropped.jpg",
+    cover: "/newsletters/issue-01/cover.webp",
     sections: [
       {
         kind: "hero",

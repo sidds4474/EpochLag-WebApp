@@ -1,10 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import NavBar from "../../../views/HomePage/components/NavBar";
+import IssueChrome from "../IssueChrome";
 import { ARCHIVE, getIssueBySlug, type Section } from "../../../lib/newsletter/archive";
-import ArchiveSubscribeCTA from "../ArchiveSubscribeCTA";
-import NewsletterMailFooter from "../NewsletterMailFooter";
+import StayInTheLoop from "../../../views/HomePageV2/StayInTheLoop";
 import { APP_STORE_URL, PLAY_STORE_URL } from "../../../utils/storeLinks";
 import InstagramIcon from "../../../assets/svg/instagram-icon";
 import FacebookIcon from "../../../assets/svg/facebook-icon";
@@ -22,30 +21,32 @@ const CheckIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// Use the shared .badge classes from the hp2 scoped CSS so the chrome matches
+// the homepage and newsletter archive. These render as the official light-bg
+// store badges (PNGs under /public/home/*), not hand-rolled dark pills.
 const AppStoreBadge = () => (
-  <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-[8px] bg-black text-white rounded-[8px] px-[14px] py-[8px] hover:opacity-90 transition-opacity">
-    <svg viewBox="0 0 24 24" fill="currentColor" className="w-[22px] h-[22px]" aria-hidden="true">
-      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-    </svg>
-    <div className="flex flex-col leading-tight">
-      <span className="text-[8px] font-montserrat">Download on the</span>
-      <span className="text-[14px] font-montserrat font-semibold">App Store</span>
-    </div>
+  <a
+    className="badge"
+    href={APP_STORE_URL}
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Download on the App Store"
+  >
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img src="/home/app-store-badge.png" alt="" />
   </a>
 );
 
 const PlayStoreBadge = () => (
-  <a href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-[8px] bg-black text-white rounded-[8px] px-[14px] py-[8px] hover:opacity-90 transition-opacity">
-    <svg viewBox="0 0 24 24" className="w-[22px] h-[22px]" aria-hidden="true">
-      <path d="M3.6 2.1c-.36.31-.6.79-.6 1.4v17c0 .61.24 1.09.6 1.4l11.13-9.9L3.6 2.1z" fill="#34a853" />
-      <path d="M17.32 8.87 14.73 12l2.59 3.13 3.68-2.09c1.11-.63 1.11-2.25 0-2.88l-3.68-2.29z" fill="#fbbc04" />
-      <path d="M3.6 2.1 14.73 12 3.6 21.9c.28.24.64.35 1 .27L18.4 15.13 14.73 12l3.67-3.13L4.6 1.83c-.36-.08-.72.03-1 .27z" fill="#ea4335" />
-      <path d="M3.6 2.1c-.36.31-.6.79-.6 1.4v17c0 .3.06.56.18.79L14.73 12 3.6 2.1z" fill="#4285f4" />
-    </svg>
-    <div className="flex flex-col leading-tight">
-      <span className="text-[8px] font-montserrat">GET IT ON</span>
-      <span className="text-[14px] font-montserrat font-semibold">Google Play</span>
-    </div>
+  <a
+    className="badge"
+    href={PLAY_STORE_URL}
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Get it on Google Play"
+  >
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img src="/home/play-store-badge.png" alt="" />
   </a>
 );
 
@@ -100,7 +101,7 @@ function renderSection(section: Section, index: number) {
     case "heading":
       return (
         <div key={index} className="mt-[32px] md:mt-[48px] py-[20px] md:py-[28px] border-y border-primary-blue/40">
-          <h2 className="font-ivy font-bold text-primary-blue text-[24px] sm:text-[30px] md:text-[36px] leading-[115%] text-center">
+          <h2 className="font-ivy font-normal text-primary-blue text-[18px] sm:text-[22px] md:text-[26px] leading-[115%] text-center">
             {section.text}
           </h2>
         </div>
@@ -177,7 +178,7 @@ function renderSection(section: Section, index: number) {
             />
           </div>
           <div>
-            <h2 className="font-ivy font-bold text-primary-blue text-[26px] sm:text-[32px] md:text-[38px] leading-[115%]">
+            <h2 className="font-ivy font-normal text-primary-blue text-[20px] sm:text-[24px] md:text-[28px] leading-[115%]">
               {section.headline}
             </h2>
             <ul className="mt-[18px] md:mt-[22px] space-y-[10px] md:space-y-[12px]">
@@ -207,7 +208,7 @@ function renderSection(section: Section, index: number) {
         >
           {[section.left, section.right].map((col, i) => (
             <div key={i}>
-              <h3 className="font-ivy font-bold text-primary-blue text-[18px] sm:text-[20px] md:text-[22px] leading-[125%]">
+              <h3 className="font-ivy font-normal text-primary-blue text-[18px] sm:text-[20px] md:text-[22px] leading-[125%]">
                 {col.title}
               </h3>
               {col.body.map((p, j) => (
@@ -238,7 +239,7 @@ function renderSection(section: Section, index: number) {
             />
           </div>
           <div className="text-center">
-            <h2 className="font-ivy font-bold text-primary-blue text-[24px] sm:text-[28px] md:text-[32px] leading-[115%]">
+            <h2 className="font-ivy font-normal text-primary-blue text-[18px] sm:text-[22px] md:text-[26px] leading-[115%]">
               {section.title}
             </h2>
             <div className="mt-[16px] md:mt-[20px] space-y-[18px] md:space-y-[22px]">
@@ -265,7 +266,7 @@ function renderSection(section: Section, index: number) {
       if (!section.image) {
         return (
           <div key={index} className="mt-[24px] md:mt-[28px]">
-            <p className="font-montserrat font-bold text-primary-blue text-[16px] md:text-[18px] leading-[140%]">
+            <p className="font-montserrat font-normal text-primary-blue text-[20px] leading-[140%]">
               {section.question}
             </p>
             {section.followup && (
@@ -521,9 +522,8 @@ export default async function NewsletterIssuePage({
     currentIndex < ARCHIVE.length - 1 ? ARCHIVE[currentIndex + 1] : null;
 
   return (
-    <div className="w-full h-full bg-warm-cream min-h-screen">
-      <NavBar />
-      <main className="px-[16px] md:px-[24px] lg:px-[64px] 2xl:px-[95px] 6xl:px-[145px] pt-[16px] md:pt-[24px] pb-[48px] md:pb-[96px]">
+    <IssueChrome>
+      <main className="issue-content px-[16px] md:px-[24px] lg:px-[64px] 2xl:px-[95px] 6xl:px-[145px] pt-[16px] md:pt-[24px] pb-[48px] md:pb-[96px]">
         <div className="max-w-[720px] mx-auto">
           <Link
             href="/newsletters"
@@ -538,7 +538,7 @@ export default async function NewsletterIssuePage({
               Issue {String(issue.number).padStart(2, "0")} ·{" "}
               <time dateTime={issue.dateISO}>{issue.date}</time>
             </p>
-            <h1 className="mt-[10px] md:mt-[12px] font-ivy font-bold text-primary-blue text-[28px] sm:text-[36px] md:text-[48px] lg:text-[56px] leading-[110%]">
+            <h1 className="mt-[10px] md:mt-[12px] font-ivy font-normal text-primary-blue text-[22px] sm:text-[28px] md:text-[36px] lg:text-[44px] leading-[110%]">
               {issue.title}
             </h1>
           </header>
@@ -584,11 +584,8 @@ export default async function NewsletterIssuePage({
           </nav>
         </div>
 
-        <div className="mt-[48px] md:mt-[80px]">
-          <ArchiveSubscribeCTA source={`archive_issue_${issue.slug}`} />
-        </div>
       </main>
-      <NewsletterMailFooter />
-    </div>
+      <StayInTheLoop variant="archive" source={`archive_issue_${issue.slug}`} />
+    </IssueChrome>
   );
 }

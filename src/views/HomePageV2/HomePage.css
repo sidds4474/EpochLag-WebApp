@@ -44,11 +44,17 @@
   padding-bottom:env(safe-area-inset-bottom,0px);}
 .hp2 img{max-width:100%;display:block}
 .hp2 a{color:inherit}
-.hp2 h1,.hp2 h2,.hp2 h3{font-family:var(--serif);font-weight:400;margin:0;color:var(--ink)}
-.hp2 h1{font-size:var(--h1);line-height:1.02;letter-spacing:-0.005em}
-.hp2 h2{font-size:var(--h2);line-height:1.1}
-.hp2 h3{font-size:var(--h3);line-height:1.2}
-.hp2 p{margin:0}
+/* Base typography lives in @layer base so Tailwind utilities (which land in
+   the later @layer utilities) win on the newsletter issue pages where each
+   heading has its own Tailwind size / weight / font-family classes. Without
+   the layer, this unlayered CSS would beat Tailwind regardless of specificity. */
+@layer base {
+  .hp2 h1,.hp2 h2,.hp2 h3{font-family:var(--serif);font-weight:400;margin:0;color:var(--ink)}
+  .hp2 h1{font-size:var(--h1);line-height:1.02;letter-spacing:-0.005em}
+  .hp2 h2{font-size:var(--h2);line-height:1.1}
+  .hp2 h3{font-size:var(--h3);line-height:1.2}
+  .hp2 p{margin:0}
+}
 .hp2 :focus-visible{outline:2px solid var(--orange-deep);outline-offset:3px;border-radius:4px}
 .hp2 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .hp2 .container{width:100%;max-width:calc(var(--container) + var(--gutter)*2);margin:0 auto;padding:0 var(--gutter)}
@@ -608,7 +614,7 @@
 .hp2 .deletion-panel{max-width:870px;margin:0 auto;background:var(--bg-alt);padding:26px 40px 14px 43px}
 .hp2 .deletion-row{display:grid;grid-template-columns:270px minmax(0,1fr);gap:29px;padding:30px 0;line-height:1.25}
 .hp2 .deletion-row + .deletion-row{border-top:1px solid var(--line)}
-.hp2 .deletion-row h2{font-size:26px;line-height:1.15;font-weight:500}
+.hp2 .deletion-row h2{font-size:22px;line-height:1.2;font-weight:400}
 .hp2 .deletion-row p{margin:0 0 20px}
 .hp2 .deletion-row p:last-child,.hp2 .deletion-row ul{margin-bottom:0}
 .hp2 .deletion-row ul{margin-top:0;padding-left:20px}
@@ -625,7 +631,7 @@
   .hp2 .legal-page--deletion{padding:32px 0 56px}
   .hp2 .deletion-panel{padding:4px 20px 4px;margin:0 calc(var(--gutter) * -1 + 8px)}
   .hp2 .deletion-row{grid-template-columns:1fr;gap:14px;padding:28px 0}
-  .hp2 .deletion-row h2{font-size:24px}
+  .hp2 .deletion-row h2{font-size:20px}
   .hp2 .legal-layout--short .legal-body section + section{margin-top:52px}
 }
 /* Terms of Service: long policy, so sections sit a little closer together */
@@ -646,3 +652,51 @@
   .hp2 .legal-defs strong{display:inline}
   .hp2 .legal-defs{line-height:1.7}
 }
+/* ================= Newsletter archive ================= */
+.hp2 .nl-hero{text-align:center;padding:104px 0 0}
+.hp2 .nl-hero p{max-width:560px;margin:22px auto 0;line-height:1.45}
+.hp2 .nl-archive{padding:64px 0 117px}
+.hp2 .nl-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:20px;row-gap:69px}
+.hp2 .nl-frame{background:var(--white);padding:10px;box-shadow:0 3px 4px -1px rgba(0,0,0,.2),0 0 1px rgba(0,0,0,.06)}
+.hp2 .nl-frame img{width:100%;aspect-ratio:380/271;object-fit:cover}
+.hp2 .nl-date{margin-top:28px;font-size:14px;color:var(--ink-soft)}
+.hp2 .nl-title{font-size:24px;line-height:1.2;margin-top:8px;text-wrap:pretty}
+/* Line breaks follow the design at full desktop width; below that the titles wrap naturally */
+@media (max-width:1439px){.hp2 .nl-br{display:none}}
+.hp2 .nl-link{margin-top:16px;font-size:14px;color:var(--orange);gap:10px}
+/* The "Read Newsletter" link stretches over the whole card, so the image and title open the issue too */
+.hp2 .nl-card{position:relative}
+.hp2 .nl-link::after{content:"";position:absolute;inset:0}
+.hp2 .nl-link:focus-visible{outline:none}
+.hp2 .nl-card:has(.nl-link:focus-visible){outline:2px solid var(--orange-deep);outline-offset:8px;border-radius:2px}
+.hp2 .nl-link svg{width:14px;height:11px}
+.hp2 .nl-link svg path{stroke:var(--orange)}
+@media (hover:hover){
+  .hp2 .nl-card .nl-frame{transition:transform .45s var(--ease-out,ease),box-shadow .45s var(--ease-out,ease)}
+  .hp2 .nl-card:hover .nl-frame{transform:translateY(-4px);box-shadow:0 14px 22px -12px rgba(0,0,0,.28),0 0 1px rgba(0,0,0,.06)}
+  .hp2 .nl-link:hover span{text-decoration:none}
+  .hp2 .nl-card:hover .nl-link svg{transform:translateX(5px)}
+}
+/* the archive page's sign-up band has no "View our Newsletter" link */
+.hp2 .loop--archive .container{grid-template-columns:510px 1fr}
+@media (max-width:1399px) and (min-width:1181px){.hp2 .loop--archive .container{grid-template-columns:minmax(0,430px) minmax(0,1fr)}}
+@media (max-width:1180px){
+  .hp2 .nl-hero{padding-top:56px}
+  .hp2 .nl-archive{padding:56px 0 80px}
+  .hp2 .nl-grid{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:24px;row-gap:44px}
+  .hp2 .loop--archive .container{grid-template-columns:1fr}
+}
+@media (max-width:768px){
+  .hp2 .nl-hero{padding-top:28px}
+  .hp2 .nl-hero p{margin-top:14px}
+  .hp2 .nl-archive{padding:40px 0 64px}
+  .hp2 .nl-grid{grid-template-columns:1fr;row-gap:32px}
+  .hp2 .nl-frame{padding:8px}
+  .hp2 .nl-date{margin-top:20px}
+  .hp2 .nl-title{font-size:22px}
+  .hp2 .loop--archive{padding-bottom:48px}
+}
+
+/* Newsletter issue content — the base hp2 typography above is written with
+   :where() so any Tailwind utility on an h1/h2/h3 inside .issue-content wins
+   without needing an explicit reset here. */

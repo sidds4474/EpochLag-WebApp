@@ -1,5 +1,7 @@
 "use client";
 
+import { Fragment } from "react";
+
 type YearRailProps = {
   years: number[];
   selected: number | null;
@@ -7,18 +9,16 @@ type YearRailProps = {
   layout: "vertical" | "horizontal";
 };
 
-// Vertical rail (desktop/tablet): year list with an orange pill on the
-// selected row and a small orange dot pinned to the right edge so it
-// visually sits on the timeline connector line.
-// Horizontal rail (mobile): scrollable year strip with orange dot under
-// the selected year, sitting on the top border of the story list.
+// Vertical rail (desktop/tablet): year list, selected year in a dark pill,
+// thin horizontal divider between each year.
+// Horizontal rail (mobile): scrollable strip, orange underline for the
+// selected year.
 export default function YearRail({
   years,
   selected,
   onSelect,
   layout,
 }: YearRailProps) {
-  // Both mobile + desktop: newest → oldest.
   const ordered = [...years].sort((a, b) => b - a);
 
   if (layout === "horizontal") {
@@ -33,8 +33,8 @@ export default function YearRail({
               onClick={() => onSelect(y)}
               className={`relative shrink-0 cursor-pointer font-montserrat text-[13px] py-[4px] focus:outline-none flex flex-col items-center gap-[6px] ${
                 active
-                  ? "text-primary-blue font-semibold"
-                  : "text-primary-blue/60 hover:text-primary-blue"
+                  ? "text-[#232323] font-semibold"
+                  : "text-[#232323]/60 hover:text-[#232323]"
               }`}
             >
               <span>{y}</span>
@@ -51,26 +51,26 @@ export default function YearRail({
   }
 
   return (
-    <div className="relative flex flex-col gap-[22px] pt-[16px] sticky top-[16px] self-start">
-      {ordered.map((y) => {
+    <div className="flex flex-col items-center pt-[8px] sticky top-[16px] self-start">
+      {ordered.map((y, i) => {
         const active = y === selected;
         return (
-          <button
-            key={y}
-            type="button"
-            onClick={() => onSelect(y)}
-            className="group relative flex items-center justify-start cursor-pointer focus:outline-none"
-          >
-            <span
-              className={`font-montserrat text-[15px] px-[14px] py-[4px] rounded-full transition-colors ${
+          <Fragment key={y}>
+            {i > 0 && (
+              <div className="w-[70px] lg:w-[85px] h-[1.5px] bg-black/15 my-[14px] lg:my-[16px]" />
+            )}
+            <button
+              type="button"
+              onClick={() => onSelect(y)}
+              className={`cursor-pointer min-w-[80px] lg:min-w-[86px] px-[12px] py-[6px] lg:py-[8px] rounded-full font-montserrat font-medium text-[18px] lg:text-[21px] transition-colors text-center ${
                 active
-                  ? "bg-primary-orange text-white font-semibold"
-                  : "text-primary-blue/70 group-hover:text-primary-blue"
+                  ? "bg-[#2c2c2c] text-white"
+                  : "text-[#232323] hover:text-black"
               }`}
             >
               {y}
-            </span>
-          </button>
+            </button>
+          </Fragment>
         );
       })}
     </div>

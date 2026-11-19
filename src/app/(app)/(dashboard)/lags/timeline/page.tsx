@@ -10,8 +10,9 @@ import {
   hideTimelineStory,
   stripHidden,
   type TimelineYearBucket,
+  timelineDateParts,
 } from "../../../../../lib/library/timeline";
-import { SearchIcon } from "../../icons";
+import { PencilIcon } from "../../icons";
 import { useSelectMode } from "../selectMode";
 import YearRail from "./YearRail";
 import TimelineTile from "./TimelineTile";
@@ -39,6 +40,14 @@ export default function LagsTimelinePage() {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [editMode, setEditMode] = useState(false);
+  const [pendingHiddenIds, setPendingHiddenIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  // Committed hidden IDs — these render dimmed but stay in the list.
+  const [committedHiddenIds, setCommittedHiddenIds] = useState<Set<string>>(
+    () => new Set()
+  );
 
   const hiddenIdsRef = useRef<Set<string>>(new Set());
   const listRef = useRef<HTMLDivElement>(null);
@@ -52,7 +61,11 @@ export default function LagsTimelinePage() {
     if (!storageKey || typeof window === "undefined") return;
     try {
       const raw = window.localStorage.getItem(storageKey);
-      if (raw) hiddenIdsRef.current = new Set(JSON.parse(raw) as string[]);
+      if (raw) {
+        const ids = new Set(JSON.parse(raw) as string[]);
+        hiddenIdsRef.current = ids;
+        setCommittedHiddenIds(new Set(ids));
+      }
     } catch {
       /* ignore */
     }
@@ -74,10 +87,11 @@ export default function LagsTimelinePage() {
     try {
       const raw = await fetchTimeline();
       const deduped = dedupeTimelineByThread(raw);
-      const stripped = stripHidden(deduped, hiddenIdsRef.current);
-      cachedBuckets = stripped;
+      // Don't strip hidden entries — the redesign keeps them visible in a
+      // dimmed state instead of removing them from the list.
+      cachedBuckets = deduped;
       lastFetchedAt = Date.now();
-      setBuckets(stripped);
+      setBuckets(deduped);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load timeline");
@@ -103,20 +117,66 @@ export default function LagsTimelinePage() {
     if (!searchOpen) setQuery("");
   }, [searchOpen]);
 
-  // Register header-right (search icon) — matches People tab pattern.
+  // Flush pending hides: merge into the committed set (card stays visible
+  // but dimmed), persist locally, and fire the hide API for each in the
+  // background. The timeline list is NOT stripped — hidden cards remain
+  // in the list so the user can see what they've hidden.
+  const handleSaveEdits = useCallback(async () => {
+    const ids = Array.from(pendingHiddenIds);
+    setPendingHiddenIds(new Set());
+    setEditMode(false);
+    if (ids.length === 0) return;
+
+    setCommittedHiddenIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) next.add(id);
+      return next;
+    });
+    for (const id of ids) hiddenIdsRef.current.add(id);
+    persistHidden();
+
+    if (!userId) return;
+    for (const id of ids) {
+      // eslint-disable-next-line no-await-in-loop
+      try {
+        await hideTimelineStory(id, userId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        if (/already hidden/i.test(msg)) continue;
+        toast.error("Failed to hide story");
+      }
+    }
+  }, [pendingHiddenIds, persistHidden, userId]);
+
+  // Register header-right — "Edit Timeline" → "Save Changes" when editing.
   useEffect(() => {
     setHeaderRight(
-      <button
-        type="button"
-        onClick={() => setSearchOpen((v) => !v)}
-        aria-label={searchOpen ? "Close search" : "Search"}
-        className="cursor-pointer w-[36px] h-[36px] rounded-full text-primary-blue hover:bg-black/[0.05] flex items-center justify-center transition-colors"
-      >
-        <SearchIcon width={18} height={18} />
-      </button>
+      editMode ? (
+        <button
+          type="button"
+          onClick={handleSaveEdits}
+          className="cursor-pointer inline-flex items-center gap-[8px] bg-primary-orange text-white font-montserrat font-medium text-[14px] md:text-[15px] rounded-full px-[18px] md:px-[22px] py-[8px] md:py-[10px] hover:opacity-90 transition-opacity"
+        >
+          <span className="hidden md:inline">Save Changes</span>
+          <span className="md:hidden">Done</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setEditMode(true)}
+          aria-label="Edit timeline"
+          className="cursor-pointer inline-flex items-center gap-[8px] bg-transparent text-[#2c2c2c] border border-[#2c2c2c]/60 rounded-full px-[14px] md:px-[16px] py-[8px] md:py-[10px] hover:bg-black/[0.03] transition-colors"
+        >
+          <PencilIcon width={16} height={16} />
+          <span className="font-montserrat text-[14px] md:text-[15px] hidden md:inline">
+            Edit Timeline
+          </span>
+          <span className="font-montserrat text-[14px] md:hidden">Edit</span>
+        </button>
+      )
     );
     return () => setHeaderRight(null);
-  }, [searchOpen, setHeaderRight]);
+  }, [editMode, setHeaderRight, handleSaveEdits]);
 
   const filtered = useMemo(() => {
     return applyTimelineSearch(buckets ?? [], query);
@@ -201,42 +261,24 @@ export default function LagsTimelinePage() {
     [buckets, persistHidden, runFetch, userId]
   );
 
+  const togglePendingHide = useCallback((storyId: string) => {
+    setPendingHiddenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(storyId)) next.delete(storyId);
+      else next.add(storyId);
+      return next;
+    });
+  }, []);
+
   const loading = buckets === null;
   const totallyEmpty = !loading && (buckets?.length ?? 0) === 0;
   const searchActive = query.trim().length > 0;
 
   return (
     <div className="flex flex-col h-full min-h-0 pt-[8px] md:pt-[12px]">
-      {searchOpen && (
-        <div className="mb-[12px] flex items-center gap-[10px] bg-[#f0f0f0] rounded-full px-[14px] py-[8px] max-w-[420px]">
-          <SearchIcon width={14} height={14} />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search stories and people"
-            autoFocus
-            className="flex-1 bg-transparent border-0 outline-none font-montserrat text-primary-blue text-[14px] placeholder:text-primary-blue/40"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              aria-label="Clear search"
-              className="cursor-pointer text-primary-blue/60 hover:text-primary-blue"
-            >
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M6 6l12 12M18 6l-12 12"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          )}
-        </div>
-      )}
+      {/* Search UI removed from the Timeline chrome per the Edit Timeline
+          redesign. The applyTimelineSearch helper and `query` state remain
+          wired so search can be reintroduced later. */}
 
       {/* Mobile horizontal year strip */}
       <div className="md:hidden">
@@ -249,7 +291,7 @@ export default function LagsTimelinePage() {
       </div>
 
       {loading ? (
-        <div className="grid md:grid-cols-[80px_1fr] gap-[16px] md:gap-[24px] flex-1 min-h-0">
+        <div className="grid md:grid-cols-[110px_1fr] lg:grid-cols-[120px_1fr] gap-[8px] md:gap-[20px] flex-1 min-h-0">
           {/* Rail skeleton (desktop only) — mirrors the year list */}
           <div className="hidden md:flex flex-col gap-[22px] pt-[16px]">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -293,7 +335,7 @@ export default function LagsTimelinePage() {
           </p>
         </div>
       ) : (
-        <div className="grid md:grid-cols-[80px_1fr] gap-[16px] md:gap-[24px] flex-1 min-h-0">
+        <div className="grid md:grid-cols-[110px_1fr] lg:grid-cols-[120px_1fr] gap-[8px] md:gap-[20px] flex-1 min-h-0">
           {/* Desktop vertical rail */}
           <div className="hidden md:block">
             <YearRail
@@ -306,23 +348,14 @@ export default function LagsTimelinePage() {
 
           <div
             ref={listRef}
-            className="relative max-w-[860px] overflow-y-auto scrollbar-hide"
+            className="relative flex-1 overflow-y-auto scrollbar-hide"
           >
-            {/* Inner wrapper stretches to full scroll-content height so
-                the spine spans every tile, not just the visible viewport.
-                Left padding creates room for the dots + spine. Right +
-                top padding leaves room for the tile's 46px soft
-                box-shadow. Extra desktop right padding (60px) reserves
-                space for the floating three-dot menu that sits outside
-                the card. */}
-            <div className="relative pl-[32px] pr-[24px] md:pl-[40px] md:pr-[60px] pt-[20px] pb-[40px]">
-              {/* Spine — continuous vertical connector line. Sits inside
-                  the scroll content so it grows with the list. Renders
-                  on both mobile (x=14) and desktop (x=22). */}
-              <div className="absolute left-[14px] md:left-[22px] top-[10px] bottom-0 w-[1px] bg-[#092E4A] pointer-events-none" />
-
+            {/* Inner wrapper stretches to full scroll-content height so the
+                spine spans every tile. Three layout columns per row:
+                [day/month] [spine with dot] [sand tile]. */}
+            <div className="relative pr-[24px] md:pr-[60px] pt-[8px] pb-[40px] max-w-[980px]">
               {filtered.length === 0 && searchActive && (
-                <p className="pt-[16px] font-montserrat text-primary-blue/60 text-[14px]">
+                <p className="pt-[16px] font-montserrat text-[#2c2c2c]/60 text-[14px]">
                   No stories match &ldquo;{query}&rdquo;.
                 </p>
               )}
@@ -333,26 +366,113 @@ export default function LagsTimelinePage() {
                   id={`timeline-year-${section.year}`}
                   data-timeline-year-anchor
                   data-year={section.year}
-                  className="mb-[12px] scroll-mt-[16px]"
+                  className="scroll-mt-[16px]"
                 >
-                  <div className="md:hidden font-montserrat font-bold text-primary-blue text-[15px] mt-[16px] mb-[8px]">
+                  <div className="md:hidden font-montserrat font-bold text-[#232323] text-[15px] mt-[16px] mb-[8px]">
                     {section.year}
                   </div>
-                  <div className="flex flex-col gap-[16px]">
+                  <div className="flex flex-col">
                     {section.stories.map((entry, i) => {
                       const isLatestOfSelected =
                         section.year === selectedYear && i === 0;
+                      const parts = timelineDateParts(entry);
                       return (
-                        <div key={entry.threadId} className="relative">
-                          {/* Filled orange dot for the first tile of the
-                              selected year; small outlined navy dot for
-                              everyone else. */}
-                          {isLatestOfSelected ? (
-                            <span className="absolute left-[-25px] md:left-[-25px] top-1/2 -translate-y-1/2 w-[16px] h-[16px] rounded-full bg-primary-orange border-[3px] border-white shadow-[0_0_0_1px_rgba(0,0,0,0.06)] z-[2]" />
-                          ) : (
-                            <span className="absolute left-[-23px] md:left-[-23px] top-1/2 -translate-y-1/2 w-[12px] h-[12px] rounded-full bg-white border-2 border-[#092E4A] z-[2]" />
-                          )}
-                          <TimelineTile entry={entry} onHide={handleHide} />
+                        <div
+                          key={entry.threadId}
+                          className="relative flex items-center gap-[10px] md:gap-[18px] py-[10px] md:py-[12px]"
+                        >
+                          {/* Day / Month column */}
+                          <div className="shrink-0 w-[54px] md:w-[86px] text-center md:text-left md:pl-[8px]">
+                            {parts && (
+                              <>
+                                <div className="font-ivy text-[34px] md:text-[48px] leading-[1] text-[#232323]">
+                                  {parts.day}
+                                </div>
+                                <div className="font-montserrat text-[13px] md:text-[16px] text-[#2c2c2c] mt-[2px] md:mt-[4px]">
+                                  {parts.month}
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Spine column with dot */}
+                          <div className="relative shrink-0 self-stretch w-[14px] flex items-center justify-center">
+                            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1.5px] bg-[#2c2c2c]/35" />
+                            {isLatestOfSelected ? (
+                              <span className="relative w-[12px] h-[12px] rounded-full bg-primary-orange shadow-[0_0_0_2px_#f3f1eb] z-[2]" />
+                            ) : (
+                              <span className="relative w-[10px] h-[10px] rounded-full bg-white border-[1.5px] border-[#2c2c2c] z-[2]" />
+                            )}
+                          </div>
+
+                          {/* Tile */}
+                          <div className="flex-1 min-w-0">
+                            <TimelineTile
+                              entry={entry}
+                              onHide={handleHide}
+                              editMode={editMode}
+                              pendingHidden={
+                                pendingHiddenIds.has(
+                                  entry.latestStory?._id ?? ""
+                                ) ||
+                                committedHiddenIds.has(
+                                  entry.latestStory?._id ?? ""
+                                )
+                              }
+                            />
+                          </div>
+
+                          {/* Eye toggle — only in edit mode */}
+                          {editMode && (() => {
+                            const storyKey = entry.latestStory?._id ?? "";
+                            const isHidden =
+                              pendingHiddenIds.has(storyKey) ||
+                              committedHiddenIds.has(storyKey);
+                            return (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (storyKey) togglePendingHide(storyKey);
+                              }}
+                              aria-label={isHidden ? "Unhide story" : "Hide story"}
+                              className="shrink-0 cursor-pointer text-[#2c2c2c] hover:opacity-70 transition-opacity w-[28px] h-[28px] flex items-center justify-center"
+                            >
+                              {isHidden ? (
+                                <svg
+                                  width={22}
+                                  height={22}
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth={1.6}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.77 19.77 0 0 1 4.22-5.19" />
+                                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a19.86 19.86 0 0 1-3.17 4.19" />
+                                  <path d="M9.88 9.88A3 3 0 1 0 14.12 14.12" />
+                                  <line x1="2" y1="2" x2="22" y2="22" />
+                                </svg>
+                              ) : (
+                                <svg
+                                  width={22}
+                                  height={22}
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth={1.6}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                  <circle cx="12" cy="12" r="3" />
+                                </svg>
+                              )}
+                            </button>
+                            );
+                          })()}
                         </div>
                       );
                     })}

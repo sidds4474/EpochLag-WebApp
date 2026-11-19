@@ -35,10 +35,10 @@ export default function LagsTabs() {
             <Link
               key={tab.href}
               href={tab.href}
-              className={`relative cursor-pointer px-[18px] md:px-[24px] py-[10px] md:py-[12px] rounded-full font-montserrat font-medium text-[13px] md:text-[14px] whitespace-nowrap transition-colors ${
+              className={`relative cursor-pointer px-[20px] md:px-[22px] py-[8px] md:py-[10px] rounded-full font-montserrat font-medium text-[14px] whitespace-nowrap transition-colors ${
                 active
-                  ? "bg-primary-blue text-white font-semibold"
-                  : "bg-[#f0f0f0] text-primary-blue hover:bg-black/[0.08]"
+                  ? "bg-primary-orange text-white"
+                  : "bg-[#E6E3D9] text-[#232323] hover:bg-[#dcd8ca]"
               }`}
             >
               <span className="relative">{tab.label}</span>

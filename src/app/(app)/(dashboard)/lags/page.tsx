@@ -11,8 +11,8 @@ import {
   type StoriesMode,
 } from "../../../../lib/library/api";
 import ConfirmationModal from "../../../../components/ConfirmationModal/ConfirmationModal";
-import StoryCard from "./StoryCard";
-import StoryCardSkeleton from "./StoryCardSkeleton";
+import StoryRow from "./StoryRow";
+import StoryRowSkeleton from "./StoryRowSkeleton";
 import MediaTypePanel from "./MediaTypePanel";
 import FiltersPopover, {
   activeFilterCount,
@@ -244,45 +244,14 @@ export default function LagsAllPage() {
             ref={filtersButtonRef}
             type="button"
             onClick={() => setFiltersOpen((v) => !v)}
-            className="cursor-pointer inline-flex items-center gap-[8px] bg-white border border-black/[0.14] text-primary-blue rounded-full pl-[14px] pr-[14px] py-[8px] hover:bg-black/[0.03] transition-colors"
+            className="cursor-pointer inline-flex items-center gap-[8px] text-[#232323] py-[8px] hover:opacity-70 transition-opacity"
           >
-            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M9.5 14C11.1569 14 12.5 15.3431 12.5 17C12.5 18.6568 11.1569 20 9.5 20C7.84315 20 6.5 18.6568 6.5 17C6.5 15.3431 7.84315 14 9.5 14Z"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              />
-              <path
-                d="M14.5 3.99998C12.8431 3.99998 11.5 5.34312 11.5 6.99998C11.5 8.65683 12.8431 9.99998 14.5 9.99998C16.1569 9.99998 17.5 8.65683 17.5 6.99998C17.5 5.34312 16.1569 3.99998 14.5 3.99998Z"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              />
-              <path
-                d="M15 16.959L22 16.959"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                strokeLinecap="round"
-              />
-              <path
-                d="M9 6.95898L2 6.95898"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                strokeLinecap="round"
-              />
-              <path
-                d="M2 16.959L4 16.959"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                strokeLinecap="round"
-              />
-              <path
-                d="M22 6.95898L20 6.95898"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                strokeLinecap="round"
-              />
+            <svg width={15} height={10} viewBox="0 0 15 10" fill="none" aria-hidden>
+              <path d="M0.75 0.75H14.25" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+              <path d="M3.25 5.25H12.25" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+              <path d="M5.25 9.25H10.25" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
             </svg>
-            <span className="font-montserrat font-medium text-[13px]">Filters</span>
+            <span className="font-montserrat font-medium text-[14px]">Filters</span>
             {filterCount > 0 && (
               <span
                 aria-label={`${filterCount} active filters`}
@@ -303,7 +272,7 @@ export default function LagsAllPage() {
             }}
           />
         </div>
-        {!isSelecting ? (
+        {!isSelecting ? null /* Select button hidden per new design — flip back on when batch select returns.
           <button
             type="button"
             onClick={toggleSelectMode}
@@ -311,7 +280,7 @@ export default function LagsAllPage() {
           >
             Select
           </button>
-        ) : (
+        */ : (
           <>
             {selectedCount > 0 && (
               <>
@@ -419,9 +388,9 @@ export default function LagsAllPage() {
             {error}
           </p>
         ) : threads.length === 0 && loading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-[10px] md:gap-x-[24px] gap-y-[18px] md:gap-y-[40px]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-[32px] lg:gap-x-[56px]">
             {Array.from({ length: 6 }).map((_, i) => (
-              <StoryCardSkeleton key={i} />
+              <StoryRowSkeleton key={i} />
             ))}
           </div>
         ) : threads.length === 0 && !loading ? (
@@ -429,9 +398,9 @@ export default function LagsAllPage() {
             No stories to show.
           </p>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-[10px] md:gap-x-[24px] gap-y-[18px] md:gap-y-[40px]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-[32px] lg:gap-x-[56px]">
             {threads.map((t) => (
-              <StoryCard
+              <StoryRow
                 key={t._id}
                 thread={t}
                 daysRemaining={

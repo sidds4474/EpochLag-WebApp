@@ -125,7 +125,7 @@ export default function FiltersPopover({
         ref={panelRef}
         role="dialog"
         aria-label="Filters"
-        className="fixed left-[16px] right-[16px] bottom-[16px] md:absolute md:left-auto md:right-0 md:bottom-auto md:top-[calc(100%+8px)] md:w-[380px] z-50 bg-white rounded-[20px] shadow-[0_16px_48px_rgba(9,46,74,0.18)] border border-black/[0.06] overflow-hidden"
+        className="fixed left-[16px] right-[16px] bottom-[16px] md:absolute md:left-auto md:right-0 md:bottom-auto md:top-[calc(100%+8px)] md:w-[380px] z-50 bg-white rounded-[20px] shadow-[0_16px_48px_rgba(44,44,44,0.18)] border border-black/[0.06] overflow-hidden"
       >
         <div className="pt-[16px] px-[16px] pb-[4px] max-h-[70vh] md:max-h-none overflow-y-auto scrollbar-hide">
           {/* Mode segmented row */}
@@ -139,8 +139,8 @@ export default function FiltersPopover({
                   onClick={() => setDraft((prev) => ({ ...prev, mode: m.id }))}
                   className={`cursor-pointer px-[16px] py-[6px] rounded-full font-montserrat text-[13px] transition-colors ${
                     active
-                      ? "bg-primary-blue text-white font-semibold"
-                      : "bg-[#f0f0f0] text-primary-blue font-medium hover:bg-black/[0.08]"
+                      ? "bg-[#2c2c2c] text-white font-semibold"
+                      : "bg-[#f0f0f0] text-[#2c2c2c] font-medium hover:bg-black/[0.08]"
                   }`}
                 >
                   {m.label}
@@ -151,7 +151,7 @@ export default function FiltersPopover({
 
           {/* Media Type */}
           <div className="mb-[14px]">
-            <div className="font-montserrat font-semibold text-primary-blue text-[14px] mb-[8px]">
+            <div className="font-montserrat font-semibold text-[#2c2c2c] text-[14px] mb-[8px]">
               Media Type
             </div>
             <div className="flex items-center gap-[10px]">
@@ -167,8 +167,8 @@ export default function FiltersPopover({
                     aria-pressed={active}
                     className={`cursor-pointer w-[40px] h-[40px] rounded-full flex items-center justify-center transition-colors ${
                       active
-                        ? "bg-primary-blue text-white"
-                        : "bg-[#f0f0f0] text-primary-blue hover:bg-black/[0.08]"
+                        ? "bg-[#2c2c2c] text-white"
+                        : "bg-[#f0f0f0] text-[#2c2c2c] hover:bg-black/[0.08]"
                     }`}
                   >
                     <Icon width={20} height={20} />
@@ -180,7 +180,7 @@ export default function FiltersPopover({
 
           {/* Categories */}
           <div>
-            <div className="font-montserrat font-semibold text-primary-blue text-[14px] mb-[8px]">
+            <div className="font-montserrat font-semibold text-[#2c2c2c] text-[14px] mb-[8px]">
               Categories
             </div>
             <div className="flex flex-wrap gap-[6px]">
@@ -194,8 +194,8 @@ export default function FiltersPopover({
                     aria-pressed={active}
                     className={`cursor-pointer px-[12px] py-[4px] rounded-full font-montserrat text-[12px] transition-colors border ${
                       active
-                        ? "bg-primary-blue text-white border-primary-blue font-semibold"
-                        : "bg-white text-primary-blue border-black/[0.14] font-medium hover:bg-black/[0.03]"
+                        ? "bg-[#2c2c2c] text-white border-[#2c2c2c] font-semibold"
+                        : "bg-white text-[#2c2c2c] border-black/[0.14] font-medium hover:bg-black/[0.03]"
                     }`}
                   >
                     {tag}
@@ -211,7 +211,7 @@ export default function FiltersPopover({
           <button
             type="button"
             onClick={() => setDraft(DEFAULT_FILTERS)}
-            className="cursor-pointer font-montserrat text-primary-blue/60 text-[13px] hover:opacity-80 transition-opacity"
+            className="cursor-pointer font-montserrat text-[#2c2c2c]/60 text-[13px] hover:opacity-80 transition-opacity"
           >
             Clear
           </button>

@@ -47,15 +47,26 @@ function titleFor(thread: LibraryThread): string {
 }
 
 function dateFor(thread: LibraryThread): string | null {
-  const raw = thread.displayDate || thread.latestActivity || null;
-  if (!raw) return null;
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  // BE's displayDate is a pre-formatted short string ("Nov 17") without a
+  // year — parsing it with new Date() yields 2001 in V8. Prefer ISO
+  // timestamps so the year is real; only fall back to displayDate as a
+  // verbatim string when nothing parseable is available.
+  const iso =
+    thread.latestStory?.createdAt ||
+    thread.latestStory?.updatedAt ||
+    thread.latestActivity ||
+    null;
+  if (iso) {
+    const d = new Date(iso);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+  }
+  return thread.displayDate || null;
 }
 
 export default function StoryRow({

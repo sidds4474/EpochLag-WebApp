@@ -33,6 +33,8 @@ export type LibraryThread = {
     media?: LibraryStoryMedia[];
     hiddenAt?: string | null;
     daysRemaining?: number | null;
+    createdAt?: string | null;
+    updatedAt?: string | null;
   } | null;
   people?: LibraryPerson[];
   totalPeople?: number;

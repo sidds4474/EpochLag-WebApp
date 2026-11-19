@@ -388,7 +388,7 @@ export default function LagsAllPage() {
             {error}
           </p>
         ) : threads.length === 0 && loading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-[32px] lg:gap-x-[56px]">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-[32px] xl:gap-x-[56px]">
             {Array.from({ length: 6 }).map((_, i) => (
               <StoryRowSkeleton key={i} />
             ))}
@@ -398,7 +398,7 @@ export default function LagsAllPage() {
             No stories to show.
           </p>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-[32px] lg:gap-x-[56px]">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-[32px] xl:gap-x-[56px]">
             {threads.map((t) => (
               <StoryRow
                 key={t._id}

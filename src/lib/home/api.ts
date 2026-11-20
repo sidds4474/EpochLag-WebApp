@@ -99,6 +99,62 @@ export async function fetchReceivedCards(
   return { cards: res.data ?? [], envelope: res };
 }
 
+// Home — Conversations section. Returns the 2 most relevant threads for the
+// signed-in user (plus a conversationSource string that drives the "View all"
+// link). Four row kinds the UI needs to distinguish:
+//   askedYou      — someone sent you a prompt; you haven't answered yet
+//   sharedStory   — someone shared a story with you
+//   repliedToMine — someone replied to your prompt
+//   ownStory      — your own story
+// Backed by GET /api/user-card?type=conversation — spec'd on the mobile home.
+export type HomeConversationAuthor = {
+  _id: string;
+  firstName?: string;
+  lastName?: string;
+  profilePicture?: string | null;
+};
+
+export type HomeConversationCard = {
+  _id: string;
+  title?: string | null;
+  content?: string | null;
+  imageUrl?: string | null;
+  coverImageUrl?: string | null;
+  author?: HomeConversationAuthor | null;
+  voice?: { url?: string | null; duration?: number } | null;
+  createdAt?: string;
+  lastActivityAt?: string | null;
+  storyThread?: {
+    _id?: string;
+    prompt?: unknown;
+    participants?: HomeConversationAuthor[];
+    totalStories?: number;
+  } | null;
+  promptType?: "own_story" | string;
+};
+
+export type HomeConversationsResponse = {
+  cards: HomeConversationCard[];
+  conversationSource: "received" | "own_stories";
+};
+
+type ConversationsEnvelope = Envelope<HomeConversationCard[]> & {
+  conversationSource?: "received" | "own_stories";
+};
+
+export async function fetchHomeConversations(
+  limit = 2
+): Promise<HomeConversationsResponse> {
+  const res = await api.get<ConversationsEnvelope>(
+    `/api/user-card?type=conversation&limit=${limit}`
+  );
+  const cards = Array.isArray(res.data) ? res.data : [];
+  const conversationSource = res.conversationSource === "own_stories"
+    ? "own_stories"
+    : "received";
+  return { cards, conversationSource };
+}
+
 export async function fetchInspirationFeed(
   pageNumber = 1,
   pageSize = 20

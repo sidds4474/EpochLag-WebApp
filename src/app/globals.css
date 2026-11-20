@@ -84,9 +84,12 @@
 
 @theme inline {
   --font-projekt: "Projekt Blackbird", sans-serif;
-  --font-montserrat: "Montserrat", sans-serif;
+  /* Redirect the body/heading tokens to the Google-font pair the app standardised on.
+     Every existing `font-montserrat` and `font-ivy` class now resolves to the
+     redesign's intended Plus Jakarta Sans / Lora, without touching every file. */
+  --font-montserrat: var(--font-plus-jakarta), "Plus Jakarta Sans", sans-serif;
   --font-myriadpro: "Myriadpro Regular", sans-serif;
-  --font-ivy: "Ivy Journal", serif;
+  --font-ivy: var(--font-lora), "Lora", serif;
   --font-lora: var(--font-lora);
   --font-plus-jakarta: var(--font-plus-jakarta);
 

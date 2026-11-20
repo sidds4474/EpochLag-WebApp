@@ -63,7 +63,7 @@ export default function HeaderSearch() {
             if (query.trim()) setOpen(true);
           }}
           placeholder="Search"
-          className="w-full bg-[color:var(--color-surface-muted)] rounded-full pl-[16px] pr-[44px] py-[12px] font-montserrat font-medium text-primary-blue text-[16px] leading-[20px] placeholder:text-[#a5a5a5] focus:outline-none focus:ring-2 focus:ring-primary-blue/15"
+          className="w-full bg-white rounded-full pl-[16px] pr-[44px] py-[12px] font-montserrat font-medium text-primary-blue text-[16px] leading-[20px] placeholder:text-[#a5a5a5] focus:outline-none focus:ring-2 focus:ring-primary-blue/15"
         />
         {query ? (
           <button

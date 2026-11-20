@@ -99,7 +99,7 @@ export default function Sidebar() {
                 href={item.href}
                 className={`flex items-center gap-[12px] px-[12px] py-[12px] rounded-[12px] font-montserrat text-[15px] transition-colors ${
                   active
-                    ? "bg-[#EDEDED] text-primary-blue font-semibold"
+                    ? "bg-[#EFEDE5] text-primary-blue font-semibold"
                     : "text-primary-blue/85 font-medium hover:bg-black/[0.03]"
                 }`}
               >

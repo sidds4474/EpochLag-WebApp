@@ -1,5 +1,5 @@
 import Script from "next/script";
-import { Lora, Plus_Jakarta_Sans } from "next/font/google";
+import { Lora, Plus_Jakarta_Sans, DM_Mono } from "next/font/google";
 import ToastProvider from "../components/ToastProvider/ToastProvider";
 import { AuthProvider } from "../lib/auth/AuthProvider";
 import { OnboardingStoreProvider } from "../lib/onboarding/OnboardingStoreProvider";
@@ -15,6 +15,15 @@ const lora = Lora({
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-plus-jakarta",
+  display: "swap",
+});
+
+// DM Mono — used for the "Daily Lag" label and other mono accents.
+// Only the weights we actually use; keeps the bundle slim.
+const dmMono = DM_Mono({
+  subsets: ["latin"],
+  weight: ["300", "400", "500"],
+  variable: "--font-dm-mono",
   display: "swap",
 });
 
@@ -69,7 +78,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${lora.variable} ${plusJakarta.variable}`}
+      className={`${lora.variable} ${plusJakarta.variable} ${dmMono.variable}`}
       // The pre-paint motion script below mutates <html>'s classList before
       // React hydrates. Tell React this element is allowed to differ — the
       // mismatch is intentional and only touches this one attribute.

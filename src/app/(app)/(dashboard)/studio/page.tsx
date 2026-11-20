@@ -1,110 +1,37 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { toast } from "react-hot-toast";
-import { ApiError } from "../../../../lib/api/client";
+import Link from "next/link";
+import { useEffect, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../../../../lib/auth/AuthProvider";
 import { fetchMyProfile } from "../../../../lib/profile/api";
-import { toggleCardBookmark } from "../../../../lib/home/api";
+import { bustUrl } from "../../../../lib/images";
+import Avatar from "../../../../components/Avatar";
 import {
-  bookmarkEvents,
-  getMemoryBookmark,
-  overlayBookmarks,
-  setKnownBookmark,
-  setMemoryBookmark,
-  type BookmarkChangedDetail,
-} from "../../../../lib/bookmarks/store";
-import type { UserCard } from "../../../../types/home";
-import type { LibraryThread } from "../../../../lib/library/api";
-import {
-  fetchDraftStories,
-  fetchFriendRequests,
-  fetchStudioCards,
-  getCachedRequests,
-  getCachedTab,
-  removeCardFromCache,
-  setCachedRequests,
-  setCachedTab,
-  type FriendRequest,
-  type StudioTab,
-} from "../../../../lib/studio/api";
-import StudioHeader from "./StudioHeader";
-import StudioTabs from "./StudioTabs";
-import CardTile from "./CardTile";
-import DraftTile from "./DraftTile";
-import WaitingOnYou from "./WaitingOnYou";
+  BookmarkIcon,
+  CameraIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  MapPinIcon,
+  PencilIcon,
+  CalendarIcon,
+} from "../icons";
 import AvatarUploadModal from "./AvatarUploadModal";
 import CoverPickerModal from "./CoverPickerModal";
 
-// Studio is the personal profile-hub: header (cover + avatar + name +
-// meta + bio + actions), four content tabs (Received / Sent / Bookmark
-// / Draft), and — desktop only — a "Waiting on you" side panel
-// aggregating friend requests + unanswered prompts.
-//
-// A single top-level useState per tab holds cards + pagination, seeded
-// from the module cache in src/lib/studio/api.ts so switching tabs
-// feels instant on repeat visits; a background refresh runs on mount
-// to keep it fresh.
+// Studio is now a profile hub: hero (cover + avatar + name + meta + bio)
+// followed by two sand-colored navigation cards that link out to the
+// supporting surfaces (Bookmarks, Drafts, Moments, Interactions, My Days,
+// Why Epoch Lag?, Notifications, Accounts). The dense paginated tabs
+// have moved to their own routes.
 export default function StudioPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user, updateUser } = useAuth();
-
-  // Initial tab honors ?tab=… so redirects from /interactions and other
-  // deep links keep working ("interactions?tab=sent" → studio?tab=sent).
-  const initialTab = (() => {
-    const t = searchParams.get("tab");
-    if (t === "received" || t === "sent" || t === "bookmark" || t === "draft") return t;
-    return "received";
-  })();
-  const [activeTab, setActiveTab] = useState<StudioTab>(initialTab);
-
-  const [received, setReceived] = useState<UserCard[]>(
-    () => (getCachedTab("received")?.data as UserCard[] | undefined) ?? []
-  );
-  const [sent, setSent] = useState<UserCard[]>(
-    () => (getCachedTab("sent")?.data as UserCard[] | undefined) ?? []
-  );
-  const [bookmark, setBookmark] = useState<UserCard[]>(
-    () => (getCachedTab("bookmark")?.data as UserCard[] | undefined) ?? []
-  );
-  const [drafts, setDrafts] = useState<LibraryThread[]>(
-    () => (getCachedTab("draft")?.data as LibraryThread[] | undefined) ?? []
-  );
-  const [loadingTab, setLoadingTab] = useState<Record<StudioTab, boolean>>({
-    received: false,
-    sent: false,
-    bookmark: false,
-    draft: false,
-  });
-  // Per-tab pagination state. `page` is the next page to fetch (starts
-  // at 2 because the initial mount grabs page 1); `hasMore` is a hint
-  // whether the last response's pagination said we can keep asking.
-  const [pageState, setPageState] = useState<Record<StudioTab, { page: number; hasMore: boolean }>>({
-    received: { page: 2, hasMore: true },
-    sent: { page: 2, hasMore: true },
-    bookmark: { page: 2, hasMore: true },
-    draft: { page: 2, hasMore: true },
-  });
-  const [loadingMore, setLoadingMore] = useState(false);
-
-  const [requests, setRequests] = useState<FriendRequest[]>(
-    () => getCachedRequests()?.data ?? []
-  );
-
-  // Fade-out set for Bookmark tab. When a bookmark is toggled off on
-  // the Bookmark tab, we don't yank the tile immediately — 400ms fade
-  // gives visual continuity before it disappears (matches mobile).
-  const [fadingOut, setFadingOut] = useState<Set<string>>(new Set());
-
-  // Uploader modals — avatar (1:1) and cover (curated + upload).
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const [coverModalOpen, setCoverModalOpen] = useState(false);
 
-  // Silent profile refresh on mount so header fields stay current even
-  // when AuthProvider's cached user is stale (older than its own
-  // freshness window).
+  // Silent profile refresh on mount so the hero's name / bio / cover
+  // stay current without waiting for AuthProvider's cache to expire.
   useEffect(() => {
     let cancelled = false;
     fetchMyProfile()
@@ -119,342 +46,174 @@ export default function StudioPage() {
     };
   }, [updateUser]);
 
-  // Page size per tab. Bookmark loads a bigger first page because the
-  // user scrolls through it linearly; the paginated tabs use 10 so the
-  // first load is snappy.
-  const limitFor = (tab: StudioTab) => (tab === "bookmark" ? 20 : 10);
-
-  // Fetch (and cache) the active tab's page 1 on mount + on tab switch.
-  // We don't gate on `fresh` — a background refresh is always cheap and
-  // avoids the "typed reply then came back, still see old counts" case.
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoadingTab((s) => ({ ...s, [activeTab]: true }));
-    (async () => {
-      try {
-        if (activeTab === "draft") {
-          const { drafts: list, pagination } = await fetchDraftStories(1, limitFor("draft"));
-          if (controller.signal.aborted) return;
-          setDrafts(list);
-          setCachedTab("draft", list);
-          setPageState((s) => ({
-            ...s,
-            draft: { page: 2, hasMore: hasMoreFromPagination(pagination, list.length, limitFor("draft")) },
-          }));
-        } else {
-          const { cards, pagination } = await fetchStudioCards(activeTab, 1, limitFor(activeTab));
-          if (controller.signal.aborted) return;
-          let merged = overlayBookmarks(cards);
-          if (activeTab === "bookmark") {
-            merged = merged.map((c) => ({ ...c, isBookmarked: true }));
-          }
-          if (activeTab === "received") setReceived(merged);
-          else if (activeTab === "sent") setSent(merged);
-          else setBookmark(merged);
-          setCachedTab(activeTab, merged);
-          setPageState((s) => ({
-            ...s,
-            [activeTab]: { page: 2, hasMore: hasMoreFromPagination(pagination, merged.length, limitFor(activeTab)) },
-          }));
-        }
-      } catch (err) {
-        if (controller.signal.aborted) return;
-        if (!(err instanceof ApiError)) return;
-        toast.error(err.message);
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoadingTab((s) => ({ ...s, [activeTab]: false }));
-        }
-      }
-    })();
-    return () => controller.abort();
-  }, [activeTab]);
-
-  // Infinite scroll: fetch the next page and append to the active tab.
-  // Cheap-gated on loading flags so a fast scroll doesn't stack fetches.
-  const loadMore = useCallback(async () => {
-    const tabState = pageState[activeTab];
-    if (loadingMore || loadingTab[activeTab] || !tabState.hasMore) return;
-    setLoadingMore(true);
-    try {
-      if (activeTab === "draft") {
-        const { drafts: list, pagination } = await fetchDraftStories(tabState.page, limitFor("draft"));
-        setDrafts((prev) => dedupeAppend(prev, list));
-        setPageState((s) => ({
-          ...s,
-          draft: {
-            page: tabState.page + 1,
-            hasMore: hasMoreFromPagination(pagination, list.length, limitFor("draft")),
-          },
-        }));
-      } else {
-        const { cards, pagination } = await fetchStudioCards(activeTab, tabState.page, limitFor(activeTab));
-        let merged = overlayBookmarks(cards);
-        if (activeTab === "bookmark") {
-          merged = merged.map((c) => ({ ...c, isBookmarked: true }));
-        }
-        if (activeTab === "received") setReceived((prev) => dedupeAppend(prev, merged));
-        else if (activeTab === "sent") setSent((prev) => dedupeAppend(prev, merged));
-        else setBookmark((prev) => dedupeAppend(prev, merged));
-        setPageState((s) => ({
-          ...s,
-          [activeTab]: {
-            page: tabState.page + 1,
-            hasMore: hasMoreFromPagination(pagination, merged.length, limitFor(activeTab)),
-          },
-        }));
-      }
-    } catch (err) {
-      if (err instanceof ApiError) toast.error(err.message);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [activeTab, pageState, loadingMore, loadingTab]);
-
-  // IntersectionObserver on a sentinel div at the list's bottom. When
-  // the sentinel enters the viewport we fire loadMore; the observer is
-  // re-attached whenever the tab (and thus the observed element) changes.
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          void loadMore();
-        }
-      },
-      { rootMargin: "400px 0px" }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [loadMore, activeTab]);
-
-  // Friend requests — powers both the Waiting-on-you panel and (via
-  // union with unanswered prompts) the pending count. Silent refresh
-  // so the panel doesn't blink between navigations.
-  useEffect(() => {
-    let cancelled = false;
-    fetchFriendRequests("received")
-      .then((list) => {
-        if (cancelled) return;
-        setRequests(list);
-        setCachedRequests(list);
-      })
-      .catch(() => {
-        /* silent */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Unanswered prompts derive from the Received cache — a card with
-  // no storyThread (or totalStories === 0) is one the user hasn't
-  // replied to yet.
-  const unansweredPrompts = useMemo(() => {
-    return received.filter((c) => {
-      const thread = c.storyThread as { totalStories?: number } | null | undefined;
-      const total = thread?.totalStories ?? 0;
-      return total === 0;
-    });
-  }, [received]);
-
-  // Mirror bookmark changes made on other surfaces (Home tile, Library
-  // grid, Inspiration card, OpenStory viewer) into the Studio lists so
-  // we don't render stale state when the user comes back to a tab.
-  useEffect(() => {
-    const onChange = (e: Event) => {
-      const detail = (e as CustomEvent<BookmarkChangedDetail>).detail;
-      if (!detail) return;
-      const { promptId, isBookmarked } = detail;
-      const patch = (list: UserCard[]) =>
-        list.map((c) => (c._id === promptId ? { ...c, isBookmarked } : c));
-      setReceived(patch);
-      setSent(patch);
-      if (isBookmarked) {
-        setBookmark(patch);
-      } else {
-        // If somebody else un-bookmarked this card, drop it from the
-        // Bookmark tab immediately (no fade — the change didn't
-        // originate here).
-        setBookmark((prev) => prev.filter((c) => c._id !== promptId));
-      }
-    };
-    bookmarkEvents.addEventListener("bookmark:changed", onChange);
-    return () => bookmarkEvents.removeEventListener("bookmark:changed", onChange);
-  }, []);
-
-  // Full optimistic-toggle model per the bookmark ideology spec:
-  //   1) resolve current state via memory ref (guards double-tap),
-  //   2) flip local list + the knownBookmarks override + fire event,
-  //   3) on the Bookmark tab, run a 400ms fade before splicing the
-  //      tile out (no rollback on error — user-perceived unbookmark
-  //      wins over server truth; next refresh reconciles),
-  //   4) call POST /api/bookmarks/:promptId,
-  //   5) reconcile from `res.data.isBookmarked` if server disagrees.
-  async function handleToggleBookmark(card: UserCard) {
-    // For a flat UserCard the promptId IS the card id (no nested
-    // promptCard). Cross-surface tiles that DO carry a nested promptCard
-    // (LibraryThread etc.) resolve their promptId via
-    // `resolveBookmarkState` — the shared store handles both shapes.
-    const promptId = card._id;
-    if (!promptId) return;
-    const cardKey = card._id;
-    // Step 1: current state — memory ref first, then card field.
-    const currentBookmarked =
-      getMemoryBookmark(cardKey) ?? !!card.isBookmarked;
-    const nextBookmarked = !currentBookmarked;
-    setMemoryBookmark(cardKey, nextBookmarked);
-
-    // Step 2: optimistic flip.
-    const applyFlip = (list: UserCard[]) =>
-      list.map((c) =>
-        c._id === cardKey ? { ...c, isBookmarked: nextBookmarked } : c
-      );
-    setReceived(applyFlip);
-    setSent(applyFlip);
-    setBookmark(applyFlip);
-    setKnownBookmark(promptId, nextBookmarked);
-
-    // Step 3: Bookmark-tab fade-out on unbookmark.
-    let willFadeOut = false;
-    if (activeTab === "bookmark" && !nextBookmarked) {
-      willFadeOut = true;
-      setFadingOut((prev) => new Set(prev).add(cardKey));
-      window.setTimeout(() => {
-        setBookmark((prev) => prev.filter((c) => c._id !== cardKey));
-        removeCardFromCache("bookmark", cardKey);
-        setFadingOut((prev) => {
-          const next = new Set(prev);
-          next.delete(cardKey);
-          return next;
-        });
-      }, 420);
-    }
-
-    // Step 4 + 5: fire + reconcile with server.
-    try {
-      const { isBookmarked: serverBookmarked } = await toggleCardBookmark(promptId);
-      if (
-        serverBookmarked !== null &&
-        serverBookmarked !== nextBookmarked
-      ) {
-        // Cross-device race — server disagrees. Take server as truth.
-        setMemoryBookmark(cardKey, serverBookmarked);
-        setKnownBookmark(promptId, serverBookmarked);
-        const applyReconciled = (list: UserCard[]) =>
-          list.map((c) =>
-            c._id === cardKey ? { ...c, isBookmarked: serverBookmarked } : c
-          );
-        setReceived(applyReconciled);
-        setSent(applyReconciled);
-        setBookmark(applyReconciled);
-      }
-    } catch {
-      // Bookmark-tab fade-out path: no rollback. Card is gone from the
-      // user's view; a subsequent refresh will resync if needed. Any
-      // other tab: revert to pre-tap state.
-      if (willFadeOut) return;
-      setMemoryBookmark(cardKey, currentBookmarked);
-      setKnownBookmark(promptId, currentBookmarked);
-      const applyRollback = (list: UserCard[]) =>
-        list.map((c) =>
-          c._id === cardKey ? { ...c, isBookmarked: currentBookmarked } : c
-        );
-      setReceived(applyRollback);
-      setSent(applyRollback);
-      setBookmark(applyRollback);
-      toast.error("Couldn't update bookmark");
-    }
-  }
-
-  function handleCardTap(card: UserCard) {
-    const thread = card.storyThread as { _id?: string; totalStories?: number } | null | undefined;
-    // Received tab: no reply yet → open the composer in reply mode.
-    if (activeTab === "received" && (!thread?._id || thread.totalStories === 0)) {
-      router.push(`/new-lag?promptId=${encodeURIComponent(card._id)}`);
-      return;
-    }
-    // Anything with a thread → open the thread. Otherwise fall back to
-    // the prompt detail view (rare — prompts with no thread only show
-    // up under Sent or when the Received default hits above).
-    if (thread?._id) {
-      router.push(`/thread/${thread._id}`);
-      return;
-    }
-    router.push(`/prompt/${card._id}`);
-  }
-
-  function handleDraftTap(draft: LibraryThread) {
-    router.push(`/new-lag?draftId=${encodeURIComponent(draft._id)}`);
-  }
-
-  const activeCards =
-    activeTab === "received"
-      ? received
-      : activeTab === "sent"
-      ? sent
-      : activeTab === "bookmark"
-      ? bookmark
-      : [];
+  const fullName =
+    `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || "…";
+  const cover = bustUrl(user?.backgroundPicture ?? null, user?.updatedAt);
+  const location = user?.city || user?.state || user?.country || null;
+  const dob = formatDob(user?.dateOfBirth ?? null);
+  const bio = user?.bio ?? null;
 
   return (
-    <div className="h-full flex flex-col min-h-0 overflow-y-auto bg-white">
-      <div className="px-[16px] md:px-[24px] lg:px-[40px] pt-[16px] md:pt-[20px] pb-[100px] md:pb-[40px] max-w-[1440px] mx-auto w-full">
-        <StudioHeader
-          user={user}
-          onOpenAvatar={() => setAvatarModalOpen(true)}
-          onOpenCover={() => setCoverModalOpen(true)}
-        />
+    <div className="h-full flex flex-col min-h-0 overflow-y-auto bg-[#f3f1eb]">
+      <div className="px-[16px] md:px-[24px] lg:px-[40px] pt-[16px] md:pt-[24px] pb-[100px] md:pb-[48px] max-w-[1400px] mx-auto w-full">
+        {/* Page title row: back + "Studio" title (left), settings gear (right) */}
+        <div className="flex items-center justify-between mb-[16px] md:mb-[20px]">
+          <div className="flex items-center gap-[12px]">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              aria-label="Back"
+              className="cursor-pointer w-[36px] h-[36px] rounded-full bg-white hover:bg-white/90 shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-[#232323] flex items-center justify-center transition-colors shrink-0"
+            >
+              <ChevronLeftIcon width={16} height={16} />
+            </button>
+            <h1 className="font-ivy font-normal text-[#232323] text-[26px] md:text-[32px] md:leading-[1.15]">
+              Studio
+            </h1>
+          </div>
+          <Link
+            href="/settings"
+            aria-label="Settings"
+            className="cursor-pointer w-[36px] h-[36px] md:w-[40px] md:h-[40px] rounded-full text-[#232323] hover:bg-black/[0.05] flex items-center justify-center transition-colors"
+          >
+            <GearIcon width={22} height={22} />
+          </Link>
+        </div>
 
-        <div className="mt-[16px] md:mt-[20px] flex flex-col lg:flex-row gap-[24px] lg:gap-[32px]">
-          <div className="flex-1 min-w-0">
-            <StudioTabs active={activeTab} onChange={setActiveTab} />
-            <div className="mt-[14px] flex flex-col gap-[10px]">
-              {activeTab === "draft" ? (
-                drafts.length === 0 && !loadingTab.draft ? (
-                  <EmptyRow label="No drafts yet." />
-                ) : (
-                  drafts.map((d) => (
-                    <DraftTile key={d._id} draft={d} onTap={() => handleDraftTap(d)} />
-                  ))
-                )
-              ) : activeCards.length === 0 && !loadingTab[activeTab] ? (
-                <EmptyRow label={emptyLabelFor(activeTab)} />
-              ) : (
-                activeCards.map((card) => (
-                  <CardTile
-                    key={card._id}
-                    card={card}
-                    fadingOut={fadingOut.has(card._id)}
-                    onTap={() => handleCardTap(card)}
-                    onToggleBookmark={() => handleToggleBookmark(card)}
-                  />
-                ))
-              )}
-              {loadingTab[activeTab] && activeCards.length === 0 && drafts.length === 0 && (
-                <SkeletonRow count={3} />
-              )}
-              {/* Sentinel — IntersectionObserver watches this to trigger
-                  loadMore. A small spinner shows while the next page is
-                  in flight; when the tail is reached we simply stop. */}
-              <div ref={sentinelRef} className="h-[1px] w-full" aria-hidden />
-              {loadingMore && (
-                <div className="py-[16px] flex justify-center">
-                  <span className="w-[22px] h-[22px] rounded-full border-2 border-primary-blue/20 border-t-primary-blue animate-spin" />
+        {/* Hero: cover banner with avatar overlapping bottom-left */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setCoverModalOpen(true)}
+            aria-label="Change cover"
+            className="cursor-pointer relative w-full aspect-[16/6] md:aspect-[1056/212] rounded-[18px] overflow-hidden bg-gradient-to-br from-[#f2a45c] via-[#e18248] to-[#4a2a2f] hover:brightness-95 transition-[filter]"
+          >
+            {cover && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={cover}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            )}
+          </button>
+
+          {/* Avatar — overlaps cover bottom-left on md+, centered on mobile */}
+          <div className="absolute left-1/2 -translate-x-1/2 md:left-[38px] md:translate-x-0 -bottom-[46px] md:-bottom-[62px]">
+            <div className="relative">
+              <div className="rounded-full border-[4px] border-white shadow-[0_2px_10px_rgba(0,0,0,0.10)] md:hidden">
+                <Avatar user={user} size={110} isSelf />
+              </div>
+              <div className="rounded-full border-[4px] border-white shadow-[0_2px_10px_rgba(0,0,0,0.10)] hidden md:block">
+                <Avatar user={user} size={136} isSelf />
+              </div>
+              <button
+                type="button"
+                onClick={() => setAvatarModalOpen(true)}
+                aria-label="Change photo"
+                className="cursor-pointer absolute right-[2px] bottom-[2px] w-[32px] h-[32px] md:w-[34px] md:h-[34px] rounded-full bg-white text-[#232323] flex items-center justify-center shadow-[0_2px_6px_rgba(0,0,0,0.15)] hover:brightness-95 transition-[filter]"
+              >
+                <CameraIcon width={18} height={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Name + meta + bio */}
+        <div className="mt-[60px] md:mt-[16px] md:pl-[200px] md:pr-[12px]">
+          <div className="flex flex-col md:flex-row md:items-start md:gap-[24px]">
+            <div className="flex-1 min-w-0 text-center md:text-left">
+              <div className="inline-flex items-center gap-[10px]">
+                <h2 className="font-ivy font-normal text-[#232323] text-[24px] md:text-[32px] leading-tight">
+                  {fullName}
+                </h2>
+                <Link
+                  href="/studio/edit"
+                  aria-label="Edit profile"
+                  className="cursor-pointer w-[32px] h-[32px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] text-[#232323] flex items-center justify-center hover:brightness-95 transition-[filter]"
+                >
+                  <PencilIcon width={15} height={15} />
+                </Link>
+              </div>
+              {(location || dob) && (
+                <div className="mt-[8px] flex items-center gap-[16px] font-montserrat text-[#848484] text-[14px] justify-center md:justify-start">
+                  {location && (
+                    <span className="inline-flex items-center gap-[6px]">
+                      <MapPinIcon width={14} height={14} />
+                      {location}
+                    </span>
+                  )}
+                  {dob && (
+                    <span className="inline-flex items-center gap-[6px]">
+                      <CalendarIcon width={14} height={14} />
+                      {dob}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Desktop-only "Waiting on you" side panel. */}
-          <aside className="hidden lg:block w-[340px] shrink-0">
-            <WaitingOnYou
-              requests={requests}
-              unansweredPrompts={unansweredPrompts}
-            />
-          </aside>
+            {bio && (
+              <p className="mt-[12px] md:mt-[6px] md:max-w-[440px] font-montserrat text-[#092e4a] text-[14px] md:text-[16px] leading-[20px] whitespace-pre-wrap text-center md:text-left">
+                {bio}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Nav cards — indented past the avatar on md+ so they start at
+            the right edge of the avatar column, matching the Figma.
+            items-start keeps each card's height tied to its own rows
+            instead of stretching to match the taller sibling. */}
+        <div className="mt-[20px] md:mt-[24px] md:pl-[200px] md:pr-[12px] grid grid-cols-1 lg:grid-cols-2 gap-[16px] max-w-full items-start">
+          <NavCard
+            items={[
+              {
+                icon: <BookmarkIcon width={16} height={18} />,
+                label: "Bookmarks",
+                href: "/studio/bookmarks",
+              },
+              {
+                icon: <DraftsSvg width={18} height={18} />,
+                label: "Drafts",
+                href: "/studio/drafts",
+              },
+              {
+                icon: <MomentsSvg width={18} height={18} />,
+                label: "Moments",
+                href: "/moments",
+              },
+              {
+                icon: <InteractionsSvg width={18} height={18} />,
+                label: "Interactions",
+                href: "/interactions",
+              },
+              {
+                icon: <MyDaysSvg width={20} height={20} />,
+                label: "My Days",
+                href: "/my-days",
+              },
+            ]}
+          />
+          <NavCard
+            items={[
+              {
+                icon: <WhyEpochSvg width={20} height={20} />,
+                label: "Why Epoch Lag?",
+                href: "/why-epoch-lag",
+              },
+              {
+                icon: <NotificationsSvg width={18} height={19} />,
+                label: "Notifications",
+                href: "/notifications",
+              },
+              {
+                icon: <AccountsSvg width={20} height={20} />,
+                label: "Accounts",
+                href: "/settings",
+              },
+            ]}
+          />
         </div>
       </div>
 
@@ -470,59 +229,196 @@ export default function StudioPage() {
   );
 }
 
-function emptyLabelFor(tab: StudioTab): string {
-  if (tab === "received") return "No prompts received yet.";
-  if (tab === "sent") return "You haven't sent any prompts yet.";
-  if (tab === "bookmark") return "No bookmarks yet.";
-  return "";
-}
+type NavItem = {
+  icon: ReactNode;
+  label: string;
+  href: string;
+  count?: number;
+};
 
-// Merge a new page into the tail of the existing list, skipping ids we
-// already have. Cheap dupe guard for cases where BE returns overlapping
-// pages after a mutation (e.g. new bookmark inserted at the top shifts
-// the pagination window).
-function dedupeAppend<T extends { _id: string }>(prev: T[], next: T[]): T[] {
-  if (next.length === 0) return prev;
-  const seen = new Set(prev.map((x) => x._id));
-  const fresh = next.filter((x) => !seen.has(x._id));
-  if (fresh.length === 0) return prev;
-  return [...prev, ...fresh];
-}
-
-// Read the "more pages exist" hint out of whatever the BE gave us. If
-// pagination metadata is missing (some endpoints omit it), fall back to
-// "did the last page return a full limit worth of rows?" — if it did,
-// probably more; if not, definitely done.
-function hasMoreFromPagination(
-  p: { totalPages?: number; currentPage?: number; pageNumber?: number } | null,
-  received: number,
-  limit: number
-): boolean {
-  if (!p) return received >= limit;
-  const current = p.currentPage ?? p.pageNumber;
-  if (typeof current === "number" && typeof p.totalPages === "number") {
-    return current < p.totalPages;
-  }
-  return received >= limit;
-}
-
-function EmptyRow({ label }: { label: string }) {
+function NavCard({ items }: { items: NavItem[] }) {
   return (
-    <div className="py-[40px] text-center font-montserrat text-primary-blue/60 text-[14px]">
-      {label}
+    <div className="bg-[#E8E6DF] rounded-[14px] px-[16px] py-[2px]">
+      {items.map((it) => (
+        <Link
+          key={it.label}
+          href={it.href}
+          className="flex items-center gap-[14px] py-[11px] border-b border-black/10 last:border-b-0 hover:opacity-80 transition-opacity"
+        >
+          <span className="w-[20px] h-[20px] shrink-0 flex items-center justify-center text-[#232323]">
+            {it.icon}
+          </span>
+          <span className="flex-1 min-w-0 font-montserrat text-[#232323] text-[14px]">
+            {it.label}
+          </span>
+          {typeof it.count === "number" && it.count > 0 && (
+            <span className="inline-flex items-center justify-center min-w-[20px] h-[20px] rounded-full bg-primary-orange text-white font-montserrat font-medium text-[11px] px-[6px]">
+              {it.count}
+            </span>
+          )}
+          <ChevronRightIcon
+            width={11}
+            height={11}
+            className="shrink-0 text-[#848484]"
+          />
+        </Link>
+      ))}
     </div>
   );
 }
 
-function SkeletonRow({ count }: { count: number }) {
+function formatDob(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function GearIcon({ width = 22, height = 22 }: { width?: number; height?: number }) {
   return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <div
-          key={i}
-          className="w-full h-[112px] rounded-[16px] bg-[#f3f3f3] animate-pulse"
-        />
-      ))}
-    </>
+    <svg width={width} height={height} viewBox="0 0 24 24" fill="currentColor">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M11.078 1.5c-.784 0-1.44.578-1.545 1.353L9.4 3.964a8.5 8.5 0 00-1.585.657l-1.02-.674a1.56 1.56 0 00-2.03.26l-1.302 1.42a1.56 1.56 0 00-.148 1.972l.706 1.024a8.5 8.5 0 00-.638 1.605l-1.163.204A1.56 1.56 0 001 10.75v1.5c0 .784.578 1.44 1.353 1.545l1.11.15c.155.567.37 1.109.638 1.615l-.665.968a1.56 1.56 0 00.194 1.99l1.302 1.36c.55.575 1.442.65 2.08.176l.985-.732a8.5 8.5 0 001.583.66l.157 1.116c.105.775.761 1.353 1.545 1.353h1.844c.784 0 1.44-.578 1.545-1.353l.157-1.116a8.5 8.5 0 001.583-.66l.985.732a1.56 1.56 0 002.08-.176l1.302-1.36a1.56 1.56 0 00.194-1.99l-.665-.968a8.5 8.5 0 00.638-1.615l1.11-.15A1.56 1.56 0 0023 12.25v-1.5c0-.784-.578-1.44-1.353-1.545l-1.163-.204a8.5 8.5 0 00-.638-1.605l.706-1.024a1.56 1.56 0 00-.148-1.972l-1.302-1.42a1.56 1.56 0 00-2.03-.26l-1.02.674a8.5 8.5 0 00-1.585-.657l-.133-1.111A1.56 1.56 0 0013.844 1.5h-1.767a1.56 1.56 0 00-.999 0zM12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z"
+      />
+    </svg>
+  );
+}
+
+type SvgProps = { width?: number; height?: number };
+
+function DraftsSvg({ width = 18, height = 18 }: SvgProps) {
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 20 19"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9.75 17.8711H18.75" />
+      <path d="M14.25 1.37132C14.6478 0.973496 15.1874 0.75 15.75 0.75C16.0286 0.75 16.3044 0.80487 16.5618 0.911476C16.8192 1.01808 17.053 1.17434 17.25 1.37132C17.447 1.5683 17.6032 1.80216 17.7098 2.05953C17.8165 2.3169 17.8713 2.59274 17.8713 2.87132C17.8713 3.1499 17.8165 3.42574 17.7098 3.68311C17.6032 3.94048 17.447 4.17434 17.25 4.37132L4.75 16.8713L0.75 17.8713L1.75 13.8713L14.25 1.37132Z" />
+    </svg>
+  );
+}
+
+function MomentsSvg({ width = 18, height = 18 }: SvgProps) {
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 20 22"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2.75 2.75H16.75C17.8546 2.75 18.75 3.64543 18.75 4.75V18.75C18.75 19.8546 17.8546 20.75 16.75 20.75H2.75C1.64543 20.75 0.75 19.8546 0.75 18.75V4.75C0.75 3.64543 1.64543 2.75 2.75 2.75Z" />
+      <path d="M13.75 0.75V4.75" />
+      <path d="M5.75 0.75V4.75" />
+      <path d="M0.75 8.75H18.75" />
+    </svg>
+  );
+}
+
+function InteractionsSvg({ width = 18, height = 18 }: SvgProps) {
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M18.75 9.25003C18.7534 10.5699 18.4451 11.8719 17.85 13.05C17.1444 14.4618 16.0598 15.6492 14.7174 16.4793C13.3751 17.3094 11.8282 17.7494 10.25 17.75C8.93013 17.7535 7.62812 17.4451 6.45 16.85L0.75 18.75L2.65 13.05C2.05493 11.8719 1.74656 10.5699 1.75 9.25003C1.75061 7.67179 2.19061 6.12488 3.02072 4.78258C3.85083 3.44028 5.03825 2.3556 6.45 1.65003C7.62812 1.05496 8.93013 0.746587 10.25 0.750028H10.75C12.8343 0.86502 14.803 1.74479 16.2791 3.22089C17.7552 4.69699 18.635 6.66568 18.75 8.75003V9.25003Z" />
+    </svg>
+  );
+}
+
+function MyDaysSvg({ width = 20, height = 20 }: SvgProps) {
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M17 12C17 14.7614 14.7614 17 12 17C9.23858 17 7 14.7614 7 12C7 9.23858 9.23858 7 12 7C14.7614 7 17 9.23858 17 12Z" />
+      <path d="M12 1V3" />
+      <path d="M12 21V23" />
+      <path d="M4.21875 4.21875L5.63875 5.63875" />
+      <path d="M18.3594 18.3594L19.7794 19.7794" />
+      <path d="M1 12H3" />
+      <path d="M21 12H23" />
+      <path d="M4.21875 19.7794L5.63875 18.3594" />
+      <path d="M18.3594 5.63875L19.7794 4.21875" />
+    </svg>
+  );
+}
+
+function WhyEpochSvg({ width = 20, height = 20 }: SvgProps) {
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 22 22"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M20.75 10.75C20.75 16.2728 16.2728 20.75 10.75 20.75C5.22715 20.75 0.75 16.2728 0.75 10.75C0.75 5.22715 5.22715 0.75 10.75 0.75C16.2728 0.75 20.75 5.22715 20.75 10.75Z" />
+      <path d="M10.75 14.75V10.75" />
+      <path d="M10.75 6.75H10.76" />
+    </svg>
+  );
+}
+
+function NotificationsSvg({ width = 18, height = 19 }: SvgProps) {
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 20 21"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M15.75 6.75C15.75 5.1587 15.1179 3.63258 13.9926 2.50736C12.8674 1.38214 11.3413 0.75 9.75 0.75C8.1587 0.75 6.63258 1.38214 5.50736 2.50736C4.38214 3.63258 3.75 5.1587 3.75 6.75C3.75 13.75 0.75 15.75 0.75 15.75H18.75C18.75 15.75 15.75 13.75 15.75 6.75Z" />
+      <path d="M11.4795 18.75C11.3037 19.0531 11.0514 19.3047 10.7478 19.4795C10.4441 19.6544 10.0999 19.7465 9.74953 19.7465C9.39915 19.7465 9.05492 19.6544 8.7513 19.4795C8.44769 19.3047 8.19534 19.0531 8.01953 18.75" />
+    </svg>
+  );
+}
+
+function AccountsSvg({ width = 20, height = 20 }: SvgProps) {
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" />
+      <path d="M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z" />
+    </svg>
   );
 }

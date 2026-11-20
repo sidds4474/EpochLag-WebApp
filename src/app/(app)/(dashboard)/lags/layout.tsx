@@ -10,6 +10,10 @@ import { SelectModeProvider } from "./selectMode";
 export default function LibraryLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "";
   const isPlaces = pathname.startsWith("/lags/places");
+  // Detail routes like /lags/people/[userId], /lags/groups/[groupId],
+  // /lags/albums/[id] get their own page chrome — hide the Lags heading
+  // and tab bar so the detail header is the only top-level thing.
+  const isDetail = /^\/lags\/(people|groups|albums)\/[^/]+/.test(pathname);
   return (
     <SelectModeProvider>
       <div
@@ -19,10 +23,12 @@ export default function LibraryLayout({ children }: { children: ReactNode }) {
             : "bg-[#f3f1eb]"
         }`}
       >
-        <div className={isPlaces ? "pointer-events-auto" : undefined}>
-          <LibraryHeading />
-          <LibraryTabs />
-        </div>
+        {!isDetail && (
+          <div className={isPlaces ? "pointer-events-auto" : undefined}>
+            <LibraryHeading />
+            <LibraryTabs />
+          </div>
+        )}
         <LibraryContent passThrough={isPlaces}>{children}</LibraryContent>
       </div>
     </SelectModeProvider>

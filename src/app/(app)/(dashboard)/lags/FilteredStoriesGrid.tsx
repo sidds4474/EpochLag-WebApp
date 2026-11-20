@@ -6,8 +6,8 @@ import {
   type FetchStoriesParams,
   type LibraryThread,
 } from "../../../../lib/library/api";
-import StoryCard from "./StoryCard";
-import StoryCardSkeleton from "./StoryCardSkeleton";
+import StoryRow from "./StoryRow";
+import StoryRowSkeleton from "./StoryRowSkeleton";
 
 const PAGE_SIZE = 10;
 
@@ -99,9 +99,9 @@ export default function FilteredStoriesGrid({ filter }: { filter: FilterKey }) {
           {error}
         </p>
       ) : threads.length === 0 && loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-[10px] md:gap-x-[24px] gap-y-[18px] md:gap-y-[40px]">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-[32px] xl:gap-x-[56px]">
           {Array.from({ length: 6 }).map((_, i) => (
-            <StoryCardSkeleton key={i} />
+            <StoryRowSkeleton key={i} />
           ))}
         </div>
       ) : threads.length === 0 && !loading ? (
@@ -109,9 +109,9 @@ export default function FilteredStoriesGrid({ filter }: { filter: FilterKey }) {
           No stories to show.
         </p>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-[10px] md:gap-x-[24px] gap-y-[18px] md:gap-y-[40px]">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-[32px] xl:gap-x-[56px]">
           {threads.map((t) => (
-            <StoryCard key={t._id} thread={t} />
+            <StoryRow key={t._id} thread={t} />
           ))}
         </div>
       )}

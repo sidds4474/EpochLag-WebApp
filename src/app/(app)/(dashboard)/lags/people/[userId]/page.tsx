@@ -49,7 +49,7 @@ export default function PersonStoriesPage({
         <Link
           href="/lags/people"
           aria-label="Back to People"
-          className="cursor-pointer w-[36px] h-[36px] rounded-full bg-[#ededed] hover:bg-[#e0e0e0] text-primary-blue flex items-center justify-center transition-colors shrink-0"
+          className="cursor-pointer w-[36px] h-[36px] rounded-full bg-white hover:bg-white/90 shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-[#232323] flex items-center justify-center transition-colors shrink-0"
         >
           <ChevronLeftIcon width={16} height={16} />
         </Link>
@@ -66,7 +66,7 @@ export default function PersonStoriesPage({
             {personInitial(person ?? undefined)}
           </div>
         )}
-        <h2 className="font-montserrat font-bold text-primary-blue text-[18px] md:text-[22px] truncate">
+        <h2 className="font-ivy font-normal text-[#232323] text-[22px] md:text-[28px] truncate">
           {person ? personDisplayName(person) : "Stories"}
         </h2>
       </div>

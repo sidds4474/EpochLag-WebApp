@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { User } from "../../../types/user";
 import LogoDark from "../../../assets/images/logo-dark.webp";
 import Avatar from "../../../components/Avatar";
@@ -24,8 +25,10 @@ function MenuIcon({ width = 24, height = 24 }: { width?: number; height?: number
 }
 
 export default function Header({ user, onOpenDrawer }: HeaderProps) {
+  const pathname = usePathname() ?? "";
+  const transparent = pathname.startsWith("/lags/places");
   return (
-    <header className="relative hidden md:flex items-center gap-[12px] md:gap-[16px] px-[16px] md:px-[32px] lg:px-[40px] pt-[16px] md:pt-[24px] pb-[16px] md:pb-[20px]">
+    <header className={`relative hidden md:flex items-center gap-[12px] md:gap-[16px] px-[16px] md:px-[32px] lg:px-[40px] pt-[16px] md:pt-[24px] pb-[16px] md:pb-[20px] ${transparent ? "bg-transparent z-20" : "bg-[#F3F1EB]"}`}>
       {/* Tablet (md → lg): hamburger left, wordmark centered, search+bell right.
           Desktop (lg+): search pill fills the middle, bell + avatar on the right. */}
       <button
@@ -51,11 +54,11 @@ export default function Header({ user, onOpenDrawer }: HeaderProps) {
       </Link>
 
       {/* Desktop-only: search pill fills the middle */}
-      <div className="hidden lg:flex flex-1 max-w-[631px]">
+      <div className="hidden lg:flex flex-[4] max-w-[950px] min-w-0">
         <HeaderSearch />
       </div>
 
-      <div className="hidden lg:block flex-1" />
+      <div className="hidden lg:block flex-[1]" />
 
       {/* Tablet spacer — push right cluster to the far right */}
       <div className="flex-1 lg:hidden" />

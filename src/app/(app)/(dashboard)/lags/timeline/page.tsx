@@ -376,6 +376,10 @@ export default function LagsTimelinePage() {
                       const isLatestOfSelected =
                         section.year === selectedYear && i === 0;
                       const parts = timelineDateParts(entry);
+                      const storyKey = entry.latestStory?._id ?? "";
+                      const isHidden =
+                        pendingHiddenIds.has(storyKey) ||
+                        committedHiddenIds.has(storyKey);
                       return (
                         <div
                           key={entry.threadId}
@@ -411,24 +415,12 @@ export default function LagsTimelinePage() {
                               entry={entry}
                               onHide={handleHide}
                               editMode={editMode}
-                              pendingHidden={
-                                pendingHiddenIds.has(
-                                  entry.latestStory?._id ?? ""
-                                ) ||
-                                committedHiddenIds.has(
-                                  entry.latestStory?._id ?? ""
-                                )
-                              }
+                              pendingHidden={isHidden}
                             />
                           </div>
 
                           {/* Eye toggle — only in edit mode */}
-                          {editMode && (() => {
-                            const storyKey = entry.latestStory?._id ?? "";
-                            const isHidden =
-                              pendingHiddenIds.has(storyKey) ||
-                              committedHiddenIds.has(storyKey);
-                            return (
+                          {editMode && (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -471,8 +463,7 @@ export default function LagsTimelinePage() {
                                 </svg>
                               )}
                             </button>
-                            );
-                          })()}
+                          )}
                         </div>
                       );
                     })}

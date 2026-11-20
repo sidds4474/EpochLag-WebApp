@@ -140,47 +140,51 @@ export default function LagsPlacesPage() {
 
   return (
     <>
-      <div className="relative flex md:gap-[20px] h-full md:h-[calc(100%-24px)] min-h-0">
-        <div className="relative flex-1 min-h-0 min-w-0 rounded-[20px] overflow-hidden bg-[#e5e5e5]">
-          <PlacesMap
-            pins={pins}
-            activeKey={activeKey}
-            onPinTap={handlePinTap}
-            onMapClick={handleClose}
-          />
+      {/* Full-bleed map — sits behind the dashboard header and the Lags
+          chrome (Z stack: map z-0, chrome z-10/20). Offsets to clear the
+          desktop sidebar. */}
+      <div className="fixed inset-0 lg:left-[17.0625rem] -z-10 bg-white">
+        <PlacesMap
+          pins={pins}
+          activeKey={activeKey}
+          onPinTap={handlePinTap}
+          onMapClick={handleClose}
+        />
 
-          {!ready && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="bg-white rounded-[16px] px-[20px] py-[14px] shadow-[0_4px_18px_rgba(0,0,0,0.14)] flex items-center gap-[12px]">
-                <span className="inline-flex w-[36px] h-[36px] rounded-full bg-primary-blue/10 text-primary-blue items-center justify-center animate-pulse">
-                  <MapPinIcon width={18} height={18} />
-                </span>
-                <span className="font-montserrat font-medium text-primary-blue text-[14px]">
-                  {LOADING_MESSAGES[loadingMessageIdx]}…
-                </span>
-              </div>
+        {!ready && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="bg-white rounded-[16px] px-[20px] py-[14px] shadow-[0_4px_18px_rgba(0,0,0,0.14)] flex items-center gap-[12px]">
+              <span className="inline-flex w-[36px] h-[36px] rounded-full bg-primary-blue/10 text-primary-blue items-center justify-center animate-pulse">
+                <MapPinIcon width={18} height={18} />
+              </span>
+              <span className="font-montserrat font-medium text-primary-blue text-[14px]">
+                {LOADING_MESSAGES[loadingMessageIdx]}…
+              </span>
             </div>
-          )}
+          </div>
+        )}
 
-          {empty && (
-            <div className="absolute inset-x-0 bottom-[24px] flex justify-center pointer-events-none">
-              <div className="bg-white/95 rounded-[16px] px-[20px] py-[16px] shadow-[0_4px_18px_rgba(0,0,0,0.12)] max-w-[360px] text-center">
-                <p className="font-montserrat font-semibold text-primary-blue text-[15px]">
-                  No places yet
-                </p>
-                <p className="mt-[6px] font-montserrat text-primary-blue/60 text-[13px] leading-[18px]">
-                  When you tag a place while writing a lag, it will show up
-                  here on the map.
-                </p>
-              </div>
+        {empty && (
+          <div className="absolute inset-x-0 bottom-[24px] flex justify-center pointer-events-none">
+            <div className="bg-white/95 rounded-[16px] px-[20px] py-[16px] shadow-[0_4px_18px_rgba(0,0,0,0.12)] max-w-[360px] text-center">
+              <p className="font-montserrat font-semibold text-primary-blue text-[15px]">
+                No places yet
+              </p>
+              <p className="mt-[6px] font-montserrat text-primary-blue/60 text-[13px] leading-[18px]">
+                When you tag a place while writing a lag, it will show up
+                here on the map.
+              </p>
             </div>
-          )}
-        </div>
-
-        {activePlace && (
-          <PlaceStoriesInlinePanel place={activePlace} resolved={resolved} />
+          </div>
         )}
       </div>
+
+      {/* Active-place panel floats above the map on desktop. */}
+      {activePlace && (
+        <div className="hidden md:block fixed top-[96px] right-[20px] bottom-[20px] z-20">
+          <PlaceStoriesInlinePanel place={activePlace} resolved={resolved} />
+        </div>
+      )}
 
       <PlaceStoriesMobileSheet
         place={activePlace}

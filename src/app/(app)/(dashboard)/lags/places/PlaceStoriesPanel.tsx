@@ -73,26 +73,26 @@ function PanelBody({
   const country = countryCodeFor(place, resolved);
   const heading = country ? `${city}, ${country}` : city;
   const subtitle =
-    place.storyCount === 1 ? "1 story" : `${place.storyCount} stories`;
+    place.storyCount === 1 ? "1 lag" : `${place.storyCount} lags`;
 
   return (
     <>
-      <div className="px-[16px] pb-[16px]">
-        <h2 className="font-montserrat font-medium text-primary-blue text-[22px] leading-tight">
+      <div className="px-[20px] pt-[18px] pb-[14px] flex items-baseline justify-between gap-[12px]">
+        <h2 className="font-ivy font-normal text-[#232323] text-[22px] md:text-[24px] leading-tight">
           {heading}
         </h2>
-        <p className="font-montserrat text-primary-blue/60 text-[13px] mt-[4px]">
+        <p className="font-montserrat text-[#2c2c2c]/60 text-[13px] shrink-0">
           {subtitle}
         </p>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide px-[16px] pb-[20px]">
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide px-[12px] md:px-[16px] pb-[20px]">
         {threads.length === 0 && !loading && (
-          <p className="pt-[24px] font-montserrat text-primary-blue/60 text-[14px]">
+          <p className="pt-[24px] font-montserrat text-[#2c2c2c]/60 text-[14px]">
             No stories at this place.
           </p>
         )}
-        <div className="flex flex-col gap-[10px]">
+        <div className="flex flex-col">
           {threads.map((t) => (
             <PlacePanelStoryRow key={t._id} thread={t} />
           ))}
@@ -100,7 +100,7 @@ function PanelBody({
         <div ref={sentinelRef} className="h-[1px]" />
         {loading && (
           <div className="pt-[16px] flex justify-center">
-            <div className="w-[20px] h-[20px] rounded-full border-2 border-primary-blue/20 border-t-primary-blue animate-spin" />
+            <div className="w-[20px] h-[20px] rounded-full border-2 border-[#2c2c2c]/20 border-t-[#2c2c2c] animate-spin" />
           </div>
         )}
       </div>
@@ -122,7 +122,7 @@ export function PlaceStoriesInlinePanel({
     <aside
       role="region"
       aria-label="Stories at place"
-      className="hidden md:flex flex-col w-[270px] md:-mt-[64px]"
+      className="hidden md:flex flex-col w-[340px] lg:w-[380px] h-full bg-[#F3F1EB] rounded-[20px] shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden"
     >
       <PanelBody
         key={place.placeId ?? place.formattedAddress}
@@ -169,7 +169,7 @@ export function PlaceStoriesMobileSheet({
       <aside
         role="dialog"
         aria-label="Stories at place"
-        className={`fixed z-40 bg-white flex flex-col shadow-[0_-4px_20px_rgba(0,0,0,0.1)]
+        className={`fixed z-40 bg-[#F3F1EB] flex flex-col shadow-[0_-4px_20px_rgba(0,0,0,0.1)]
           left-0 right-0 bottom-0 h-[70vh] rounded-t-[24px]
           transition-transform duration-200
           ${open ? "translate-y-0" : "translate-y-full"}

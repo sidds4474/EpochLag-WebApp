@@ -26,6 +26,10 @@ const TABS: Array<{ href: string; label: string; match: (p: string) => boolean }
 export default function LagsTabs() {
   const pathname = usePathname() ?? "";
   const { headerRight } = useSelectMode();
+  const isPlaces = pathname.startsWith("/lags/places");
+  const inactiveBg = isPlaces
+    ? "bg-white text-[#232323] hover:bg-white/90"
+    : "bg-[#E6E3D9] text-[#232323] hover:bg-[#dcd8ca]";
   return (
     <div className="flex items-center justify-between gap-[12px] md:gap-[16px]">
       <div className="flex items-center gap-[8px] md:gap-[10px] overflow-x-auto scrollbar-hide max-w-full">
@@ -36,9 +40,7 @@ export default function LagsTabs() {
               key={tab.href}
               href={tab.href}
               className={`relative cursor-pointer px-[20px] md:px-[22px] py-[8px] md:py-[10px] rounded-full font-montserrat font-medium text-[14px] whitespace-nowrap transition-colors ${
-                active
-                  ? "bg-primary-orange text-white"
-                  : "bg-[#E6E3D9] text-[#232323] hover:bg-[#dcd8ca]"
+                active ? "bg-primary-orange text-white" : inactiveBg
               }`}
             >
               <span className="relative">{tab.label}</span>

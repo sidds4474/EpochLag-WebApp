@@ -1,98 +1,110 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useAuth } from "../../../../../lib/auth/AuthProvider";
-import { fetchThread } from "../../../../../lib/interactions/api";
-import type { ThreadResponse } from "../../../../../types/home";
-import ThreadViewer from "../../../../../views/Thread/ThreadViewer";
-import { ChevronLeftIcon } from "../../icons";
+// PromptViewer (ThreadDetail) — prompt-centric hub.
+// Shows the question + list of responders. Rows route INTO the lag viewer at
+// /thread/:tid/story/:sid. If the thread has no prompt (story-only thread),
+// this page redirects to the first story so no broken-hero state renders.
 
-type ThreadState =
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { fetchThread } from "../../../../../lib/interactions/api";
+import { fetchUserCard } from "../../../../../lib/home/api";
+import type { ThreadResponse, UserCard } from "../../../../../types/home";
+import PromptViewer from "../../../../../views/Thread/PromptViewer";
+
+type State =
   | { kind: "loading" }
   | { kind: "ready"; data: ThreadResponse }
   | { kind: "error"; message: string };
 
-export default function ThreadPage() {
+function userCardToThread(card: UserCard): ThreadResponse {
+  const participants = (card.shareWith ?? []).map((u) => ({
+    _id: u._id,
+    firstName: u.firstName,
+    lastName: u.lastName,
+    profilePicture: u.profilePicture,
+    role: "recipient" as const,
+  }));
+  return {
+    thread: {
+      _id: card._id,
+      prompt: {
+        _id: card._id,
+        content: card.content,
+        title: card.title,
+        imageUrl: card.imageUrl,
+        isTitleAvailable: card.isTitleAvailable,
+        note: card.note,
+        author: card.author,
+      },
+      participants,
+    },
+    stories: [],
+    isBookmarked: card.isBookmarked ?? false,
+  };
+}
+
+function threadHasPrompt(data: ThreadResponse): boolean {
+  const p = data.thread?.prompt;
+  if (!p) return false;
+  // Mobile parity: a "prompt" is only real content when the user has typed
+  // something — the placeholder title state (isTitleAvailable) isn't a prompt.
+  const hasBody = Boolean(
+    (p.content && p.content.trim()) || p.imageUrl
+  );
+  if (!hasBody) return false;
+  return !p.isTitleAvailable;
+}
+
+export default function PromptViewerPage() {
   const router = useRouter();
   const params = useParams<{ threadId: string }>();
   const threadId = params?.threadId ?? "";
-  const { user } = useAuth();
 
-  const [state, setState] = useState<ThreadState>({ kind: "loading" });
-  const [activeStoryIndex, setActiveStoryIndex] = useState(0);
-  // Portal targets for ThreadViewer's header-row content on desktop.
-  // ThreadViewer teleports the music pill into `musicSlotRef` (centered between
-  // the title and the actions) and the Add Story + / ⋯ actions into
-  // `actionsSlotRef` (right side).
-  const musicSlotRef = useRef<HTMLDivElement>(null);
-  const actionsSlotRef = useRef<HTMLDivElement>(null);
-  const mobileMenuSlotRef = useRef<HTMLDivElement>(null);
+  const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
     if (!threadId) return;
     let cancelled = false;
     setState({ kind: "loading" });
-    setActiveStoryIndex(0);
 
     fetchThread(threadId)
-      .then(({ data, envelope }) => {
+      .then(({ data }) => {
         if (cancelled) return;
-        console.log("[thread] full response:", envelope);
+        // Story-only thread → bounce to the first story so the lag viewer
+        // handles rendering. No prompt hero to render here.
+        if (!threadHasPrompt(data) && data.stories.length > 0) {
+          router.replace(`/thread/${threadId}/story/${data.stories[0]._id}`);
+          return;
+        }
         setState({ kind: "ready", data });
       })
-      .catch((err) => {
+      .catch(async () => {
         if (cancelled) return;
-        console.log("[thread] error:", err);
-        setState({
-          kind: "error",
-          message:
-            err instanceof Error ? err.message : "Couldn't load the story",
-        });
+        // Conversations "askedYou" rows pass a user-card id (not a thread id)
+        // because the prompt hasn't been answered yet — no thread exists. Fall
+        // back to GET /api/user-card/:id and render a prompt-only hub.
+        try {
+          const card = await fetchUserCard(threadId);
+          if (cancelled) return;
+          setState({ kind: "ready", data: userCardToThread(card) });
+        } catch (err) {
+          if (cancelled) return;
+          setState({
+            kind: "error",
+            message:
+              err instanceof Error ? err.message : "Couldn't load this thread",
+          });
+        }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [threadId]);
-
-  const handleBack = () => {
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push("/home");
-    }
-  };
+  }, [threadId, router]);
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="px-[24px] lg:px-[80px] pt-[16px] pb-[8px] shrink-0 flex items-center justify-between gap-[12px]">
-        <button
-          type="button"
-          onClick={handleBack}
-          className="cursor-pointer inline-flex items-center gap-[8px] text-primary-blue hover:opacity-80 transition-opacity min-w-0 shrink-0"
-        >
-          <span className="w-[32px] h-[32px] rounded-full bg-[#ededed] flex items-center justify-center shrink-0">
-            <ChevronLeftIcon width={18} height={18} />
-          </span>
-          <span className="hidden lg:inline font-montserrat font-semibold lg:font-bold text-[20px] md:text-[24px] lg:text-[30px] leading-tight lg:leading-[36px] truncate">
-            Story
-          </span>
-        </button>
-        <div
-          ref={musicSlotRef}
-          className="flex flex-1 min-w-0 items-center justify-center"
-        />
-        <div
-          ref={actionsSlotRef}
-          className="hidden lg:flex items-center gap-[10px] shrink-0"
-        />
-        <div
-          ref={mobileMenuSlotRef}
-          className="lg:hidden flex items-center shrink-0"
-        />
-      </div>
-
+    <div className="min-h-full flex flex-col bg-[#F3F1EB]">
       <div className="flex-1 min-h-0 flex flex-col relative">
         {state.kind === "loading" ? (
           <div className="flex-1 flex items-center justify-center px-[24px] py-[24px]">
@@ -105,43 +117,7 @@ export default function ThreadPage() {
             </p>
           </div>
         ) : (
-          <ThreadViewer
-            data={state.data}
-            activeIndex={activeStoryIndex}
-            onSelectIndex={setActiveStoryIndex}
-            currentUser={user}
-            actionsPortalRef={actionsSlotRef}
-            musicPortalRef={musicSlotRef}
-            mobileMenuPortalRef={mobileMenuSlotRef}
-            onStoryDeleted={(deletedStoryId) => {
-              if (state.kind !== "ready") return;
-              const remaining = state.data.stories.filter(
-                (s) => s._id !== deletedStoryId
-              );
-              if (remaining.length === 0) {
-                // Empty thread — bounce back to where the user came from.
-                if (
-                  typeof window !== "undefined" &&
-                  window.history.length > 1
-                ) {
-                  router.back();
-                } else {
-                  router.push("/home");
-                }
-                return;
-              }
-              // Clamp the active index so we don't fall off the end.
-              const nextIndex = Math.min(
-                activeStoryIndex,
-                remaining.length - 1
-              );
-              setState({
-                kind: "ready",
-                data: { ...state.data, stories: remaining },
-              });
-              setActiveStoryIndex(nextIndex);
-            }}
-          />
+          <PromptViewer data={state.data} />
         )}
       </div>
     </div>

@@ -14,12 +14,16 @@ export default function LibraryLayout({ children }: { children: ReactNode }) {
     <SelectModeProvider>
       <div
         className={`flex flex-col h-full min-h-0 px-[12px] md:px-[32px] pt-[16px] ${
-          isPlaces ? "bg-transparent relative z-10" : "bg-[#f3f1eb]"
+          isPlaces
+            ? "bg-transparent relative z-10 pointer-events-none"
+            : "bg-[#f3f1eb]"
         }`}
       >
-        <LibraryHeading />
-        <LibraryTabs />
-        <LibraryContent>{children}</LibraryContent>
+        <div className={isPlaces ? "pointer-events-auto" : undefined}>
+          <LibraryHeading />
+          <LibraryTabs />
+        </div>
+        <LibraryContent passThrough={isPlaces}>{children}</LibraryContent>
       </div>
     </SelectModeProvider>
   );

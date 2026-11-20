@@ -1,6 +1,6 @@
 "use client";
 
-import { APIProvider, Map as GMap, useMap } from "@vis.gl/react-google-maps";
+import { Map as GMap, useMap } from "@vis.gl/react-google-maps";
 import { useEffect, useRef } from "react";
 
 export type MapPin = {
@@ -257,22 +257,24 @@ export default function PlacesMap({
     );
   }
 
+  // APIProvider is mounted once at the dashboard layout with
+  // libraries={["places"]}; mounting another here caused Maps JS to log
+  // "already loaded with different parameters" and silently drop the
+  // second init.
   return (
-    <APIProvider apiKey={apiKey} libraries={["places"]}>
-      <GMap
-        defaultCenter={DEFAULT_CENTER}
-        defaultZoom={DEFAULT_ZOOM}
-        disableDefaultUI
-        clickableIcons={false}
-        gestureHandling="greedy"
-        styles={GRAYSCALE_STYLE}
-        className="w-full h-full"
-      >
-        <InitialCoverFit pins={pins} />
-        <FocusActivePin pins={pins} activeKey={activeKey} />
-        <MapClickCloser onMapClick={onMapClick} />
-        <MarkersLayer pins={pins} activeKey={activeKey} onPinTap={onPinTap} />
-      </GMap>
-    </APIProvider>
+    <GMap
+      defaultCenter={DEFAULT_CENTER}
+      defaultZoom={DEFAULT_ZOOM}
+      disableDefaultUI
+      clickableIcons={false}
+      gestureHandling="greedy"
+      styles={GRAYSCALE_STYLE}
+      className="w-full h-full"
+    >
+      <InitialCoverFit pins={pins} />
+      <FocusActivePin pins={pins} activeKey={activeKey} />
+      <MapClickCloser onMapClick={onMapClick} />
+      <MarkersLayer pins={pins} activeKey={activeKey} onPinTap={onPinTap} />
+    </GMap>
   );
 }

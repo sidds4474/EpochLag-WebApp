@@ -40,7 +40,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   usePrefetchRoutes(COMMON_ROUTES);
 
   return (
-    <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+    <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={["places"]}>
       <div className="h-svh w-full bg-white flex overflow-hidden">
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0 min-h-0">

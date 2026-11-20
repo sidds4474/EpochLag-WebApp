@@ -28,7 +28,7 @@ export default function Header({ user, onOpenDrawer }: HeaderProps) {
   const pathname = usePathname() ?? "";
   const transparent = pathname.startsWith("/lags/places");
   return (
-    <header className={`relative hidden md:flex items-center gap-[12px] md:gap-[16px] px-[16px] md:px-[32px] lg:px-[40px] pt-[16px] md:pt-[24px] pb-[16px] md:pb-[20px] ${transparent ? "bg-transparent z-20" : "bg-[#F3F1EB]"}`}>
+    <header className={`relative hidden md:flex items-center gap-[12px] md:gap-[16px] px-[16px] md:px-[32px] lg:px-[40px] pt-[16px] md:pt-[24px] pb-[16px] md:pb-[20px] ${transparent ? "bg-transparent z-20 pointer-events-none [&_a]:pointer-events-auto [&_button]:pointer-events-auto [&_input]:pointer-events-auto [&_label]:pointer-events-auto" : "bg-[#F3F1EB]"}`}>
       {/* Tablet (md → lg): hamburger left, wordmark centered, search+bell right.
           Desktop (lg+): search pill fills the middle, bell + avatar on the right. */}
       <button

@@ -143,7 +143,7 @@ export default function LagsPlacesPage() {
       {/* Full-bleed map — sits behind the dashboard header and the Lags
           chrome (Z stack: map z-0, chrome z-10/20). Offsets to clear the
           desktop sidebar. */}
-      <div className="fixed inset-0 lg:left-[17.0625rem] -z-10 bg-white">
+      <div className="fixed inset-0 lg:left-[17.0625rem] -z-10 bg-white pointer-events-auto">
         <PlacesMap
           pins={pins}
           activeKey={activeKey}
@@ -181,7 +181,7 @@ export default function LagsPlacesPage() {
 
       {/* Active-place panel floats above the map on desktop. */}
       {activePlace && (
-        <div className="hidden md:block fixed top-[96px] right-[20px] bottom-[20px] z-20">
+        <div className="hidden md:block fixed top-[96px] right-[20px] bottom-[20px] z-20 pointer-events-auto">
           <PlaceStoriesInlinePanel place={activePlace} resolved={resolved} />
         </div>
       )}

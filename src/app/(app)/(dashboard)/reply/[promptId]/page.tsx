@@ -15,7 +15,7 @@ export default function ReplyPage({
   const router = useRouter();
 
   return (
-    <div className="h-full w-full flex justify-center min-h-0">
+    <div className="h-full w-full flex justify-center min-h-0 bg-[#F3F1EB]">
       <div className="flex-1 max-w-[720px] flex flex-col min-h-0">
         <ReplyEditor
           promptId={promptId}

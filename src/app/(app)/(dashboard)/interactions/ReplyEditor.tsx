@@ -428,7 +428,7 @@ export default function ReplyEditor({
 
       {/* Title */}
       <div className="mb-[14px]">
-        <div className="bg-[#ededed] rounded-full pl-[14px] pr-[16px] py-[10px] flex items-center gap-[10px]">
+        <div className="bg-white rounded-full pl-[14px] pr-[16px] py-[10px] flex items-center gap-[10px]">
           <PencilIcon
             width={16}
             height={16}
@@ -447,7 +447,7 @@ export default function ReplyEditor({
       {/* Body */}
       <div
         className={`flex-1 rounded-[20px] p-[16px] flex flex-col gap-[12px] ${
-          contentType === "audio" ? "bg-white" : "bg-[#ededed]"
+          contentType === "audio" ? "bg-white" : "bg-white"
         }`}
       >
         {contentType === "audio" ? (
@@ -624,7 +624,7 @@ function PromptPill({
           />
         )}
       </div>
-      <div className="flex-1 min-w-0 bg-[#ededed] rounded-[14px] px-[14px] py-[10px]">
+      <div className="flex-1 min-w-0 bg-white rounded-[14px] px-[14px] py-[10px]">
         {authorName && (
           <p className="font-montserrat font-semibold text-primary-blue text-[13px] mb-[2px]">
             {authorName} asked

@@ -84,7 +84,7 @@ export default function EditInfoPage() {
   const cover = bustUrl(user?.backgroundPicture ?? null, user?.updatedAt);
 
   return (
-    <div className="h-full flex flex-col min-h-0 overflow-y-auto bg-white">
+    <div className="h-full flex flex-col min-h-0 overflow-y-auto bg-[#f3f1eb]">
       <div className="px-[16px] md:px-[24px] lg:px-[40px] pt-[16px] md:pt-[20px] pb-[100px] md:pb-[40px] max-w-[1100px] mx-auto w-full">
         {/* Header row: back + title on the left, Save pill on the right.
             Save is the primary action on this screen; the pill mirrors
@@ -218,7 +218,7 @@ function TextField({
         required={required}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-[#ededed] rounded-full h-[44px] px-[16px] font-montserrat text-primary-blue placeholder:text-primary-blue/40 text-[14px] focus:outline-none focus:ring-2 focus:ring-primary-blue/20"
+        className="w-full bg-white rounded-full h-[44px] px-[16px] font-montserrat text-primary-blue placeholder:text-primary-blue/40 text-[14px] focus:outline-none focus:ring-2 focus:ring-primary-blue/20"
       />
     </div>
   );
@@ -240,7 +240,7 @@ function DateField({
         type="date"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-[#ededed] rounded-full h-[44px] px-[16px] font-montserrat text-primary-blue text-[14px] focus:outline-none focus:ring-2 focus:ring-primary-blue/20"
+        className="w-full bg-white rounded-full h-[44px] px-[16px] font-montserrat text-primary-blue text-[14px] focus:outline-none focus:ring-2 focus:ring-primary-blue/20"
       />
     </div>
   );
@@ -257,7 +257,7 @@ function BioField({
   return (
     <div>
       <FieldLabel>About</FieldLabel>
-      <div className="relative bg-[#ededed] rounded-[20px] p-[14px]">
+      <div className="relative bg-white rounded-[20px] p-[14px]">
         <textarea
           value={value}
           maxLength={max}
@@ -302,7 +302,7 @@ function LocationField({
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          className="cursor-pointer w-full bg-[#ededed] rounded-full h-[44px] pl-[40px] pr-[40px] font-montserrat text-left truncate text-[14px] focus:outline-none focus:ring-2 focus:ring-primary-blue/20 hover:brightness-95 transition-[filter]"
+          className="cursor-pointer w-full bg-white rounded-full h-[44px] pl-[40px] pr-[40px] font-montserrat text-left truncate text-[14px] focus:outline-none focus:ring-2 focus:ring-primary-blue/20 hover:brightness-95 transition-[filter]"
         >
           <MapPinIcon
             width={16}
@@ -446,7 +446,7 @@ function LocationPickerModal({
           </button>
         </div>
         <div className="px-[20px] pb-[20px]">
-          <div className="bg-[#ededed] rounded-full pl-[14px] pr-[16px] py-[10px] flex items-center gap-[10px]">
+          <div className="bg-white rounded-full pl-[14px] pr-[16px] py-[10px] flex items-center gap-[10px]">
             <SearchIcon
               width={16}
               height={16}

@@ -1,5 +1,3 @@
-import Gradient6 from "../../../../../assets/images/gradients/6.jpg";
-import HeroBanner from "../HeroBanner";
 import PanelMobileHeader from "../PanelMobileHeader";
 
 type Release = {
@@ -94,38 +92,56 @@ const RELEASES: Release[] = [
 ];
 
 export default function ReleaseNotesPage() {
+  const latest = RELEASES[0];
+  const latestNumber = latest?.version.replace(/^version\s*/i, "").trim() ?? "";
+
   return (
     <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <PanelMobileHeader title="Release Notes" />
-      <HeroBanner src={Gradient6.src} />
 
-      <div className="flex flex-col gap-[28px] max-w-[760px]">
-        <h1 className="font-montserrat font-normal text-primary-blue text-[20px] md:text-[22px]">
-          Release Notes
-        </h1>
+      <div className="flex flex-col max-w-[760px]">
+        <div className="flex flex-col gap-[4px]">
+          <h1 className="font-ivy font-normal text-[#232323] text-[24px] md:text-[28px] leading-[1.15]">
+            Release Notes
+          </h1>
+          {latestNumber && (
+            <p className="font-montserrat text-[#848484] text-[13px] md:text-[14px]">
+              Current version {latestNumber} · {latest?.date}
+            </p>
+          )}
+        </div>
 
-        {RELEASES.map((r, i) => (
-          <section key={i} className="flex flex-col gap-[10px]">
-            <div>
-              <h2 className="font-montserrat font-bold text-primary-blue text-[16px] md:text-[17px]">
-                {r.version}
-              </h2>
-              <p className="font-montserrat text-primary-blue/60 text-[12px] mt-[2px]">
-                {r.date}
-              </p>
-            </div>
-            <ul className="list-disc pl-[20px] flex flex-col gap-[8px]">
-              {r.items.map((item, j) => (
-                <li
-                  key={j}
-                  className="font-montserrat text-primary-blue text-[14px] leading-[160%]"
-                >
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+        <div className="hidden md:block mt-[16px] mb-[8px] border-t border-black/10" />
+
+        <div className="flex flex-col divide-y divide-black/10">
+          {RELEASES.map((r, i) => (
+            <section key={i} className="flex flex-col gap-[14px] py-[22px] md:py-[26px] first:pt-[18px] md:first:pt-[20px]">
+              <div className="flex items-baseline gap-[12px] flex-wrap">
+                <h2 className="font-ivy font-normal text-[#232323] text-[20px] md:text-[22px] leading-[1.2]">
+                  {r.version}
+                </h2>
+                <p className="font-montserrat text-[#848484] text-[13px] md:text-[14px]">
+                  {r.date}
+                </p>
+              </div>
+
+              <ul className="flex flex-col gap-[10px]">
+                {r.items.map((item, j) => (
+                  <li
+                    key={j}
+                    className="flex items-start gap-[10px] font-montserrat text-[#2c2c2c] text-[14px] leading-[160%]"
+                  >
+                    <span
+                      aria-hidden
+                      className="mt-[9px] w-[5px] h-[5px] rounded-full bg-primary-orange shrink-0"
+                    />
+                    <span className="flex-1 min-w-0">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
       </div>
     </div>
   );

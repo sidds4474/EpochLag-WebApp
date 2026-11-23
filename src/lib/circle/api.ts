@@ -160,6 +160,79 @@ export type CirclePersonLagsPage = {
   totalCount: number;
 };
 
+// ---------------- Group detail ----------------
+// GET /api/circles/groups/:id returns a shape close to the person detail
+// but with group-specific fields. `shared highlights` have no label/date/
+// place — groups only expose song + iconUrl.
+
+export type CircleGroupMember = {
+  _id: string;
+  firstName?: string;
+  lastName?: string;
+  profilePicture?: string | null;
+  epochlagID?: string;
+};
+
+export type CircleGroupSummaryInner = {
+  _id: string;
+  name: string;
+  memberCount: number;
+  members?: CircleGroupMember[];
+  groupPhotoUrl?: string | null;
+  owner?: {
+    _id: string;
+    firstName?: string;
+    lastName?: string;
+    profilePicture?: string | null;
+  } | null;
+  song?: CircleSongHighlight | null;
+  iconUrl?: string | null;
+  coverImageUrl?: string | null;
+  totalLags?: number;
+};
+
+export type CircleGroupDetail = {
+  group: CircleGroupSummaryInner;
+  inspoCards?: CirclePrompt[];
+  inspoSource?: string;
+};
+
+export async function fetchCircleGroup(
+  groupId: string,
+): Promise<CircleGroupDetail> {
+  const res = await api.get<Envelope<CircleGroupDetail>>(
+    `/api/circles/groups/${groupId}`,
+  );
+  return res.data;
+}
+
+export async function fetchCircleGroupLags(
+  groupId: string,
+  page = 1,
+  limit = 20,
+): Promise<CirclePersonLagsPage> {
+  // BE returns the same promptCards shape used by person lags, so reuse the
+  // CirclePersonLag type and CirclePersonLagsPage helper.
+  const res = await api.get<
+    Envelope<{
+      pagination?: {
+        currentPage?: number;
+        totalPages?: number;
+        totalCount?: number;
+      };
+      promptCards?: CirclePersonLag[];
+    }>
+  >(`/api/circles/groups/${groupId}/lags?page=${page}&limit=${limit}`);
+  const cards = res.data?.promptCards;
+  const pagination = res.data?.pagination;
+  return {
+    cards: Array.isArray(cards) ? cards : [],
+    currentPage: pagination?.currentPage ?? page,
+    totalPages: pagination?.totalPages ?? 1,
+    totalCount: pagination?.totalCount ?? 0,
+  };
+}
+
 export async function fetchCirclePersonLags(
   userId: string,
   page = 1,

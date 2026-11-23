@@ -4,10 +4,18 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Avatar from "../../../../../../components/Avatar";
 import { ChevronLeftIcon, ChevronRightIcon } from "../../../icons";
-import type {
-  CirclePersonDetail,
-  CirclePersonLag,
+import {
+  patchCirclePerson,
+  type CirclePersonDetail,
+  type CirclePersonLag,
 } from "../../../../../../lib/circle/api";
+import {
+  LocationModal,
+  MusicPickerModal,
+  type LocationValue,
+  type MusicValue,
+} from "../../../new-story/pickers";
+import { toast } from "react-hot-toast";
 import RelationshipCoverSheet from "./RelationshipCoverSheet";
 
 type Props = {
@@ -268,13 +276,86 @@ function HighlightsCard({
   relationship: CirclePersonDetail["relationship"];
   totalLags: number;
 }) {
-  const song = relationship?.song;
-  const location = relationship?.metPlace;
-  const since = formatMetOn(relationship?.metOn, relationship?.metOnPrecision);
+  const incomingSong = relationship?.song;
+  const incomingPlace = relationship?.metPlace;
+  const incomingMetOn = relationship?.metOn;
+  const incomingPrecision = relationship?.metOnPrecision;
+  // Local overrides so inline picks re-render the card without a refetch.
+  // `undefined` = no override yet.
+  const [songOverride, setSongOverride] = useState<MusicValue | null | undefined>(
+    undefined,
+  );
+  const [placeOverride, setPlaceOverride] = useState<
+    LocationValue | null | undefined
+  >(undefined);
+  const [metOnOverride, setMetOnOverride] = useState<string | null | undefined>(
+    undefined,
+  );
+  const song = songOverride !== undefined ? songOverride : incomingSong;
+  const location =
+    placeOverride !== undefined ? placeOverride : incomingPlace;
+  const effectiveMetOn =
+    metOnOverride !== undefined ? metOnOverride : incomingMetOn;
+  const [musicOpen, setMusicOpen] = useState(false);
+  const [locationOpen, setLocationOpen] = useState(false);
+  const [yearOpen, setYearOpen] = useState(false);
+  const [savingSong, setSavingSong] = useState(false);
+  const [savingPlace, setSavingPlace] = useState(false);
+  const [savingYear, setSavingYear] = useState(false);
+  const since = formatMetOn(effectiveMetOn, incomingPrecision);
   const iconUrl = relationship?.iconUrl;
   const lagCount = totalLags;
   const hasAnyHighlight = !!(song?.trackName || location || since || iconUrl);
   const editHref = `/circle/person/${userId}/edit`;
+
+  async function handleSongPick(v: MusicValue) {
+    if (savingSong) return;
+    setSavingSong(true);
+    setMusicOpen(false);
+    try {
+      await patchCirclePerson(userId, { song: v });
+      setSongOverride(v);
+      toast.success("Saved");
+    } catch {
+      toast.error("Couldn't save song");
+    } finally {
+      setSavingSong(false);
+    }
+  }
+
+  async function handlePlacePick(v: LocationValue) {
+    if (savingPlace) return;
+    setSavingPlace(true);
+    setLocationOpen(false);
+    try {
+      await patchCirclePerson(userId, { metPlace: v });
+      setPlaceOverride(v);
+      toast.success("Saved");
+    } catch {
+      toast.error("Couldn't save place");
+    } finally {
+      setSavingPlace(false);
+    }
+  }
+
+  async function handleYearPick(year: number) {
+    if (savingYear) return;
+    setSavingYear(true);
+    setYearOpen(false);
+    try {
+      const iso = `${year}-01-01T00:00:00.000Z`;
+      await patchCirclePerson(userId, {
+        metOn: iso,
+        metOnPrecision: "month",
+      });
+      setMetOnOverride(iso);
+      toast.success("Saved");
+    } catch {
+      toast.error("Couldn't save year");
+    } finally {
+      setSavingYear(false);
+    }
+  }
 
   // Mobile parity: when there's nothing set, show a single clickable "Add
   // relationship highlights" card instead of the dense breakdown. Keeps the
@@ -324,32 +405,91 @@ function HighlightsCard({
         </Link>
       </header>
 
-      {song?.trackName && <SongRow song={song} />}
+      {song?.trackName ? (
+        <SongRow song={song} />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setMusicOpen(true)}
+          disabled={savingSong}
+          className="mt-[12px] w-full flex items-center gap-[12px] hover:bg-black/[0.03] rounded-[12px] px-[0px] py-[8px] text-left transition-colors disabled:opacity-60"
+        >
+          <span className="w-[48px] h-[48px] rounded-[6px] bg-[#2C2C2C]/15 shrink-0" />
+          <span className="text-[#2C2C2C] text-[14px] md:text-[15px]">
+            {savingSong ? "Saving…" : "+ Add a song"}
+          </span>
+        </button>
+      )}
 
-      {(since || location) && (
-        <div className="mt-[12px] border-t border-[#C9C9C9]/50 grid grid-cols-2 items-stretch">
-          {since && (
-            <div className="px-[12px] py-[6px] flex items-center min-w-0">
-              <span className="text-[#2C2C2C] text-[14px] md:text-[15px] leading-tight truncate">
-                Since {since}
-              </span>
-            </div>
-          )}
-          {location && (
-            <div
-              className={`px-[12px] py-[6px] flex items-center min-w-0 border-l border-[#C9C9C9]/50 ${
-                since ? "" : "col-start-2"
-              }`}
-            >
-              <span className="text-[#2C2C2C] text-[14px] md:text-[15px] leading-tight truncate">
-                {location.city ||
-                  location.country ||
-                  location.formattedAddress ||
-                  ""}
-              </span>
-            </div>
-          )}
-        </div>
+      {musicOpen && (
+        <MusicPickerModal
+          onClose={() => setMusicOpen(false)}
+          onSelect={handleSongPick}
+        />
+      )}
+
+      <div className="mt-[12px] border-t border-[#C9C9C9]/50 grid grid-cols-2 items-stretch">
+        {/* Since cell — value or inline placeholder */}
+        {since ? (
+          <div className="px-[12px] py-[6px] flex items-center min-w-0">
+            <span className="text-[#2C2C2C] text-[14px] md:text-[15px] leading-tight truncate">
+              Since {since}
+            </span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setYearOpen(true)}
+            disabled={savingYear}
+            className="px-[12px] py-[6px] flex items-center min-w-0 text-left hover:bg-black/[0.03] transition-colors disabled:opacity-60"
+          >
+            <span className="text-[#2C2C2C] text-[14px] md:text-[15px] leading-tight truncate">
+              {savingYear ? "Saving…" : "+ Add year"}
+            </span>
+          </button>
+        )}
+        {/* Place cell — value or inline placeholder */}
+        {location ? (
+          <div className="px-[12px] py-[6px] flex items-center min-w-0 border-l border-[#C9C9C9]/50">
+            <span className="text-[#2C2C2C] text-[14px] md:text-[15px] leading-tight truncate">
+              {location.city || location.formattedAddress || ""}
+            </span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setLocationOpen(true)}
+            disabled={savingPlace}
+            className="px-[12px] py-[6px] flex items-center min-w-0 border-l border-[#C9C9C9]/50 text-left hover:bg-black/[0.03] transition-colors disabled:opacity-60"
+          >
+            <span className="text-[#2C2C2C] text-[14px] md:text-[15px] leading-tight truncate">
+              {savingPlace ? "Saving…" : "+ Add where you met"}
+            </span>
+          </button>
+        )}
+      </div>
+
+      {locationOpen && (
+        <LocationModal
+          initial={
+            location
+              ? {
+                  formattedAddress: location.formattedAddress || "",
+                  placeId: location.placeId || "",
+                  city: location.city || "",
+                }
+              : null
+          }
+          onClose={() => setLocationOpen(false)}
+          onSubmit={handlePlacePick}
+        />
+      )}
+      {yearOpen && (
+        <InlineYearPickerModal
+          initial={effectiveMetOn ? yearOfIso(effectiveMetOn) : null}
+          onClose={() => setYearOpen(false)}
+          onSelect={handleYearPick}
+        />
       )}
 
       {lagCount > 0 && (
@@ -755,6 +895,81 @@ function EditPencil() {
         strokeLinejoin="round"
       />
     </svg>
+  );
+}
+
+function yearOfIso(iso: string): number {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? new Date().getUTCFullYear()
+    : d.getUTCFullYear();
+}
+
+function InlineYearPickerModal({
+  initial,
+  onClose,
+  onSelect,
+}: {
+  initial: number | null;
+  onClose: () => void;
+  onSelect: (year: number) => void;
+}) {
+  const currentYear = new Date().getUTCFullYear();
+  const years = useMemo(() => {
+    const out: number[] = [];
+    for (let y = currentYear; y >= currentYear - 100; y--) out.push(y);
+    return out;
+  }, [currentYear]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] bg-black/40 flex items-center justify-center p-[16px]"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-[20px] w-full max-w-[380px] max-h-[70vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="px-[20px] py-[14px] border-b border-black/5 flex items-center justify-between">
+          <h3 className="font-ivy text-[#2C2C2C] text-[18px]">Select year</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="w-[32px] h-[32px] flex items-center justify-center text-[#848484] hover:text-[#2C2C2C]"
+          >
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+              <path
+                d="M6 6l12 12M18 6l-12 12"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </header>
+        <ul className="flex-1 overflow-y-auto">
+          {years.map((y) => {
+            const selected = y === initial;
+            return (
+              <li key={y}>
+                <button
+                  type="button"
+                  onClick={() => onSelect(y)}
+                  className={`w-full text-left px-[20px] py-[12px] font-montserrat text-[15px] transition-colors ${
+                    selected
+                      ? "bg-primary-blue/10 text-primary-blue font-semibold"
+                      : "text-[#2C2C2C] hover:bg-black/[0.03]"
+                  }`}
+                >
+                  {y}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
   );
 }
 

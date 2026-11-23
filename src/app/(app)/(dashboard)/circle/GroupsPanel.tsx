@@ -7,24 +7,22 @@ import type { CircleGroupSummary } from "../../../../lib/circle/api";
 
 type Props = {
   groups: CircleGroupSummary[];
-  onCreateGroup?: () => void;
 };
 
-export default function GroupsPanel({ groups, onCreateGroup }: Props) {
+export default function GroupsPanel({ groups }: Props) {
   return (
     <section className="bg-[#E6E3D9] rounded-[20px] p-[20px] md:p-[24px] min-w-0">
       <header className="flex items-center justify-between pb-[16px]">
         <h2 className="font-ivy text-[#2C2C2C] text-[20px] md:text-[22px]">
           Groups
         </h2>
-        <button
-          type="button"
-          onClick={onCreateGroup}
+        <Link
+          href="/group/new"
           aria-label="Create group"
           className="w-[32px] h-[32px] rounded-full bg-white text-[#2C2C2C] flex items-center justify-center hover:bg-black/[0.05] transition-colors"
         >
           <PlusIcon width={16} height={16} strokeWidth={2} />
-        </button>
+        </Link>
       </header>
 
       {groups.length === 0 ? (

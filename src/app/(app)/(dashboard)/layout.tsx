@@ -34,10 +34,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "";
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Immersive routes hide the bottom tab bar, so don't reserve room for it.
-  const isImmersive = pathname.startsWith("/thread/");
-  // Circle person detail hides the mobile header so the hero cover can
-  // stretch to the top of the viewport. Desktop still shows the header.
-  const hideMobileHeader = /^\/circle\/person\/[^/]+$/.test(pathname);
+  const isImmersive =
+    pathname.startsWith("/thread/") || pathname.startsWith("/group/new");
+  // Circle person / group detail hides the mobile header so the hero cover
+  // can stretch to the top of the viewport. Desktop still shows the header.
+  const hideMobileHeader =
+    /^\/circle\/person\/[^/]+$/.test(pathname) ||
+    /^\/circle\/group\/[^/]+$/.test(pathname);
 
   usePrefetchRoutes(COMMON_ROUTES);
 

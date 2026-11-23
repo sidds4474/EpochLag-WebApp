@@ -23,6 +23,7 @@
     "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-easy-crop": "^6.2.5",
     "react-hot-toast": "^2.6.0",
     "react-markdown": "^10.1.0",
     "react-redux": "^9.3.0",

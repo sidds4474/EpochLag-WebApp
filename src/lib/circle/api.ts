@@ -186,6 +186,187 @@ export async function fetchCirclePersonLags(
   };
 }
 
+// ---------------- Options + icons (session-cached) ----------------
+
+export type RelationshipOption = {
+  slug: string;
+  displayName: string;
+  order?: number;
+};
+
+export type CircleOptions = {
+  relationships: RelationshipOption[];
+  labelMaxLength: number;
+};
+
+export type CircleIcon = {
+  _id: string;
+  tag?: string;
+  url: string;
+};
+
+let cachedOptions: CircleOptions | null = null;
+let cachedIcons: CircleIcon[] | null = null;
+
+const FALLBACK_RELATIONSHIPS: RelationshipOption[] = [
+  { slug: "Sibling", displayName: "Sibling" },
+  { slug: "Mom", displayName: "Mom" },
+  { slug: "Dad", displayName: "Dad" },
+  { slug: "Grandma", displayName: "Grandma" },
+  { slug: "Grandpa", displayName: "Grandpa" },
+  { slug: "Best friend", displayName: "Best friend" },
+  { slug: "Partner", displayName: "Partner" },
+  { slug: "Cousin", displayName: "Cousin" },
+];
+
+export async function fetchCircleOptions(): Promise<CircleOptions> {
+  if (cachedOptions) return cachedOptions;
+  try {
+    const res = await api.get<Envelope<unknown>>("/api/circles/options");
+    const d = res.data as {
+      relationships?: RelationshipOption[];
+      labelMaxLength?: number;
+    } | null;
+    const opts: CircleOptions = {
+      relationships: Array.isArray(d?.relationships)
+        ? d!.relationships!
+        : FALLBACK_RELATIONSHIPS,
+      labelMaxLength: d?.labelMaxLength ?? 60,
+    };
+    cachedOptions = opts;
+    return opts;
+  } catch {
+    // Fallback if endpoint 404s / errors — mobile parity.
+    return { relationships: FALLBACK_RELATIONSHIPS, labelMaxLength: 60 };
+  }
+}
+
+export async function fetchCircleIcons(): Promise<CircleIcon[]> {
+  if (cachedIcons) return cachedIcons;
+  const res = await api.get<Envelope<unknown>>("/api/icons");
+  const d = res.data as unknown;
+  let list: CircleIcon[] = [];
+  if (Array.isArray(d)) list = d as CircleIcon[];
+  else if (d && typeof d === "object") {
+    for (const key of ["icons", "items", "data"]) {
+      const maybe = (d as Record<string, unknown>)[key];
+      if (Array.isArray(maybe)) {
+        list = maybe as CircleIcon[];
+        break;
+      }
+    }
+  }
+  cachedIcons = list;
+  return list;
+}
+
+// ---------------- PATCH (diff-based) ----------------
+
+export type CirclePersonPatch = Partial<{
+  relationship: string | null;
+  song: CircleSongHighlight | null;
+  metOn: string | null;
+  metOnPrecision: string | null;
+  metPlace: CirclePlaceHighlight | null;
+  iconUrl: string | null;
+  // Remove cover path uses the same PATCH endpoint with null — null clears.
+  coverImageUrl: string | null;
+}>;
+
+export async function patchCirclePerson(
+  userId: string,
+  patch: CirclePersonPatch,
+): Promise<void> {
+  await api.patch(`/api/circles/people/${userId}`, patch);
+}
+
+export type CircleGroupPatch = Partial<{
+  song: CircleSongHighlight | null;
+  iconUrl: string | null;
+}>;
+
+export async function patchCircleGroup(
+  groupId: string,
+  patch: CircleGroupPatch,
+): Promise<void> {
+  await api.patch(`/api/circles/groups/${groupId}`, patch);
+}
+
+// ---------------- Cover image flow ----------------
+// Three-step direct-to-Cloudinary upload:
+//   1. POST /api/circles/people/:id/cover/upload-params → signed params
+//   2. POST uploadUrl (multipart to Cloudinary)         → { secure_url, public_id }
+//   3. POST /api/circles/people/:id/cover/confirm       → { hostedUrl }
+// Remove uses the existing patchCirclePerson with coverImageUrl: null.
+
+export type CoverUploadParams = {
+  uploadUrl: string;
+  // BE returns the Cloudinary signed params under `cloudinaryParams`.
+  cloudinaryParams: Record<string, string>;
+  // BE also pre-mints the publicId it will look for on confirm, so we
+  // pass it back verbatim in step 3 rather than reading it from the
+  // Cloudinary response.
+  publicId: string;
+  expiresAt?: string;
+};
+
+export async function fetchCoverUploadParams(
+  userId: string,
+  input: { fileName: string; fileSize: number; mimeType: string },
+): Promise<CoverUploadParams> {
+  const res = await api.post<Envelope<CoverUploadParams>>(
+    `/api/circles/people/${userId}/cover/upload-params`,
+    input,
+  );
+  return res.data;
+}
+
+type CloudinaryUploadResponse = {
+  secure_url: string;
+  public_id: string;
+};
+
+export async function uploadToCloudinaryRaw(
+  uploadUrl: string,
+  params: Record<string, string>,
+  file: File | Blob,
+): Promise<CloudinaryUploadResponse> {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(params)) {
+    form.append(key, value);
+  }
+  form.append("file", file);
+  const res = await fetch(uploadUrl, { method: "POST", body: form });
+  if (!res.ok) {
+    throw new Error(`Cloudinary upload failed (${res.status})`);
+  }
+  return (await res.json()) as CloudinaryUploadResponse;
+}
+
+export type CoverUploadErrorCode =
+  | "NOT_IN_CIRCLE"
+  | "COVER_NOT_OWNED"
+  | "COVER_NOT_FOUND"
+  | "COVER_INVALID"
+  | "COVER_VERIFY_FAILED";
+
+export function coverErrorMessage(code: string | undefined | null): string {
+  switch (code) {
+    case "NOT_IN_CIRCLE":
+      return "This person isn't in your circle anymore.";
+    case "COVER_NOT_OWNED":
+      return "That upload isn't yours — please try again.";
+    case "COVER_NOT_FOUND":
+      return "Upload didn't land. Please try again.";
+    case "COVER_INVALID":
+      return "That cover couldn't be saved. Try again.";
+    case "COVER_VERIFY_FAILED":
+      return "We couldn't verify that upload. Try again.";
+    default:
+      return "Please try again";
+  }
+}
+
 // ---------------- Family Tree ----------------
 // Powered by /api/family-tree/*. Independently cached from /api/circles.
 

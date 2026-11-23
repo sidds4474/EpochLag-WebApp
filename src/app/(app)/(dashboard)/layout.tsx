@@ -35,6 +35,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Immersive routes hide the bottom tab bar, so don't reserve room for it.
   const isImmersive = pathname.startsWith("/thread/");
+  // Circle person detail hides the mobile header so the hero cover can
+  // stretch to the top of the viewport. Desktop still shows the header.
+  const hideMobileHeader = /^\/circle\/person\/[^/]+$/.test(pathname);
 
   usePrefetchRoutes(COMMON_ROUTES);
 
@@ -44,10 +47,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           <AppDownloadBanner />
-          <Header
-            user={user}
-            onOpenDrawer={() => setDrawerOpen(true)}
-          />
+          <div className={hideMobileHeader ? "hidden md:block" : ""}>
+            <Header
+              user={user}
+              onOpenDrawer={() => setDrawerOpen(true)}
+            />
+          </div>
           <main className={`flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden ${pathname.startsWith("/lags/places") ? "" : pathname.startsWith("/lags") || pathname.startsWith("/settings") ? "bg-[#f3f1eb]" : ""} ${isImmersive ? "" : "pb-[80px] md:pb-0"}`}>
             {children}
           </main>

@@ -8,6 +8,7 @@ import type {
   CirclePersonDetail,
   CirclePersonLag,
 } from "../../../../../../lib/circle/api";
+import RelationshipCoverSheet from "./RelationshipCoverSheet";
 
 type Props = {
   person: CirclePersonDetail;
@@ -32,11 +33,19 @@ export default function RelationshipView({
   const rel = person.relationship;
   const label = rel?.myLabel?.trim() || "Relationship";
   const heroTitle = `${currentUserFirstName || "You"} + ${p?.firstName ?? "Someone"}`;
+  // Local override for the cover so the sheet can update the hero instantly
+  // without waiting for a refetch. Reset when the person prop changes.
+  const [coverOverride, setCoverOverride] = useState<string | null | undefined>(
+    undefined,
+  );
+  const [coverSheetOpen, setCoverSheetOpen] = useState(false);
+  const activeCoverUrl =
+    coverOverride !== undefined ? coverOverride : rel?.coverImageUrl ?? null;
 
   return (
     <div>
-      {/* Top header */}
-      <div className="flex items-center gap-[8px]">
+      {/* Top header — desktop only. On mobile, back + title overlay the cover. */}
+      <div className="hidden md:flex items-center gap-[8px]">
         <button
           type="button"
           onClick={onBack}
@@ -56,24 +65,39 @@ export default function RelationshipView({
         currentUserFirstName={currentUserFirstName}
         heroTitle={heroTitle}
         label={label}
-        coverImageUrl={rel?.coverImageUrl ?? null}
+        coverImageUrl={activeCoverUrl}
+        onEditCover={() => setCoverSheetOpen(true)}
+        onBack={onBack}
       />
 
-      {/* Highlights + prompt rotator */}
-      <div className="mt-[20px] md:mt-[24px] grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-[16px] md:gap-[20px] items-start">
-        <HighlightsCard
-          relationship={rel}
-          totalLags={person.totalLags ?? 0}
+      {/* Mobile gets its own horizontal padding since the page wrapper
+          strips px on <md so the cover can bleed edge-to-edge. */}
+      <div className="px-[16px] md:px-0">
+        {/* Highlights + prompt rotator */}
+        <div className="mt-[20px] md:mt-[24px] grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-[16px] md:gap-[20px] items-start">
+          <HighlightsCard
+            userId={p._id}
+            relationship={rel}
+            totalLags={person.totalLags ?? 0}
+          />
+          <PromptRotator prompts={person.inspoCards ?? []} />
+        </div>
+
+        {/* Shared Lags */}
+        <SharedLagsSection
+          lags={lags}
+          hasMore={hasMore}
+          loadingMore={loadingMore}
+          onLoadMore={onLoadMore}
         />
-        <PromptRotator prompts={person.inspoCards ?? []} />
       </div>
 
-      {/* Shared Lags */}
-      <SharedLagsSection
-        lags={lags}
-        hasMore={hasMore}
-        loadingMore={loadingMore}
-        onLoadMore={onLoadMore}
+      <RelationshipCoverSheet
+        open={coverSheetOpen}
+        userId={p._id}
+        hasCurrentCover={!!activeCoverUrl}
+        onClose={() => setCoverSheetOpen(false)}
+        onSaved={(url) => setCoverOverride(url)}
       />
     </div>
   );
@@ -85,87 +109,162 @@ function HeroBanner({
   heroTitle,
   label,
   coverImageUrl,
+  onEditCover,
+  onBack,
 }: {
   person: CirclePersonDetail["person"];
   currentUserFirstName: string;
   heroTitle: string;
   label: string;
   coverImageUrl: string | null;
+  onEditCover: () => void;
+  onBack: () => void;
 }) {
-  return (
-    <div className="relative mt-[16px] md:mt-[20px] overflow-hidden rounded-[18px] h-[180px] md:h-[200px]">
-      {/* Cover image if present; else fall back to the orange → navy gradient. */}
-      {coverImageUrl ? (
-        <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={coverImageUrl}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          {/* Dim for text legibility */}
-          <div className="absolute inset-0 bg-black/30" />
-        </>
-      ) : (
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(90deg, #EF9849 0%, #7A5B3C 45%, #2C2C2C 100%)",
-          }}
-        />
-      )}
-      <div className="relative h-full flex items-center justify-between gap-[16px] px-[20px] md:px-[28px]">
-        <div className="flex items-center gap-[14px] md:gap-[18px] min-w-0">
-          <div className="flex items-center shrink-0">
-            <span className="w-[72px] h-[72px] md:w-[88px] md:h-[88px] rounded-full ring-4 ring-white overflow-hidden">
-              <Avatar
-                user={{
-                  firstName: currentUserFirstName || "",
-                  profilePicture: null,
-                }}
-                size={88}
-                isSelf
-              />
-            </span>
-            <span className="-ml-[18px] md:-ml-[22px] w-[72px] h-[72px] md:w-[88px] md:h-[88px] rounded-full ring-4 ring-white overflow-hidden">
-              <Avatar
-                user={{
-                  firstName: person.firstName,
-                  profilePicture: person.profilePicture,
-                  updatedAt: person.updatedAt,
-                }}
-                size={88}
-              />
-            </span>
-          </div>
-          <div className="min-w-0 text-white">
-            <p className="font-ivy text-[22px] md:text-[28px] leading-[1.15] truncate">
-              {heroTitle}
-            </p>
-            <p className="mt-[2px] font-montserrat text-white/85 text-[13px] md:text-[14px]">
-              {label}
-            </p>
-          </div>
-        </div>
+  const coverBg = coverImageUrl ? (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={coverImageUrl}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+      <div className="absolute inset-0 bg-black/30" />
+    </>
+  ) : (
+    <div
+      className="absolute inset-0"
+      style={{
+        background:
+          "linear-gradient(90deg, #EF9849 0%, #7A5B3C 45%, #2C2C2C 100%)",
+      }}
+    />
+  );
 
-        {/* Edit pencil — inert for v1; opens edit sheet in follow-up */}
-        <button
-          type="button"
-          aria-label="Edit relationship"
-          className="shrink-0 w-[34px] h-[34px] rounded-full bg-white/90 text-[#2C2C2C] flex items-center justify-center hover:bg-white transition-colors"
+  return (
+    <div className="mt-[16px] md:mt-[20px]">
+      {/* ---------- Mobile layout ---------- */}
+      <div className="md:hidden relative">
+        {/* Cover image/gradient is clipped only on the bottom corners so
+            the top bleeds edge-to-edge and up to the viewport top. */}
+        <div className="relative overflow-hidden h-[200px]">
+          {coverBg}
+          {/* Overlay back + title on top of the cover (white) */}
+          <div className="absolute top-0 left-0 right-0 flex items-center gap-[8px] px-[12px] pt-[14px]">
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Back"
+              className="w-[36px] h-[36px] rounded-full bg-white/90 text-[#232323] flex items-center justify-center"
+            >
+              <ChevronLeftIcon width={18} height={18} />
+            </button>
+            <h1 className="font-ivy text-white text-[20px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+              Relationship
+            </h1>
+          </div>
+          <button
+            type="button"
+            onClick={onEditCover}
+            aria-label="Edit relationship cover"
+            className="absolute top-[14px] right-[12px] w-[36px] h-[36px] rounded-full bg-white/90 text-[#232323] flex items-center justify-center hover:bg-white transition-colors"
+          >
+            <EditPencil />
+          </button>
+        </div>
+        {/* Avatars sit OUTSIDE the clipped cover so they can hang halfway
+            below the card onto the cream page. Full-width absolute row
+            with flex-justify-center = reliable horizontal centering. */}
+        <div
+          className="absolute inset-x-0 flex justify-center pointer-events-none"
+          style={{ top: "164px" }}
         >
-          <EditPencil />
-        </button>
+          <span className="w-[72px] h-[72px] rounded-full ring-[3px] ring-white overflow-hidden">
+            <Avatar
+              user={{
+                firstName: currentUserFirstName || "",
+                profilePicture: null,
+              }}
+              size={72}
+              isSelf
+            />
+          </span>
+          <span className="-ml-[16px] w-[72px] h-[72px] rounded-full ring-[3px] ring-white overflow-hidden">
+            <Avatar
+              user={{
+                firstName: person.firstName,
+                profilePicture: person.profilePicture,
+                updatedAt: person.updatedAt,
+              }}
+              size={72}
+            />
+          </span>
+        </div>
+        <div className="mt-[44px] text-center">
+          <p className="font-ivy text-[#2C2C2C] text-[22px] leading-[1.1]">
+            {heroTitle}
+          </p>
+          <p className="mt-[2px] font-montserrat text-[#848484] text-[13px]">
+            {label}
+          </p>
+        </div>
+      </div>
+
+      {/* ---------- Desktop layout ---------- */}
+      <div className="hidden md:block relative overflow-hidden rounded-[18px] h-[200px]">
+        {coverBg}
+        <div className="relative h-full flex items-center justify-between gap-[16px] px-[28px]">
+          <div className="flex-1 min-w-0 flex items-center gap-[18px]">
+            <div className="flex items-center shrink-0">
+              <span className="w-[88px] h-[88px] rounded-full ring-4 ring-white overflow-hidden">
+                <Avatar
+                  user={{
+                    firstName: currentUserFirstName || "",
+                    profilePicture: null,
+                  }}
+                  size={88}
+                  isSelf
+                />
+              </span>
+              <span className="-ml-[22px] w-[88px] h-[88px] rounded-full ring-4 ring-white overflow-hidden">
+                <Avatar
+                  user={{
+                    firstName: person.firstName,
+                    profilePicture: person.profilePicture,
+                    updatedAt: person.updatedAt,
+                  }}
+                  size={88}
+                />
+              </span>
+            </div>
+            <div className="min-w-0 text-white">
+              <p className="font-ivy text-[28px] leading-[1.15] truncate">
+                {heroTitle}
+              </p>
+              <p className="mt-[2px] font-montserrat text-white/85 text-[14px]">
+                {label}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onEditCover}
+            aria-label="Edit relationship cover"
+            className="shrink-0 w-[34px] h-[34px] rounded-full bg-white/90 text-[#232323] flex items-center justify-center hover:bg-white transition-colors"
+          >
+            <EditPencil />
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
 function HighlightsCard({
+  userId,
   relationship,
   totalLags,
 }: {
+  userId: string;
   relationship: CirclePersonDetail["relationship"];
   totalLags: number;
 }) {
@@ -174,61 +273,98 @@ function HighlightsCard({
   const since = formatMetOn(relationship?.metOn, relationship?.metOnPrecision);
   const iconUrl = relationship?.iconUrl;
   const lagCount = totalLags;
-  const anyContent = !!(song?.trackName || location || since || lagCount);
+  const hasAnyHighlight = !!(song?.trackName || location || since || iconUrl);
+  const editHref = `/circle/person/${userId}/edit`;
 
-  return (
-    <section className="bg-white rounded-[16px] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-[16px] md:p-[20px]">
-      <header className="flex items-center justify-between">
+  // Mobile parity: when there's nothing set, show a single clickable "Add
+  // relationship highlights" card instead of the dense breakdown. Keeps the
+  // column from looking empty on first-visit.
+  if (!hasAnyHighlight) {
+    return (
+      <section>
         <h2 className="font-montserrat font-semibold text-[#2C2C2C] text-[13px] md:text-[14px] uppercase tracking-[0.04em]">
           Relationship Highlights
         </h2>
-        <button
-          type="button"
+        <Link
+          href={editHref}
+          className="mt-[12px] flex items-center justify-center gap-[12px] bg-[#EDE9DD] hover:bg-[#E2DDCF] transition-colors rounded-[16px] px-[20px] py-[28px] md:py-[36px]"
+        >
+          <span className="w-[36px] h-[36px] rounded-full bg-white flex items-center justify-center text-[#2C2C2C]">
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+            </svg>
+          </span>
+          <span className="font-ivy text-[#2C2C2C] text-[16px] md:text-[18px]">
+            Add relationship highlights
+          </span>
+        </Link>
+      </section>
+    );
+  }
+
+  // Per product: everything inside the Highlights card renders in DM Mono —
+  // matches the Daily Lag and other label surfaces across the app.
+  return (
+    <section
+      className="py-[4px]"
+      style={{ fontFamily: "var(--font-dm-mono), ui-monospace, monospace" }}
+    >
+      <header className="flex items-center justify-between">
+        <h2
+          className="font-montserrat font-medium text-[#2C2C2C] text-[13px] md:text-[14px] uppercase tracking-[0.04em]"
+        >
+          Relationship Highlights
+        </h2>
+        <Link
+          href={editHref}
           aria-label="Edit highlights"
-          className="w-[28px] h-[28px] flex items-center justify-center text-[#848484] hover:text-[#2C2C2C] transition-colors"
+          className="w-[28px] h-[28px] flex items-center justify-center text-[#232323] hover:text-[#2C2C2C] transition-colors"
         >
           <EditPencil />
-        </button>
+        </Link>
       </header>
-
-      {!anyContent && (
-        <p className="mt-[12px] font-montserrat text-[#848484] text-[13px]">
-          No highlights yet.
-        </p>
-      )}
 
       {song?.trackName && <SongRow song={song} />}
 
       {(since || location) && (
-        <div className="mt-[12px] grid grid-cols-2 gap-[12px]">
+        <div className="mt-[12px] border-t border-[#C9C9C9]/50 grid grid-cols-2 items-stretch">
           {since && (
-            <Field label="Since" value={since} />
+            <div className="px-[12px] py-[6px] flex items-center min-w-0">
+              <span className="text-[#2C2C2C] text-[14px] md:text-[15px] leading-tight truncate">
+                Since {since}
+              </span>
+            </div>
           )}
           {location && (
-            <Field
-              label={(location.city || location.country) ?? "Location"}
-              value={
-                location.city && location.country
-                  ? `${location.city}, ${location.country}`
-                  : location.city || location.country || ""
-              }
-              singleLine
-            />
+            <div
+              className={`px-[12px] py-[6px] flex items-center min-w-0 border-l border-[#C9C9C9]/50 ${
+                since ? "" : "col-start-2"
+              }`}
+            >
+              <span className="text-[#2C2C2C] text-[14px] md:text-[15px] leading-tight truncate">
+                {location.city ||
+                  location.country ||
+                  location.formattedAddress ||
+                  ""}
+              </span>
+            </div>
           )}
         </div>
       )}
 
       {lagCount > 0 && (
-        <div className="mt-[16px] flex items-center justify-between border-t border-[#C9C9C9]/40 pt-[12px]">
-          <div>
-            <p className="font-ivy text-[#2C2C2C] text-[22px] md:text-[26px] leading-none">
+        <div className="border-t border-[#C9C9C9]/50 grid grid-cols-[1fr_auto] items-stretch">
+          <div className="px-[12px] py-[10px] flex items-center min-w-0">
+            <p className="text-[#2C2C2C] text-[22px] md:text-[26px] leading-none">
               {lagCount}
-              <span className="ml-[6px] font-montserrat text-[#848484] text-[12px] md:text-[13px] align-middle">
+              <span className="ml-[6px] text-[#848484] text-[12px] md:text-[13px] align-middle">
                 Lags Shared
               </span>
             </p>
           </div>
-          <IconHighlight url={iconUrl} />
+          <div className="px-[16px] py-[10px] flex items-center justify-center border-l border-[#C9C9C9]/50">
+            <IconHighlight url={iconUrl} />
+          </div>
         </div>
       )}
     </section>
@@ -270,11 +406,11 @@ function SongRow({
         <div className="w-[48px] h-[48px] rounded-[6px] bg-black/10 shrink-0" />
       )}
       <div className="flex-1 min-w-0 leading-tight">
-        <p className="font-montserrat font-semibold text-[#2C2C2C] text-[13px] md:text-[14px] truncate">
+        <p className="font-semibold text-[#2C2C2C] text-[13px] md:text-[14px] truncate">
           {song.trackName}
         </p>
         {song.artistName && (
-          <p className="font-montserrat text-[#848484] text-[12px] truncate">
+          <p className="text-[#848484] text-[12px] truncate">
             {song.artistName}
           </p>
         )}
@@ -310,39 +446,17 @@ function SongRow({
   );
 }
 
-function Field({
-  label,
-  value,
-  singleLine,
-}: {
-  label: string;
-  value: string;
-  singleLine?: boolean;
-}) {
-  return (
-    <div className="bg-[#F6F4EC] rounded-[10px] px-[12px] py-[10px] min-w-0">
-      <p className="font-montserrat text-[#848484] text-[11px] md:text-[12px] uppercase tracking-[0.04em]">
-        {label}
-      </p>
-      <p
-        className={`mt-[2px] font-ivy text-[#2C2C2C] text-[14px] md:text-[15px] ${singleLine ? "truncate" : ""}`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
 
 function IconHighlight({ url }: { url?: string | null }) {
   if (!url) {
     return (
-      <span className="text-[#2C2C2C] text-[22px]" aria-hidden>
+      <span className="text-[#2C2C2C] text-[32px]" aria-hidden>
         ♡
       </span>
     );
   }
   /* eslint-disable-next-line @next/next/no-img-element */
-  return <img src={url} alt="" className="w-[28px] h-[28px] object-contain" />;
+  return <img src={url} alt="" className="w-[40px] h-[40px] object-contain" />;
 }
 
 function PromptRotator({ prompts }: { prompts: Array<{ _id: string; content: string }> }) {
@@ -632,11 +746,11 @@ function PaperPlaneIcon() {
 
 function EditPencil() {
   return (
-    <svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+    <svg width={16} height={16} viewBox="0 0 20 20" fill="none" aria-hidden>
       <path
-        d="M4 20h4L19 9l-4-4L4 16v4z"
+        d="M14.168 2.497C14.3868 2.27813 14.6467 2.10451 14.9326 1.98606C15.2186 1.86761 15.5251 1.80664 15.8346 1.80664C16.1442 1.80664 16.4507 1.86761 16.7366 1.98606C17.0226 2.10451 17.2824 2.27813 17.5013 2.497C17.7202 2.71587 17.8938 2.9757 18.0122 3.26167C18.1307 3.54764 18.1917 3.85413 18.1917 4.16366C18.1917 4.47319 18.1307 4.77969 18.0122 5.06566C17.8938 5.35162 17.7202 5.61146 17.5013 5.83033L6.2513 17.0803L1.66797 18.3303L2.91797 13.747L14.168 2.497Z"
         stroke="currentColor"
-        strokeWidth={1.6}
+        strokeWidth={1.2463}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -646,20 +760,15 @@ function EditPencil() {
 
 function formatMetOn(
   iso?: string | null,
-  precision?: string | null,
+  _precision?: string | null,
 ): string {
+  // Web collects year-only via the picker; BE stores a full ISO with
+  // precision="month" for parity with mobile, but the UI always shows
+  // just the year. Ignore precision and render the year.
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  if (precision === "year") return String(d.getUTCFullYear());
-  if (precision === "month") {
-    return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-  }
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return String(d.getUTCFullYear());
 }
 
 function formatDate(iso?: string | null): string {

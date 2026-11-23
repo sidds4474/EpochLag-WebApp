@@ -86,7 +86,7 @@ export default function CirclePersonPage() {
 
   return (
     <div className="min-h-full bg-[#F3F1EB]">
-      <div className="mx-auto max-w-[1100px] px-[16px] sm:px-[24px] md:px-[40px] pt-[16px] md:pt-[20px] pb-[48px] md:pb-[64px]">
+      <div className="mx-auto max-w-[1100px] px-0 sm:px-[24px] md:px-[40px] pt-0 md:pt-[20px] pb-[48px] md:pb-[64px]">
         {loading && !person ? (
           <div className="flex items-center justify-center py-[64px]">
             <div className="w-[28px] h-[28px] border-[3px] border-primary-blue/20 border-t-primary-blue rounded-full animate-spin" />

@@ -32,6 +32,11 @@ import { useRouter } from "next/navigation";
 import MembersSheet from "./MembersSheet";
 import AddPeopleSheet from "./AddPeopleSheet";
 import type { CircleGroupMember } from "../../../../../../lib/circle/api";
+import SendToDrawer from "../../../../../../components/share/SendToDrawer";
+import { seedUserCard } from "../../../../../../lib/home/api";
+import { shareUserCard } from "../../../../../../lib/create/api";
+import { ApiError } from "../../../../../../lib/api/client";
+import type { UserCard } from "../../../../../../types/home";
 
 type Props = {
   group: CircleGroupDetail;
@@ -104,6 +109,62 @@ export default function GroupView({
     }
   }
 
+  // Share drawer state — opened by the rotator's "Send it" button.
+  const [sharePrompt, setSharePrompt] = useState<{
+    _id: string;
+    content: string;
+    imageUrl?: string | null;
+  } | null>(null);
+
+  function handleAnswerPrompt(prompt: {
+    _id: string;
+    content: string;
+    imageUrl?: string | null;
+  }) {
+    const now = new Date().toISOString();
+    const card: UserCard = {
+      _id: prompt._id,
+      type: "WHITE",
+      content: prompt.content,
+      title: null,
+      isTitleAvailable: false,
+      imageUrl: prompt.imageUrl ?? null,
+      isBookmarked: false,
+      author: null,
+      birthdayDetails: null,
+      note: null,
+      tags: [],
+      storyThread: null,
+      cardType: "INSPO",
+      createdAt: now,
+      updatedAt: now,
+    };
+    seedUserCard(card);
+    router.push(`/new-lag?promptId=${encodeURIComponent(prompt._id)}`);
+  }
+
+  async function handleSharePromptSend(
+    userIds: string[],
+    groupIds: string[],
+    note: string,
+  ) {
+    if (!sharePrompt) return;
+    try {
+      await shareUserCard(sharePrompt._id, {
+        shareWith: userIds,
+        groupIds,
+        sendSeparately: false,
+        note,
+      });
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Could not share. Please try again.";
+      throw new Error(message);
+    }
+  }
+
   return (
     <div>
       {/* Desktop header */}
@@ -137,7 +198,11 @@ export default function GroupView({
       <div className="px-[16px] md:px-0">
         <div className="mt-[20px] md:mt-[24px] grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-[16px] md:gap-[20px] items-start">
           <HighlightsCard group={g} />
-          <PromptRotator prompts={group.inspoCards ?? []} />
+          <PromptRotator
+            prompts={group.inspoCards ?? []}
+            onAnswer={handleAnswerPrompt}
+            onSend={setSharePrompt}
+          />
         </div>
 
         <SharedLagsSection
@@ -175,6 +240,19 @@ export default function GroupView({
         onCancel={() => {
           if (!leaving) setLeaveConfirmOpen(false);
         }}
+      />
+
+      <SendToDrawer
+        open={sharePrompt !== null}
+        onClose={() => setSharePrompt(null)}
+        onSend={handleSharePromptSend}
+        shareContext="prompt"
+        showMessageInput
+        shareTarget={
+          sharePrompt ? { kind: "prompt", id: sharePrompt._id } : undefined
+        }
+        // Prefill the group so one tap sends to all members together.
+        prefillGroupIds={[g._id]}
       />
     </div>
   );
@@ -597,10 +675,16 @@ function SongRow({
   );
 }
 
+type PromptLike = { _id: string; content: string; imageUrl?: string | null };
+
 function PromptRotator({
   prompts,
+  onAnswer,
+  onSend,
 }: {
-  prompts: Array<{ _id: string; content: string }>;
+  prompts: PromptLike[];
+  onAnswer: (p: PromptLike) => void;
+  onSend: (p: PromptLike) => void;
 }) {
   const list = useMemo(
     () => prompts.filter((p) => p.content?.trim()),
@@ -646,6 +730,7 @@ function PromptRotator({
       <div className="mt-[16px] flex items-center gap-[10px]">
         <button
           type="button"
+          onClick={() => onAnswer(prompt)}
           className="inline-flex items-center gap-[8px] rounded-full bg-primary-orange text-white px-[16px] py-[9px] font-montserrat text-[13px] hover:opacity-90"
         >
           <MicIcon />
@@ -653,6 +738,7 @@ function PromptRotator({
         </button>
         <button
           type="button"
+          onClick={() => onSend(prompt)}
           className="inline-flex items-center gap-[8px] rounded-full border border-[#2C2C2C]/30 text-[#232323] px-[16px] py-[9px] font-montserrat text-[13px] hover:bg-black/[0.03]"
         >
           <PaperPlaneIcon />

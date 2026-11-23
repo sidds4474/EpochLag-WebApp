@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Avatar from "../../../../../../components/Avatar";
 import { ChevronLeftIcon, ChevronRightIcon } from "../../../icons";
@@ -17,6 +18,11 @@ import {
 } from "../../../new-story/pickers";
 import { toast } from "react-hot-toast";
 import RelationshipCoverSheet from "./RelationshipCoverSheet";
+import SendToDrawer from "../../../../../../components/share/SendToDrawer";
+import { seedUserCard } from "../../../../../../lib/home/api";
+import { shareUserCard } from "../../../../../../lib/create/api";
+import { ApiError } from "../../../../../../lib/api/client";
+import type { UserCard } from "../../../../../../types/home";
 
 type Props = {
   person: CirclePersonDetail;
@@ -37,10 +43,65 @@ export default function RelationshipView({
   loadingMore,
   onLoadMore,
 }: Props) {
+  const router = useRouter();
   const p = person.person;
   const rel = person.relationship;
   const label = rel?.myLabel?.trim() || "Relationship";
   const heroTitle = `${currentUserFirstName || "You"} + ${p?.firstName ?? "Someone"}`;
+  // Share drawer state — opened by the PromptRotator's "Send it" button.
+  const [sharePrompt, setSharePrompt] = useState<{
+    _id: string;
+    content: string;
+    imageUrl?: string | null;
+  } | null>(null);
+
+  // Promote a CirclePrompt into the shape the composer + cache expect, then
+  // hand off to /new-lag. seedUserCard means the composer hydrates its prompt
+  // synchronously so the user never sees a blank state.
+  function handleAnswerPrompt(prompt: { _id: string; content: string; imageUrl?: string | null }) {
+    const now = new Date().toISOString();
+    const card: UserCard = {
+      _id: prompt._id,
+      type: "WHITE",
+      content: prompt.content,
+      title: null,
+      isTitleAvailable: false,
+      imageUrl: prompt.imageUrl ?? null,
+      isBookmarked: false,
+      author: null,
+      birthdayDetails: null,
+      note: null,
+      tags: [],
+      storyThread: null,
+      cardType: "INSPO",
+      createdAt: now,
+      updatedAt: now,
+    };
+    seedUserCard(card);
+    router.push(`/new-lag?promptId=${encodeURIComponent(prompt._id)}`);
+  }
+
+  async function handleSharePromptSend(
+    userIds: string[],
+    groupIds: string[],
+    note: string,
+  ) {
+    if (!sharePrompt) return;
+    try {
+      await shareUserCard(sharePrompt._id, {
+        shareWith: userIds,
+        groupIds,
+        sendSeparately: false,
+        note,
+      });
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Could not share. Please try again.";
+      throw new Error(message);
+    }
+  }
   // Local override for the cover so the sheet can update the hero instantly
   // without waiting for a refetch. Reset when the person prop changes.
   const [coverOverride, setCoverOverride] = useState<string | null | undefined>(
@@ -88,7 +149,11 @@ export default function RelationshipView({
             relationship={rel}
             totalLags={person.totalLags ?? 0}
           />
-          <PromptRotator prompts={person.inspoCards ?? []} />
+          <PromptRotator
+            prompts={person.inspoCards ?? []}
+            onAnswer={handleAnswerPrompt}
+            onSend={setSharePrompt}
+          />
         </div>
 
         {/* Shared Lags */}
@@ -106,6 +171,19 @@ export default function RelationshipView({
         hasCurrentCover={!!activeCoverUrl}
         onClose={() => setCoverSheetOpen(false)}
         onSaved={(url) => setCoverOverride(url)}
+      />
+
+      <SendToDrawer
+        open={sharePrompt !== null}
+        onClose={() => setSharePrompt(null)}
+        onSend={handleSharePromptSend}
+        shareContext="prompt"
+        showMessageInput
+        shareTarget={
+          sharePrompt ? { kind: "prompt", id: sharePrompt._id } : undefined
+        }
+        // Prefill the person we're viewing so a one-tap send works.
+        selectedUsers={p._id ? [p._id] : undefined}
       />
     </div>
   );
@@ -599,7 +677,17 @@ function IconHighlight({ url }: { url?: string | null }) {
   return <img src={url} alt="" className="w-[40px] h-[40px] object-contain" />;
 }
 
-function PromptRotator({ prompts }: { prompts: Array<{ _id: string; content: string }> }) {
+type PromptLike = { _id: string; content: string; imageUrl?: string | null };
+
+function PromptRotator({
+  prompts,
+  onAnswer,
+  onSend,
+}: {
+  prompts: PromptLike[];
+  onAnswer: (p: PromptLike) => void;
+  onSend: (p: PromptLike) => void;
+}) {
   // Random starting index on mount so returning users don't see the same line.
   const list = useMemo(() => prompts.filter((p) => p.content?.trim()), [prompts]);
   const [index, setIndex] = useState(() =>
@@ -644,6 +732,7 @@ function PromptRotator({ prompts }: { prompts: Array<{ _id: string; content: str
       <div className="mt-[16px] flex items-center gap-[10px]">
         <button
           type="button"
+          onClick={() => onAnswer(prompt)}
           className="inline-flex items-center gap-[8px] rounded-full bg-primary-orange text-white px-[16px] py-[9px] font-montserrat text-[13px] hover:opacity-90"
         >
           <MicIcon />
@@ -651,6 +740,7 @@ function PromptRotator({ prompts }: { prompts: Array<{ _id: string; content: str
         </button>
         <button
           type="button"
+          onClick={() => onSend(prompt)}
           className="inline-flex items-center gap-[8px] rounded-full border border-[#2C2C2C]/30 text-[#232323] px-[16px] py-[9px] font-montserrat text-[13px] hover:bg-black/[0.03]"
         >
           <PaperPlaneIcon />

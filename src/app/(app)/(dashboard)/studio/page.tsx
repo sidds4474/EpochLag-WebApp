@@ -210,7 +210,7 @@ export default function StudioPage() {
               {
                 icon: <AccountsSvg width={20} height={20} />,
                 label: "Accounts",
-                href: "/settings",
+                href: "/studio/accounts",
               },
             ]}
           />

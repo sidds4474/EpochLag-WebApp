@@ -21,6 +21,9 @@ export default function NewLagPage() {
   const albumId = searchParams.get("albumId");
   const promptId = searchParams.get("promptId");
   const draftId = searchParams.get("draftId");
+  const source = searchParams.get("source");
+  const dailyDate = searchParams.get("dailyDate");
+  const dailySource = source === "daily";
 
   // Next 15's router cache keeps the composer's component tree mounted across
   // navigations within the dashboard, so useMemo-based draft hydration doesn't
@@ -55,8 +58,11 @@ export default function NewLagPage() {
       albumId={albumId}
       promptId={promptId}
       draftId={draftId}
+      dailySource={dailySource}
+      dailyDate={dailyDate}
       onBack={() => {
-        if (draftId) router.push("/studio?tab=draft");
+        if (dailySource) router.push("/my-days");
+        else if (draftId) router.push("/studio?tab=draft");
         else if (promptId) router.push("/inspiration");
         else if (albumId) router.push(`/albums/${albumId}`);
         else router.push("/new-story");

@@ -45,6 +45,12 @@ import {
 import { buildPreviewThread } from "../../../../lib/create/preview";
 import { fetchUserCard, getCachedUserCard } from "../../../../lib/home/api";
 import { fetchDraftDetail } from "../../../../lib/studio/api";
+import { isFreePlanGate, postLag } from "../../../../lib/daily/api";
+import {
+  notifyDailyEntryChanged,
+  writeTodayKept,
+} from "../../../../lib/daily/cache";
+import { todayISO } from "../../../../lib/daily/date";
 import { useAuth } from "../../../../lib/auth/AuthProvider";
 import type { ThreadResponse, UserCard } from "../../../../types/home";
 import type { ContentBlock } from "../../../../types/story";
@@ -325,6 +331,12 @@ type Props = {
   /** Tell-a-Story reply — hide the prompt strip. The prompt id is still
    *  needed for createStory but there's nothing to render at the top. */
   hidePromptStrip?: boolean;
+  /** Daily Lag entry point (from Home → Daily Lag tile or My Days → empty
+   *  day). After publish succeeds the composer calls POST /api/lags to tag
+   *  the new thread as that day's lag and routes to /my-days. */
+  dailySource?: boolean;
+  /** YYYY-MM-DD for the lag. Only honored when dailySource is true. */
+  dailyDate?: string | null;
 };
 
 export default function StoryComposer({
@@ -350,6 +362,8 @@ export default function StoryComposer({
   replyThreadId = null,
   replyThreadCoverUrl = null,
   hidePromptStrip = false,
+  dailySource = false,
+  dailyDate = null,
 }: Props) {
   const isEdit = mode === "edit";
   const isReplyFlow = !isEdit && !!replyThreadId;
@@ -1114,6 +1128,35 @@ export default function StoryComposer({
       if (isReplyFlow) {
         router.replace(`/thread/${replyThreadId}`);
         return;
+      }
+      // Daily Lag flow: tag the thread as that day's lag, prime the Home
+      // tile, fire the refresh event emitter and route into My Days with
+      // the day pre-seeded. The POST is best-effort — if it fails the
+      // story still exists and we show a toast.
+      if (dailySource && dailyDate && threadId) {
+        try {
+          await postLag({ storyThreadId: threadId, date: dailyDate });
+          if (dailyDate === todayISO()) {
+            writeTodayKept(dailyDate, { threadId });
+          }
+          notifyDailyEntryChanged();
+          clearDraft(draftKey);
+          void clearAllMedia();
+          router.replace(`/my-days?dateISO=${dailyDate}`);
+          return;
+        } catch (err) {
+          if (isFreePlanGate(err)) {
+            toast.error("Upgrade to save more daily lags.");
+          } else if (err instanceof ApiError && err.code === "NOT_THREAD_PARTICIPANT") {
+            toast.error("You're no longer on this thread.");
+          } else if (err instanceof ApiError && err.status === 422) {
+            toast.error("Something's off with that date. Try again.");
+          } else {
+            toast.error("Couldn't save your day. Please try again.");
+          }
+          // Fall through to the regular celebration so the story is at
+          // least addressable in the thread view.
+        }
       }
       setCreatedStory({ storyId, threadId, taggedPeopleIds });
     } catch (err) {

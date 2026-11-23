@@ -26,7 +26,7 @@ import type {
   MomentParticipant,
 } from "../../../../../../types/moment";
 import { isoDayFromCalendar } from "../../../../../../lib/moments/date";
-import { ChevronLeftIcon, ImageIcon } from "../../../icons";
+import { ChevronDownIcon, ChevronLeftIcon, ImageIcon } from "../../../icons";
 import ChooseCoverModal from "../../../new-story/ChooseCoverModal";
 import WizardCalendar from "../../new/WizardCalendar";
 import { CheckboxRow, PersonAvatar } from "../../formShared";
@@ -146,7 +146,7 @@ export default function EditMomentPage({
 
   if (!moment || !form) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-white lg:relative lg:min-h-[60vh] lg:bg-transparent">
+      <div className="fixed inset-0 flex items-center justify-center bg-[#F3F1EB] lg:relative lg:min-h-[60vh] lg:bg-transparent">
         <p className="font-montserrat text-primary-blue/60 text-[14px]">
           Loading…
         </p>
@@ -335,54 +335,47 @@ export default function EditMomentPage({
   };
 
   const titleInput = (
-    <div>
-      <label className="block font-montserrat font-medium text-primary-blue text-[14px] mb-[6px]">
-        Event Name
-      </label>
+    <div className="relative">
       <input
         type="text"
         value={form.title}
         onChange={(e) => patch({ title: e.target.value })}
-        className="w-full h-[46px] rounded-full bg-[color:var(--color-surface-muted)] px-[20px] font-montserrat text-[14px] text-primary-blue focus:outline-none"
+        placeholder="Moment Name"
+        className="w-full bg-transparent border-b border-[#2c2c2c]/30 pb-[8px] pr-[32px] font-ivy font-normal text-[#232323] text-[22px] md:text-[26px] leading-[1.2] placeholder:text-[#2c2c2c]/40 focus:outline-none focus:border-[#2c2c2c]/60"
       />
+      <span className="pointer-events-none absolute right-0 bottom-[12px] text-[#2c2c2c]/60">
+        <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+        </svg>
+      </span>
     </div>
+  );
+
+  const freqDropdown = (
+    <FrequencyDropdown
+      value={form.recurrenceFrequency}
+      onChange={(v) => patch({ recurrenceFrequency: v })}
+    />
   );
 
   const recurringBlock = (
     <div className="flex flex-col gap-[12px]">
-      <CheckboxRow
-        checked={form.isRecurring}
-        onChange={(next) =>
-          patch({
-            isRecurring: next,
-            recurrenceFrequency: next
-              ? form.recurrenceFrequency ?? "yearly"
-              : form.recurrenceFrequency,
-          })
-        }
-        label="This is a recurring event"
-      />
-      {form.isRecurring && (
-        <div className="pl-[32px] flex flex-wrap gap-[8px]">
-          {FREQ_OPTIONS.map((f) => {
-            const active = form.recurrenceFrequency === f.value;
-            return (
-              <button
-                key={f.value}
-                type="button"
-                onClick={() => patch({ recurrenceFrequency: f.value })}
-                className={`cursor-pointer h-[32px] px-[14px] rounded-full border font-montserrat text-[13px] transition-colors ${
-                  active
-                    ? "bg-primary-orange border-primary-orange text-white font-medium"
-                    : "bg-white border-primary-blue/40 text-primary-blue"
-                }`}
-              >
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <div className="flex items-center justify-between gap-[12px]">
+        <CheckboxRow
+          checked={form.isRecurring}
+          onChange={(next) =>
+            patch({
+              isRecurring: next,
+              recurrenceFrequency: next
+                ? form.recurrenceFrequency ?? "yearly"
+                : form.recurrenceFrequency,
+            })
+          }
+          label="This is a recurring event"
+        />
+        {form.isRecurring && <div className="shrink-0">{freqDropdown}</div>}
+      </div>
       <CheckboxRow
         checked={form.addToCountdown}
         onChange={(next) => patch({ addToCountdown: next })}
@@ -529,39 +522,43 @@ export default function EditMomentPage({
     <button
       type="button"
       onClick={() => setPickerOpen(true)}
-      className="cursor-pointer relative w-full aspect-square rounded-[16px] overflow-hidden"
-      style={
-        !activeCoverUrl
-          ? { backgroundImage: fallbackGradient(moment.type) }
-          : undefined
-      }
+      className="cursor-pointer relative w-full bg-white p-[10px] pb-[18px] shadow-[0_4px_18px_rgba(0,0,0,0.18)]"
     >
-      {activeCoverUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={activeCoverUrl}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-      )}
-      <span className="absolute top-[12px] right-[12px] w-[32px] h-[32px] rounded-full bg-white text-primary-blue flex items-center justify-center shadow-[0_2px_6px_rgba(0,0,0,0.15)]">
-        <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <div
+        className="relative w-full aspect-square overflow-hidden bg-primary-blue/10"
+        style={
+          !activeCoverUrl
+            ? { backgroundImage: fallbackGradient(moment.type) }
+            : undefined
+        }
+      >
+        {activeCoverUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={activeCoverUrl}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
+        {!activeCoverUrl && (
+          <span className="absolute inset-0 flex items-center justify-center text-white">
+            <ImageIcon width={32} height={32} />
+          </span>
+        )}
+      </div>
+      <span className="absolute top-[20px] right-[20px] w-[32px] h-[32px] rounded-full bg-white text-[#2c2c2c] flex items-center justify-center shadow-[0_2px_6px_rgba(0,0,0,0.15)]">
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 20h9" />
           <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
         </svg>
       </span>
-      {!activeCoverUrl && (
-        <span className="absolute inset-0 flex items-center justify-center text-white">
-          <ImageIcon width={32} height={32} />
-        </span>
-      )}
     </button>
   );
 
   return (
     <>
       {/* Mobile / tablet: full-screen */}
-      <div className="lg:hidden fixed inset-0 z-40 bg-white flex flex-col">
+      <div className="lg:hidden fixed inset-0 z-40 bg-[#F3F1EB] flex flex-col">
         <div className="flex items-center justify-between px-[16px] pt-[max(env(safe-area-inset-top),16px)] pb-[8px]">
           <button
             type="button"
@@ -585,61 +582,75 @@ export default function EditMomentPage({
             {peopleBlock}
           </div>
         </div>
-        <div className="fixed left-0 right-0 bottom-0 z-30 bg-white px-[24px] pt-[12px] pb-[max(env(safe-area-inset-bottom),20px)]">
+        <div className="fixed left-0 right-0 bottom-0 z-30 bg-[#F3F1EB] px-[24px] pt-[12px] pb-[max(env(safe-area-inset-bottom),20px)]">
           <button
             type="button"
             onClick={save}
             disabled={!canSave}
-            className={`w-full h-[46px] rounded-full font-montserrat font-medium text-white text-[16px] ${
+            className={`w-full h-[46px] rounded-full font-montserrat font-semibold text-white text-[15px] ${
               canSave
                 ? "bg-primary-orange cursor-pointer"
                 : "bg-primary-orange/50 cursor-not-allowed"
             }`}
           >
-            {saving ? "Saving…" : "Done"}
+            {saving ? "Saving…" : "Save Changes"}
           </button>
         </div>
       </div>
 
       {/* Desktop */}
-      <div className="hidden lg:block pb-[80px]">
-        <div className="flex items-center gap-[12px] mb-[16px] pr-[32px]">
+      <div className="hidden lg:block min-h-full bg-[#F3F1EB] px-[32px] py-[24px] pb-[80px]">
+        <div className="flex items-center gap-[12px] mb-[20px]">
           <button
             type="button"
             onClick={() => router.back()}
             aria-label="Back"
-            className="cursor-pointer w-[36px] h-[36px] rounded-full bg-[#EDEDED] text-[#092E4A] flex items-center justify-center"
+            className="cursor-pointer w-[28px] h-[28px] text-[#232323] flex items-center justify-center hover:opacity-70 transition-opacity"
           >
             <ChevronLeftIcon width={16} height={16} />
           </button>
-          <h2 className="font-montserrat font-semibold text-primary-blue text-[24px]">
+          <h2 className="font-ivy font-normal text-[#232323] text-[28px] leading-[1.15]">
             Edit Moment
           </h2>
-          <button
-            type="button"
-            onClick={save}
-            disabled={!canSave}
-            className={`ml-auto h-[40px] px-[24px] rounded-full font-montserrat font-medium text-white text-[14px] ${
-              canSave
-                ? "bg-primary-orange cursor-pointer hover:brightness-[1.03]"
-                : "bg-primary-orange/50 cursor-not-allowed"
-            }`}
-          >
-            {saving ? "Saving…" : "Done"}
-          </button>
         </div>
 
-        <div className="grid grid-cols-[1fr_420px] gap-[48px] items-start">
+        <div className="grid grid-cols-[1fr_420px] gap-[64px] items-start">
           <div className="flex flex-col gap-[20px]">
             {titleInput}
-            <WizardCalendar
-              value={form.dateISO}
-              onChange={(iso) => patch({ dateISO: iso })}
-            />
-            {recurringBlock}
+            <div className="flex flex-col gap-[10px]">
+              <span className="font-montserrat font-medium text-[#232323] text-[14px]">
+                Moment Date
+              </span>
+              <div className="bg-white p-[20px] shadow-[0_4px_4px_rgba(0,0,0,0.08)]">
+                <WizardCalendar
+                  value={form.dateISO}
+                  onChange={(iso) => patch({ dateISO: iso })}
+                />
+              </div>
+            </div>
+            <div className="mt-[8px]">{recurringBlock}</div>
             {peopleBlock}
           </div>
-          <div className="w-full max-w-[420px] justify-self-start pr-[32px]">{cover}</div>
+          <div className="flex flex-col gap-[10px]">
+            <span className="font-montserrat font-medium text-[#232323] text-[14px]">
+              Cover photo
+            </span>
+            {cover}
+            <div className="mt-[24px] flex justify-end">
+              <button
+                type="button"
+                onClick={save}
+                disabled={!canSave}
+                className={`h-[42px] px-[28px] rounded-full font-montserrat font-semibold text-white text-[14px] ${
+                  canSave
+                    ? "bg-primary-orange cursor-pointer hover:opacity-90"
+                    : "bg-primary-orange/50 cursor-not-allowed"
+                }`}
+              >
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -665,6 +676,69 @@ export default function EditMomentPage({
         }}
       />
     </>
+  );
+}
+
+function FrequencyDropdown({
+  value,
+  onChange,
+}: {
+  value: Freq;
+  onChange: (v: Freq) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const current = FREQ_OPTIONS.find((f) => f.value === value) ?? FREQ_OPTIONS[0];
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="cursor-pointer bg-white rounded-full px-[16px] py-[8px] min-w-[140px] flex items-center justify-between gap-[10px] font-montserrat font-medium text-[#232323] text-[13px] shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+      >
+        {current.label}
+        <ChevronDownIcon width={12} height={12} />
+      </button>
+      {open && (
+        <div
+          role="listbox"
+          className="absolute right-0 top-[44px] bg-white rounded-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] py-[6px] z-10 min-w-[140px]"
+        >
+          {FREQ_OPTIONS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              role="option"
+              aria-selected={f.value === value}
+              onClick={() => {
+                onChange(f.value);
+                setOpen(false);
+              }}
+              className={`cursor-pointer w-full text-left px-[14px] py-[8px] font-montserrat text-[13px] transition-colors ${
+                f.value === value
+                  ? "bg-black/[0.04] text-[#232323] font-semibold"
+                  : "text-[#232323]/80 hover:bg-black/[0.04]"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

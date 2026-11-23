@@ -5,16 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { hydrate, useMomentsState } from "../../../../lib/moments/cache";
 import type { Moment, MomentFilter } from "../../../../types/moment";
-import { PlusIcon } from "../icons";
+import { ChevronLeftIcon, PlusIcon } from "../icons";
 import CountdownCarousel from "./CountdownCarousel";
 import MomentRow from "./MomentRow";
 import MomentsCalendar from "./MomentsCalendar";
 import MomentDetailCard from "./MomentDetailCard";
-import PeopleTaggedPanel from "./PeopleTaggedPanel";
 import DeleteMomentModal from "./DeleteMomentModal";
 import { isoDay } from "../../../../lib/moments/recurrence";
 import { isoDayFromCalendar } from "../../../../lib/moments/date";
-import { momentTypeIcon } from "./momentTypeIcon";
 
 export default function MomentsPage() {
   const {
@@ -24,9 +22,7 @@ export default function MomentsPage() {
   } = useMomentsState();
   const [filter, setFilter] = useState<MomentFilter>("upcoming");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [rightMode, setRightMode] = useState<"calendar" | "detail" | "people">(
-    "calendar"
-  );
+  const [rightMode, setRightMode] = useState<"calendar" | "detail">("calendar");
   const [deleteTarget, setDeleteTarget] = useState<Moment | null>(null);
   const [selectedDay, setSelectedDay] = useState<string>(() => isoDay(new Date()));
   const [mobileView, setMobileView] = useState<"list" | "calendar">("list");
@@ -41,7 +37,7 @@ export default function MomentsPage() {
     const sel = searchParams.get("selected");
     if (!sel) return;
     if (typeof window === "undefined") return;
-    if (!window.matchMedia("(min-width: 1024px)").matches) return;
+    if (!window.matchMedia("(min-width: 1280px)").matches) return;
     seededSelectionRef.current = true;
     setSelectedId(sel);
     setRightMode("detail");
@@ -49,7 +45,7 @@ export default function MomentsPage() {
 
   const isDesktop = () =>
     typeof window !== "undefined" &&
-    window.matchMedia("(min-width: 1024px)").matches;
+    window.matchMedia("(min-width: 1280px)").matches;
 
   const handleRowClick = (m: Moment) => {
     if (isDesktop()) {
@@ -71,7 +67,7 @@ export default function MomentsPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const mq = window.matchMedia("(min-width: 1024px)");
+    const mq = window.matchMedia("(min-width: 1280px)");
     const handler = () => {
       if (mq.matches) setMobileView("list");
     };
@@ -83,17 +79,6 @@ export default function MomentsPage() {
   const list: Moment[] | null = byFilter[filter];
   const isLoading =
     loadingByFilter[filter] && (list === null || list.length === 0);
-
-  const stepCarousel = (dir: -1 | 1) => {
-    // Fires a scroll on the carousel's internal scroller. CountdownCarousel
-    // wraps its own scroller; we look it up by data attribute.
-    const scroller = carouselRef.current?.querySelector<HTMLElement>(
-      "[data-countdown-scroller]"
-    );
-    if (!scroller) return;
-    const w = scroller.clientWidth;
-    scroller.scrollBy({ left: dir * w, behavior: "smooth" });
-  };
 
   // Pool for calendar dot markers, "moments on this day" summary, and
   // resolving the currently selected moment regardless of active filter
@@ -121,59 +106,50 @@ export default function MomentsPage() {
   }, [allMoments, selectedDay]);
 
   return (
-    <div className="px-[12px] md:px-[20px] lg:px-[24px] pt-[4px] pb-[24px] md:pb-[40px]">
-      {/* Header row: title on left with right-aligned carousel chevrons
-          spanning the countdown's width, then Add Moment on the far right. */}
-      <div className="md:px-[14px] flex items-start gap-[24px] mb-[16px]">
-        <div className="w-full lg:flex-1 lg:max-w-[560px] flex items-center justify-between">
-          <h1 className="font-montserrat font-bold text-primary-blue text-[26px] md:text-[28px] leading-[1.1]">
-            Moments
-          </h1>
-          <div className="hidden lg:flex items-center gap-[6px]">
+    <div className="h-full min-h-0 flex flex-col overflow-y-auto bg-[#f3f1eb]">
+      <div className="px-[12px] md:px-[24px] lg:px-[32px] pt-[16px] pb-[24px] md:pb-[40px] max-w-[1400px] mx-auto w-full">
+        {/* Header row: back + Moments title + help, then Add Moment on the right */}
+        <div className="flex items-center justify-between gap-[16px] mb-[20px]">
+          <div className="flex items-center gap-[12px]">
             <button
               type="button"
-              onClick={() => stepCarousel(-1)}
-              aria-label="Previous"
-              className="cursor-pointer hover:brightness-95 transition"
+              onClick={() => router.back()}
+              aria-label="Back"
+              className="cursor-pointer w-[36px] h-[36px] rounded-full bg-white hover:bg-white/90 shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-[#232323] flex items-center justify-center transition-colors shrink-0"
             >
-              <CarouselArrow direction="left" />
+              <ChevronLeftIcon width={16} height={16} />
             </button>
-            <button
-              type="button"
-              onClick={() => stepCarousel(1)}
-              aria-label="Next"
-              className="cursor-pointer hover:brightness-95 transition"
-            >
-              <CarouselArrow direction="right" />
-            </button>
+            <h1 className="font-ivy font-normal text-[#232323] text-[26px] md:text-[32px] leading-[1.15]">
+              Moments
+            </h1>
+            <HelpCircleIcon />
           </div>
-        </div>
 
-        <Link
-          href="/moments/new"
-          aria-label="Add Moment"
-          className="lg:hidden cursor-pointer w-[42px] h-[42px] rounded-full bg-primary-orange text-white flex items-center justify-center shrink-0 hover:brightness-[1.03] transition"
-        >
-          <PlusIcon width={18} height={18} strokeWidth={2.5} />
-        </Link>
+          <Link
+            href="/moments/new"
+            aria-label="Add Moment"
+            className="xl:hidden cursor-pointer w-[36px] h-[36px] rounded-full bg-[#E8E6DF] text-[#232323] flex items-center justify-center shrink-0 hover:brightness-95 transition"
+          >
+            <PlusIcon width={16} height={16} strokeWidth={2.5} />
+          </Link>
 
-        <div className="hidden lg:flex lg:w-[380px] shrink-0 justify-end">
           {!(rightMode !== "calendar" && selectedMoment) && (
             <Link
               href="/moments/new"
-              className="cursor-pointer inline-flex items-center gap-[8px] bg-primary-orange text-white rounded-full pl-[14px] pr-[18px] py-[10px] font-montserrat font-semibold text-[14px] hover:brightness-[1.03] transition"
+              className="hidden xl:inline-flex cursor-pointer items-center gap-[8px] text-[#232323] font-montserrat font-medium text-[14px] hover:opacity-80 transition-opacity"
             >
-              <PlusIcon width={16} height={16} strokeWidth={2.5} />
+              <span className="w-[26px] h-[26px] rounded-full bg-[#E8E6DF] text-[#232323] flex items-center justify-center">
+                <PlusIcon width={14} height={14} strokeWidth={2.5} />
+              </span>
               Add Moment
             </Link>
           )}
         </div>
-      </div>
 
       {/* Two-column layout on lg+; single column below */}
-      <div className="md:px-[14px] flex flex-col lg:flex-row gap-[24px] items-start">
+      <div className="flex flex-col xl:flex-row gap-[24px] items-start">
         {/* LEFT: countdown + filter pill + list */}
-        <div className="w-full lg:flex-1 lg:max-w-[560px] flex flex-col gap-[20px]">
+        <div className="w-full xl:flex-1 xl:max-w-[560px] flex flex-col gap-[20px]">
           <div ref={carouselRef}>
             <CountdownCarouselAdapter
               items={countdown}
@@ -184,14 +160,14 @@ export default function MomentsPage() {
           <div className="flex items-center justify-between gap-[12px]">
             <FilterPill filter={filter} onChange={setFilter} />
             <ViewToggle
-              className="lg:hidden"
+              className="xl:hidden"
               value={mobileView}
               onChange={setMobileView}
             />
           </div>
 
           {mobileView === "calendar" ? (
-            <div className="lg:hidden rounded-[24px] bg-[#EDEDED] p-[16px] flex flex-col gap-[16px]">
+            <div className="xl:hidden flex flex-col gap-[16px]">
               <MomentsCalendar
                 moments={allMoments}
                 selectedDay={selectedDay}
@@ -208,9 +184,9 @@ export default function MomentsPage() {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-[16px] bg-[#D9D9D9] py-[44px] flex items-center justify-center">
-                  <p className="font-montserrat text-primary-blue text-[14px]">
-                    No moment today
+                <div className="rounded-[16px] bg-[#E8E6DF] py-[36px] flex items-center justify-center">
+                  <p className="font-montserrat text-[#232323] text-[14px]">
+                    No moments today
                   </p>
                 </div>
               )}
@@ -240,30 +216,23 @@ export default function MomentsPage() {
           )}
         </div>
 
-        {/* RIGHT: swaps between calendar (default), moment detail, and
-            people-tagged panel. */}
+        {/* RIGHT: swaps between calendar (default) and moment detail. */}
         <aside
-          className={`hidden lg:flex w-full lg:w-[380px] shrink-0 flex-col ${
-            rightMode !== "calendar" && selectedMoment ? "lg:-mt-[36px]" : ""
+          className={`hidden xl:flex w-full xl:w-[360px] shrink-0 flex-col ${
+            rightMode !== "calendar" && selectedMoment ? "xl:-mt-[36px]" : ""
           }`}
         >
           {rightMode === "detail" && selectedMoment ? (
             <MomentDetailCard
               moment={selectedMoment}
               onRequestDelete={(m) => setDeleteTarget(m)}
-              onOpenPeopleTagged={() => setRightMode("people")}
               onClose={() => {
                 setSelectedId(null);
                 setRightMode("calendar");
               }}
             />
-          ) : rightMode === "people" && selectedMoment ? (
-            <PeopleTaggedPanel
-              moment={selectedMoment}
-              onDone={() => setRightMode("detail")}
-            />
           ) : (
-            <div className="rounded-[24px] bg-[#EDEDED] p-[16px] flex flex-col gap-[16px]">
+            <div className="flex flex-col gap-[16px]">
               <MomentsCalendar
                 moments={allMoments}
                 selectedDay={selectedDay}
@@ -287,9 +256,9 @@ export default function MomentsPage() {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-[16px] bg-[#D9D9D9] py-[44px] flex items-center justify-center">
-                  <p className="font-montserrat text-primary-blue text-[14px]">
-                    No moment today
+                <div className="rounded-[16px] bg-[#E8E6DF] py-[36px] flex items-center justify-center">
+                  <p className="font-montserrat text-[#232323] text-[14px]">
+                    No moments today
                   </p>
                 </div>
               )}
@@ -298,16 +267,32 @@ export default function MomentsPage() {
         </aside>
       </div>
 
-      <DeleteMomentModal
-        moment={deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onDeleted={() => {
-          setDeleteTarget(null);
-          setSelectedId(null);
-          setRightMode("calendar");
-        }}
-      />
+        <DeleteMomentModal
+          moment={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => {
+            setDeleteTarget(null);
+            setSelectedId(null);
+            setRightMode("calendar");
+          }}
+        />
+      </div>
     </div>
+  );
+}
+
+function HelpCircleIcon() {
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9.25" stroke="#2c2c2c" strokeWidth={1.5} />
+      <path
+        d="M9.5 9.25a2.5 2.5 0 015 0c0 1.25-1 1.75-2 2.5-.75.5-.75 1.5-.75 1.5"
+        stroke="#2c2c2c"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="17" r="0.85" fill="#2c2c2c" />
+    </svg>
   );
 }
 
@@ -339,7 +324,7 @@ function FilterPill({
     { value: "past", label: "Past" },
   ];
   return (
-    <div className="inline-flex bg-[#EDEDED] rounded-full p-[4px] self-start">
+    <div className="inline-flex gap-[8px] self-start">
       {opts.map((o) => {
         const active = filter === o.value;
         return (
@@ -347,10 +332,10 @@ function FilterPill({
             key={o.value}
             type="button"
             onClick={() => onChange(o.value)}
-            className={`cursor-pointer px-[18px] py-[8px] rounded-full font-montserrat font-semibold text-[13px] transition-colors ${
+            className={`cursor-pointer px-[20px] py-[8px] rounded-full font-montserrat font-medium text-[13px] transition-colors ${
               active
-                ? "bg-[#092E4A] text-white"
-                : "text-primary-blue/70 hover:text-primary-blue"
+                ? "bg-primary-orange text-white"
+                : "bg-[#E8E6DF] text-[#232323] hover:bg-[#dcd8ca]"
             }`}
           >
             {o.label}
@@ -358,27 +343,6 @@ function FilterPill({
         );
       })}
     </div>
-  );
-}
-
-// Custom arrow chevron matching Figma: #EDEDED circle, #092E4A stroke.
-function CarouselArrow({ direction }: { direction: "left" | "right" }) {
-  const size = 28;
-  if (direction === "right") {
-    return (
-      <svg width={size} height={size} viewBox="0 0 36 36" fill="none">
-        <circle cx="18" cy="18" r="18" fill="#EDEDED" />
-        <path d="M19.0291 11L26.2722 18.2432L19.0291 25.4863" stroke="#092E4A" strokeWidth={2} />
-        <path d="M9 18.2422H25.1578" stroke="#092E4A" strokeWidth={2} />
-      </svg>
-    );
-  }
-  return (
-    <svg width={size} height={size} viewBox="0 0 36 36" fill="none">
-      <circle cx="18" cy="18" r="18" fill="#EDEDED" />
-      <path d="M16.9709 11L9.72778 18.2432L16.9709 25.4863" stroke="#092E4A" strokeWidth={2} />
-      <path d="M27 18.2422H10.8422" stroke="#092E4A" strokeWidth={2} />
-    </svg>
   );
 }
 
@@ -393,11 +357,11 @@ function ViewToggle({
 }) {
   const btn = (active: boolean) =>
     `cursor-pointer w-[36px] h-[30px] rounded-full flex items-center justify-center transition-colors ${
-      active ? "bg-[#092E4A] text-white" : "text-primary-blue/70 hover:text-primary-blue"
+      active ? "bg-[#2c2c2c] text-white" : "text-[#2c2c2c]/60 hover:text-[#2c2c2c]"
     }`;
   return (
     <div
-      className={`${className ?? ""} inline-flex bg-[#EDEDED] rounded-full p-[3px] gap-[2px]`}
+      className={`${className ?? ""} inline-flex bg-[#E8E6DF] rounded-full p-[3px] gap-[2px]`}
     >
       <button
         type="button"

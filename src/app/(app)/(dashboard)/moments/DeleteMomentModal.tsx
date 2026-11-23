@@ -33,7 +33,7 @@ export default function DeleteMomentModal({
   const title = isParticipant ? "Leave Moment" : "Delete Moment";
   const body = isParticipant
     ? "You will stop receiving updates for this moment."
-    : "This moment will be deleted permanently";
+    : "This moment will be deleted permanently.";
   const primaryLabel = isParticipant ? "Leave" : "Delete";
 
   const handleConfirm = async () => {
@@ -71,26 +71,26 @@ export default function DeleteMomentModal({
         <div className="flex flex-col gap-[8px] items-center text-center">
           <h2
             id="delete-moment-title"
-            className="font-montserrat font-bold text-primary-blue text-[20px] leading-[24px]"
+            className="font-ivy font-normal text-[#232323] text-[22px] leading-[1.2]"
           >
             {title}
           </h2>
-          <p className="font-montserrat font-medium text-primary-blue text-[16px] leading-[20px]">
+          <p className="font-montserrat text-[#2c2c2c]/70 text-[14px] leading-[1.4]">
             {body}
           </p>
         </div>
-        <div className="flex gap-[7px] w-full">
+        <div className="flex gap-[8px] w-full">
           <button
             type="button"
             onClick={onClose}
-            className="cursor-pointer flex-1 bg-[#EDEDED] text-primary-blue rounded-full py-[12px] font-montserrat font-medium text-[16px] hover:brightness-95 transition"
+            className="cursor-pointer flex-1 bg-[#EDEDED] text-[#232323] rounded-full py-[12px] font-montserrat font-medium text-[15px] hover:brightness-95 transition"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleConfirm}
-            className="cursor-pointer flex-1 bg-[#D95F3B] text-white rounded-full py-[12px] font-montserrat font-medium text-[16px] hover:brightness-[1.05] transition"
+            className="cursor-pointer flex-1 bg-primary-orange text-white rounded-full py-[12px] font-montserrat font-semibold text-[15px] hover:opacity-90 transition"
           >
             {primaryLabel}
           </button>

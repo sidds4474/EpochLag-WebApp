@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { ApiError } from "../../../../../lib/api/client";
 import { createMoment } from "../../../../../lib/moments/cache";
+import type { Moment } from "../../../../../types/moment";
 import { ChevronLeftIcon, CloseIcon } from "../../icons";
 import StepCelebration from "./StepCelebration";
 import StepDetails, { type DetailsSubStep } from "./StepDetails";
@@ -53,6 +54,7 @@ export default function NewMomentPage() {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [submitting, setSubmitting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [createdMoment, setCreatedMoment] = useState<Moment | null>(null);
 
   // Restore session state on mount.
   useEffect(() => {
@@ -132,6 +134,7 @@ export default function NewMomentPage() {
     }
     setSubmitting(true);
     try {
+      let created: Moment;
       if (draft.coverFile) {
         const form = new FormData();
         form.append("type", draft.type);
@@ -142,14 +145,14 @@ export default function NewMomentPage() {
           form.append("frequency", draft.frequency);
         }
         form.append("file", draft.coverFile, "cover.jpg");
-        await createMoment({
+        created = await createMoment({
           form,
           taggedUserIds: draft.taggedUserIds,
           sendInvites: draft.sendInvites,
           pinToCountdown: draft.addToCountdown,
         });
       } else {
-        await createMoment({
+        created = await createMoment({
           json: {
             type: draft.type,
             title: draft.title.trim(),
@@ -165,6 +168,7 @@ export default function NewMomentPage() {
           pinToCountdown: draft.addToCountdown,
         });
       }
+      setCreatedMoment(created);
       setStep("done");
       if (typeof window !== "undefined") {
         window.sessionStorage.removeItem(STORAGE_KEY);
@@ -189,21 +193,21 @@ export default function NewMomentPage() {
   const showChrome = step !== "done";
 
   return (
-    <div className="lg:relative lg:min-h-full lg:pb-[80px] lg:pt-[8px]">
+    <div className="lg:relative lg:min-h-full lg:bg-[#F3F1EB] lg:px-[32px] lg:py-[24px] lg:pb-[80px]">
       {/* Mobile: full-screen shell */}
-      <div className="lg:hidden fixed inset-0 z-40 bg-white flex flex-col">
+      <div className="lg:hidden fixed inset-0 z-40 bg-[#F3F1EB] flex flex-col">
         {showChrome && (
           <div className="flex items-center justify-between px-[16px] pt-[max(env(safe-area-inset-top),16px)] pb-[8px]">
             <button
               type="button"
               onClick={goBack}
               aria-label="Back"
-              className="cursor-pointer w-[36px] h-[36px] rounded-full bg-[#EDEDED] text-[#092E4A] flex items-center justify-center"
+              className="cursor-pointer w-[28px] h-[28px] text-[#232323] flex items-center justify-center hover:opacity-70 transition-opacity"
             >
               <ChevronLeftIcon width={16} height={16} />
             </button>
             <ProgressDots total={4} active={mobileIdx} />
-            <span className="w-[36px] h-[36px]" aria-hidden />
+            <span className="w-[28px] h-[28px]" aria-hidden />
           </div>
         )}
         <div
@@ -231,12 +235,13 @@ export default function NewMomentPage() {
             onNextFromDetails={() => setStep("people")}
             onSubmit={submit}
             submitting={submitting}
+            createdMoment={createdMoment}
             isMobile
             onAddAnother={() => {
+              setCreatedMoment(null);
               resetDraft();
               setStep("type");
             }}
-            onReturn={goClose}
           />
         </div>
       </div>
@@ -250,11 +255,11 @@ export default function NewMomentPage() {
                 type="button"
                 onClick={goBack}
                 aria-label="Back"
-                className="cursor-pointer w-[36px] h-[36px] rounded-full bg-[#EDEDED] text-[#092E4A] flex items-center justify-center"
+                className="cursor-pointer w-[28px] h-[28px] text-[#232323] flex items-center justify-center hover:opacity-70 transition-opacity"
               >
                 <ChevronLeftIcon width={16} height={16} />
               </button>
-              <h2 className="font-montserrat font-semibold text-primary-blue text-[24px]">
+              <h2 className="font-ivy font-normal text-[#232323] text-[28px] leading-[1.15]">
                 Add Moment
               </h2>
             </div>
@@ -274,12 +279,13 @@ export default function NewMomentPage() {
             onNextFromDetails={() => setStep("people")}
             onSubmit={submit}
             submitting={submitting}
+            createdMoment={createdMoment}
             isMobile={false}
             onAddAnother={() => {
+              setCreatedMoment(null);
               resetDraft();
               setStep("type");
             }}
-            onReturn={goClose}
           />
         </div>
       </div>
@@ -299,7 +305,7 @@ function StepBody({
   submitting,
   isMobile,
   onAddAnother,
-  onReturn,
+  createdMoment,
 }: {
   step: Step;
   draft: Draft;
@@ -312,7 +318,7 @@ function StepBody({
   submitting: boolean;
   isMobile: boolean;
   onAddAnother: () => void;
-  onReturn: () => void;
+  createdMoment: Moment | null;
 }) {
   if (step === "type") {
     return (
@@ -354,7 +360,10 @@ function StepBody({
   }
   // done
   return (
-    <StepCelebration onAddAnother={onAddAnother} onReturn={onReturn} />
+    <StepCelebration
+      onAddAnother={onAddAnother}
+      moment={createdMoment}
+    />
   );
 }
 

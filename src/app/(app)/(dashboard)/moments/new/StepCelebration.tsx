@@ -1,40 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
+import type { Moment } from "../../../../../types/moment";
+import ShareMomentSheet from "../ShareMomentSheet";
 
-// Palette — rings match the concentric logo SVG.
-const C_HALO = "#FCD6A5";
-const C_MID = "#EF9849";
-const C_INNER = "#D95F3B";
-const DOT_COLORS = ["#E8973A", "#F0B060", "#C1553A", "#F5D4A0"];
-
-// Confetti seed (deterministic)
-const DOT_COUNT = 12;
-const DOTS = Array.from({ length: DOT_COUNT }, (_, i) => ({
-  angle: (i / DOT_COUNT) * Math.PI * 2 + ((i % 3) - 1) * 0.3,
-  speed: 90 + ((i * 17) % 110),
-  size: 6 + ((i * 7) % 14),
-  color: DOT_COLORS[i % DOT_COLORS.length],
-  delay: 0.08 + i * 0.01,
-}));
-
-// Timing (ms)
-const DURATION_MS = 2800;
-const RING_1_DELAY = 380;
-const RING_2_DELAY = 470;
-const RING_3_DELAY = 560;
-const RING_DUR = 420;
-const CHECK_DELAY = 700;
-const CHECK_DUR = 500;
-const TITLE_DELAY = 1000;
-const TITLE_DUR = 520;
-const BUTTONS_DELAY = 1200;
-const BUTTONS_DUR = 520;
-
-const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
-const easeOutBack = (t: number, s = 1.7) =>
-  1 + (s + 1) * Math.pow(t - 1, 3) + s * Math.pow(t - 1, 2);
-const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
+const SPRING =
+  "linear(0, 0.157 4.6%, 0.52 11%, 0.85 17.4%, 1.075 24%, 1.19 30.4%, 1.21 34.6%, 1.17 40.6%, 1.04 52%, 0.98 61%, 0.97 67%, 1.005 82%, 1)";
 
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined") return false;
@@ -43,254 +16,304 @@ function prefersReducedMotion(): boolean {
 
 export default function StepCelebration({
   onAddAnother,
-  onReturn,
+  moment,
 }: {
   onAddAnother: () => void;
-  onReturn: () => void;
+  moment: Moment | null;
 }) {
-  const [tSec, setTSec] = useState(0);
-  const startRef = useRef<number | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const p1 = useRef<HTMLDivElement | null>(null);
+  const p2 = useRef<HTMLDivElement | null>(null);
+  const rule = useRef<HTMLDivElement | null>(null);
+  const title = useRef<HTMLDivElement | null>(null);
+  const badge = useRef<SVGSVGElement | null>(null);
+  const ring = useRef<SVGCircleElement | null>(null);
+  const check = useRef<SVGPathElement | null>(null);
+  const buttons = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (prefersReducedMotion()) {
-      setTSec(DURATION_MS / 1000);
-      return;
-    }
-    let raf = 0;
-    const tick = (now: number) => {
-      if (startRef.current == null) startRef.current = now;
-      const elapsed = now - startRef.current;
-      const t = Math.min(elapsed, DURATION_MS) / 1000;
-      setTSec(t);
-      if (elapsed < DURATION_MS) raf = requestAnimationFrame(tick);
+    if (prefersReducedMotion()) return;
+
+    const nodes = [
+      p1.current, p2.current, rule.current, title.current,
+      badge.current, ring.current, check.current, buttons.current,
+    ].filter(Boolean) as Array<HTMLElement | SVGElement>;
+
+    const animations: Animation[] = [];
+    const animate = (
+      el: Element,
+      keyframes: Keyframe[],
+      duration: number,
+      delay = 0,
+      opts: KeyframeAnimationOptions = {},
+    ) => {
+      const anim = el.animate(keyframes, {
+        duration,
+        delay,
+        easing: EASE,
+        fill: "both",
+        ...opts,
+      });
+      animations.push(anim);
+      return anim;
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+
+    // Rule — scaleX from left (100ms, 700ms)
+    if (rule.current) {
+      rule.current.style.transformOrigin = "left";
+      animate(
+        rule.current,
+        [{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }],
+        700,
+        100,
+        { easing: "cubic-bezier(0.65,0,0.35,1)" },
+      );
+    }
+
+    // Title — slide up from behind the rule (450ms, 700ms)
+    if (title.current) {
+      animate(
+        title.current,
+        [{ transform: "translateY(110%)" }, { transform: "translateY(0)" }],
+        700,
+        450,
+      );
+    }
+
+    // Badge: fade/scale the circle in, then trace the ring outline, then draw the check
+    const traceStart = 600;
+    if (badge.current) {
+      animate(
+        badge.current,
+        [
+          { transform: "scale(0.6)", opacity: 0 },
+          { opacity: 1, offset: 0.3 },
+          { transform: "scale(1)", opacity: 1 },
+        ],
+        720,
+        traceStart,
+        { easing: SPRING },
+      );
+    }
+    if (ring.current) {
+      animate(
+        ring.current,
+        [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }],
+        520,
+        traceStart + 120,
+        { easing: "cubic-bezier(0.65,0,0.35,1)" },
+      );
+    }
+    if (check.current) {
+      animate(
+        check.current,
+        [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }],
+        380,
+        traceStart + 500,
+        { easing: "cubic-bezier(0.65,0,0.35,1)" },
+      );
+    }
+
+    // Prints slide in — p1 from upper-left, p2 from lower-right (1000/1150ms)
+    const slideIn = (
+      el: Element | null,
+      x: number,
+      y: number,
+      rot: number,
+      delay: number,
+    ) => {
+      if (!el) return;
+      animate(
+        el,
+        [
+          {
+            transform: `translate(${x}px, ${y}px) rotate(${rot}deg)`,
+            opacity: 0,
+          },
+          { opacity: 1, offset: 0.25 },
+          { transform: "translate(0, 0) rotate(var(--rot, 0deg))", opacity: 1 },
+        ],
+        1000,
+        delay,
+        { easing: "cubic-bezier(0.22,1,0.36,1)" },
+      );
+    };
+    slideIn(p1.current, -170, -40, -18, 1000);
+    slideIn(p2.current, 170, 40, 18, 1150);
+
+    // Buttons fade up (1100ms)
+    if (buttons.current) {
+      animate(
+        buttons.current,
+        [
+          { opacity: 0, transform: "translateY(10px)" },
+          { opacity: 1, transform: "none" },
+        ],
+        500,
+        1100,
+      );
+    }
+
+    // Gentle drift on prints after settle (looped)
+    const drift = (
+      el: Element | null,
+      base: number,
+      dy: number,
+      dr: number,
+      duration: number,
+      delay: number,
+    ) => {
+      if (!el) return;
+      const anim = el.animate(
+        [
+          { transform: `rotate(${base}deg)` },
+          { transform: `translateY(${dy}px) rotate(${base + dr}deg)` },
+        ],
+        {
+          duration,
+          delay,
+          iterations: Infinity,
+          direction: "alternate",
+          easing: "ease-in-out",
+        },
+      );
+      animations.push(anim);
+    };
+    drift(p1.current, -4, 6, 1.2, 3200, 2200);
+    drift(p2.current, 4, -5, -1, 3600, 2400);
+
+    return () => {
+      animations.forEach((a) => a.cancel());
+      void nodes;
+    };
   }, []);
 
-  const tMs = tSec * 1000;
-
-  const ringScale = (delayMs: number) => {
-    const p = clamp01((tMs - delayMs) / RING_DUR);
-    return p === 0 ? 0 : easeOutBack(p);
-  };
-  const ring1 = ringScale(RING_1_DELAY);
-  const ring2 = ringScale(RING_2_DELAY);
-  const ring3 = ringScale(RING_3_DELAY);
-
-  const checkP = easeOutCubic(clamp01((tMs - CHECK_DELAY) / CHECK_DUR));
-  const titleP = easeOutCubic(clamp01((tMs - TITLE_DELAY) / TITLE_DUR));
-  const buttonsP = easeOutCubic(clamp01((tMs - BUTTONS_DELAY) / BUTTONS_DUR));
-
   return (
-    <div className="flex flex-col items-center">
-      <div className="relative w-[300px] h-[300px] flex items-center justify-center">
-        {/* Shockwaves */}
-        {[
-          { delay: 0.0, baseR: 88, color: C_HALO },
-          { delay: 0.09, baseR: 66, color: C_MID },
-          { delay: 0.18, baseR: 44, color: C_INNER },
-        ].map((wave, i) => (
-          <Shockwave key={i} t={tSec} {...wave} />
-        ))}
+    <div className="relative w-full min-h-[560px] md:min-h-[600px] flex flex-col items-center justify-center overflow-hidden">
+      {/* Print 1 — upper-left */}
+      <div
+        ref={p1}
+        className="pointer-events-none absolute"
+        style={{
+          left: "4%",
+          top: "6%",
+          width: "180px",
+          transform: "rotate(-4deg)",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/moments/print-valley.png"
+          alt=""
+          className="block w-full h-auto"
+        />
+      </div>
 
-        {/* Confetti */}
-        {DOTS.map((dot, i) => (
-          <ConfettiDot key={i} t={tSec} dot={dot} />
-        ))}
+      {/* Print 2 — lower-right */}
+      <div
+        ref={p2}
+        className="pointer-events-none absolute"
+        style={{
+          right: "4%",
+          bottom: "8%",
+          width: "180px",
+          transform: "rotate(4deg)",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/moments/print-boat.png"
+          alt=""
+          className="block w-full h-auto"
+        />
+      </div>
 
-        {/* Concentric rings */}
+      {/* Center stack */}
+      <div className="relative z-10 flex flex-col items-center px-[24px]">
+        <svg
+          ref={badge}
+          width={48}
+          height={48}
+          viewBox="0 0 48 48"
+          fill="none"
+          style={{ transformBox: "fill-box", transformOrigin: "center", overflow: "visible" }}
+          aria-hidden
+        >
+          <circle
+            ref={ring}
+            cx={24}
+            cy={24}
+            r={23.1818}
+            stroke="#000000"
+            strokeWidth={1.63636}
+            pathLength={1}
+            strokeDasharray={1}
+            strokeDashoffset={1}
+          />
+          <path
+            ref={check}
+            d="M16 24.5 L21.5 30 L32 19.5"
+            stroke="#000000"
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            pathLength={1}
+            strokeDasharray={1}
+            strokeDashoffset={1}
+          />
+        </svg>
+
         <div
-          style={{
-            width: 136,
-            height: 136,
-            borderRadius: "50%",
-            backgroundColor: C_HALO,
-            transform: `scale(${ring1})`,
-            transformOrigin: "center",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: ring1 > 0 ? 1 : 0,
-          }}
+          className="overflow-hidden px-[4px] pb-[6px]"
+          style={{ marginTop: 22 }}
         >
           <div
-            style={{
-              width: 104,
-              height: 104,
-              borderRadius: "50%",
-              backgroundColor: C_MID,
-              transform: `scale(${ring2})`,
-              transformOrigin: "center",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: ring2 > 0 ? 1 : 0,
-            }}
+            ref={title}
+            className="font-ivy font-normal text-[#323232] text-[28px] md:text-[33px] leading-[1.15] text-center whitespace-nowrap"
           >
-            <div
-              style={{
-                width: 68,
-                height: 68,
-                borderRadius: "50%",
-                backgroundColor: C_INNER,
-                transform: `scale(${ring3})`,
-                transformOrigin: "center",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: ring3 > 0 ? 1 : 0,
-              }}
-            >
-              <AnimatedCheckmark size={36} progress={checkP} />
-            </div>
+            Moment Added!
           </div>
+        </div>
+
+        <div
+          ref={rule}
+          className="mt-[12px] w-[280px] md:w-[320px] bg-[#C8C8C8]"
+          style={{ height: "1.5px" }}
+        />
+
+        <div
+          ref={buttons}
+          className="mt-[28px] flex flex-col gap-[10px] w-full max-w-[280px]"
+          style={{ opacity: 0 }}
+        >
+          <button
+            type="button"
+            onClick={onAddAnother}
+            className="cursor-pointer w-full h-[44px] rounded-full bg-primary-orange text-white font-montserrat font-medium text-[15px] hover:opacity-90 transition-opacity"
+          >
+            Add another moment
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!moment) {
+                toast("Moment not ready yet");
+                return;
+              }
+              setShareOpen(true);
+            }}
+            className="cursor-pointer w-full h-[44px] rounded-full border-[1.5px] border-[#2c2c2c] text-[#323232] font-montserrat font-medium text-[15px] hover:bg-black/[0.03] transition-colors"
+          >
+            Share moment
+          </button>
         </div>
       </div>
 
-      <h1
-        className="font-montserrat font-medium text-primary-blue text-[20px] lg:text-[18px] leading-[26px] text-center mt-[16px]"
-        style={{
-          opacity: titleP,
-          transform: `translateY(${(1 - titleP) * 14}px)`,
-        }}
-      >
-        Moment added to your calendar!
-      </h1>
-      <p
-        className="font-montserrat text-primary-blue text-[14px] leading-[20px] text-center mt-[10px] max-w-[300px]"
-        style={{
-          opacity: titleP,
-          transform: `translateY(${(1 - titleP) * 14}px)`,
-        }}
-      >
-        We&apos;ll remind you when the moment arrives.
-      </p>
-
-      <div
-        className="w-full max-w-[380px] flex flex-col gap-[12px] mt-[28px]"
-        style={{
-          opacity: buttonsP,
-          transform: `translateY(${(1 - buttonsP) * 18}px)`,
-        }}
-      >
-        <button
-          type="button"
-          onClick={onAddAnother}
-          className="cursor-pointer w-full h-[46px] rounded-full bg-primary-orange text-white font-montserrat font-medium text-[16px] hover:brightness-[1.03]"
-        >
-          Add another Moment
-        </button>
-        <button
-          type="button"
-          onClick={onReturn}
-          className="cursor-pointer w-full h-[46px] rounded-full border border-primary-blue text-primary-blue font-montserrat font-medium text-[16px] hover:bg-primary-blue/[0.03]"
-        >
-          Return to moments
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Shockwave({
-  t,
-  delay,
-  baseR,
-  color,
-}: {
-  t: number;
-  delay: number;
-  baseR: number;
-  color: string;
-}) {
-  const size = baseR * 2;
-  const rt = (t - delay) / 0.55;
-  let opacity = 0;
-  let scale = 0;
-  if (rt > 0 && rt < 1) {
-    const p = 1 - Math.pow(2, -10 * rt);
-    scale = 1 + p * 1.6;
-    const op = rt < 0.3 ? rt / 0.3 : 1 - (rt - 0.3) / 0.7;
-    opacity = Math.max(0, op * 0.55);
-  }
-  return (
-    <div
-      style={{
-        position: "absolute",
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        backgroundColor: color,
-        transform: `scale(${scale})`,
-        opacity,
-        pointerEvents: "none",
-      }}
-    />
-  );
-}
-
-function ConfettiDot({
-  t,
-  dot,
-}: {
-  t: number;
-  dot: (typeof DOTS)[number];
-}) {
-  const cosA = Math.cos(dot.angle);
-  const sinA = Math.sin(dot.angle);
-  const rimX = 60 * cosA;
-  const rimY = 60 * sinA;
-
-  const dt = t - 0.18 - dot.delay;
-  let tx = rimX;
-  let ty = rimY;
-  let opacity = 0;
-  if (dt > 0) {
-    const dp = clamp01(dt / 1.0);
-    const easeP = 1 - Math.pow(1 - dp, 3);
-    const dist = dot.speed * easeP;
-    const grav = 30 * dp * dp;
-    tx = rimX + cosA * dist;
-    ty = rimY + sinA * dist + grav;
-    opacity = dp < 0.6 ? 1 : Math.max(0, 1 - (dp - 0.6) / 0.4);
-  }
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        width: dot.size,
-        height: dot.size,
-        borderRadius: "50%",
-        backgroundColor: dot.color,
-        transform: `translate(${tx}px, ${ty}px)`,
-        opacity,
-        pointerEvents: "none",
-      }}
-    />
-  );
-}
-
-function AnimatedCheckmark({
-  size,
-  progress,
-}: {
-  size: number;
-  progress: number;
-}) {
-  const PATH_LEN = 60;
-  return (
-    <svg width={size} height={size} viewBox="0 0 56 56" fill="none">
-      <path
-        d="M14 30 L23 39 L44 17"
-        stroke="#FFFFFF"
-        strokeWidth={5.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeDasharray={PATH_LEN}
-        strokeDashoffset={PATH_LEN * (1 - progress)}
+      <ShareMomentSheet
+        open={shareOpen}
+        moment={moment}
+        onClose={() => setShareOpen(false)}
       />
-    </svg>
+    </div>
   );
 }

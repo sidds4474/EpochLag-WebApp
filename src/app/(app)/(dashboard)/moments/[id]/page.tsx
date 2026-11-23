@@ -13,50 +13,30 @@ import {
 } from "../../../../../lib/moments/cache";
 import {
   formatCalendarDay,
-  ordinalSuffix,
   parseCalendarDay,
 } from "../../../../../lib/moments/date";
 import type { Moment } from "../../../../../types/moment";
-import { ChevronLeftIcon, PersonIcon } from "../../icons";
+import { ChevronLeftIcon } from "../../icons";
 import DeleteMomentModal from "../DeleteMomentModal";
-import { fallbackGradient, momentTypeIcon } from "../momentTypeIcon";
+import { fallbackGradient } from "../momentTypeIcon";
+import RemoveFromCountdownModal from "../RemoveFromCountdownModal";
+import ShareMomentSheet from "../ShareMomentSheet";
 
 function formatFullDate(iso: string): string {
+  return formatCalendarDay(iso, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function splitDay(iso: string): { day: string; month: string } {
   const parts = parseCalendarDay(iso);
-  if (!parts) return "";
-  const month = formatCalendarDay(iso, { month: "long" });
-  return `${month} ${parts.d}${ordinalSuffix(parts.d)}, ${parts.y}`;
-}
-
-function EllipsisIcon({ width = 20 }: { width?: number }) {
-  return (
-    <svg width={width} height={width} viewBox="0 0 24 24" fill="currentColor">
-      <circle cx="5" cy="12" r="1.75" />
-      <circle cx="12" cy="12" r="1.75" />
-      <circle cx="19" cy="12" r="1.75" />
-    </svg>
-  );
-}
-
-function PencilIconInline({ width = 20 }: { width?: number }) {
-  return (
-    <svg width={width} height={width} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-    </svg>
-  );
-}
-
-function TrashIconInline({ width = 20 }: { width?: number }) {
-  return (
-    <svg width={width} height={width} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-      <path d="M10 11v6" />
-      <path d="M14 11v6" />
-      <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-    </svg>
-  );
+  if (!parts) return { day: "--", month: "" };
+  return {
+    day: String(parts.d).padStart(2, "0"),
+    month: formatCalendarDay(iso, { month: "short" }),
+  };
 }
 
 export default function MobileMomentDetailPage({
@@ -69,6 +49,8 @@ export default function MobileMomentDetailPage({
   const { byFilter, countdown } = useMomentsState();
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Moment | null>(null);
+  const [removePinOpen, setRemovePinOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -109,7 +91,7 @@ export default function MobileMomentDetailPage({
 
   if (!moment) {
     return (
-      <div className="fixed inset-0 bg-white flex items-center justify-center">
+      <div className="xl:hidden fixed inset-0 bg-[#F3F1EB] flex items-center justify-center">
         <p className="font-montserrat text-primary-blue/60 text-[14px]">
           Loading…
         </p>
@@ -118,11 +100,19 @@ export default function MobileMomentDetailPage({
   }
 
   const cover = moment.coverImageUrl;
-  const participantCount = moment.participants?.length ?? 0;
+  const dateIso = moment.nextOccurrence || moment.date;
+  const { day, month } = splitDay(dateIso);
+  const participants = (moment.participants ?? []).filter((p) => {
+    const u = p.userId as unknown;
+    if (!u) return false;
+    if (typeof u === "string") return false;
+    const obj = u as { _id?: string; firstName?: string; lastName?: string };
+    return !!(obj._id && (obj.firstName || obj.lastName));
+  });
+  const isAuthor = moment.role === "author";
 
-  const handleTogglePin = async () => {
+  const handleTogglePin = async (next: boolean) => {
     if (pinBusy) return;
-    const next = !pinned;
     setPinned(next);
     setPinBusy(true);
     try {
@@ -138,79 +128,76 @@ export default function MobileMomentDetailPage({
   };
 
   return (
-    <div className="lg:hidden fixed inset-0 z-40 bg-white flex flex-col">
-      <div
-        className="relative flex-1 min-h-0"
-        style={
-          !cover ? { backgroundImage: fallbackGradient(moment.type) } : undefined
-        }
-      >
-        {cover && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={cover}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        )}
-
-        <button
-          type="button"
-          onClick={() => router.back()}
-          aria-label="Back"
-          className="cursor-pointer absolute top-[max(env(safe-area-inset-top),16px)] left-[16px] w-[36px] h-[36px] rounded-full bg-white text-primary-blue flex items-center justify-center shadow-[0_2px_6px_rgba(0,0,0,0.15)]"
-        >
-          <ChevronLeftIcon width={16} height={16} />
-        </button>
-
-        <div
-          className="absolute top-[max(env(safe-area-inset-top),16px)] right-[16px]"
-          ref={menuRef}
-        >
+    <div className="xl:hidden fixed inset-0 z-40 bg-[#F3F1EB] flex flex-col overflow-y-auto">
+      <div className="relative w-full max-w-[420px] mx-auto px-[20px] pt-[max(env(safe-area-inset-top),16px)] pb-[32px] flex flex-col gap-[14px]">
+        <div className="flex items-center justify-between">
           <button
             type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label="More options"
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className="cursor-pointer h-[30px] w-[46px] rounded-full bg-white text-primary-blue shadow-[0_2px_6px_rgba(0,0,0,0.15)] flex items-center justify-center"
+            onClick={() => router.back()}
+            aria-label="Back"
+            className="cursor-pointer w-[36px] h-[36px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] text-[#232323] flex items-center justify-center"
           >
-            <EllipsisIcon width={22} />
+            <ChevronLeftIcon width={14} height={14} />
           </button>
 
-          {menuOpen && (
-            <div
-              role="menu"
-              className="absolute right-0 top-[40px] min-w-[209px] bg-white rounded-[16px] shadow-[0_2px_12px_rgba(0,0,0,0.25)] py-[8px] px-[16px] z-10"
+          <div className="relative" ref={menuRef}>
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="More options"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              className="cursor-pointer w-[36px] h-[36px] rounded-full text-[#232323] flex items-center justify-center hover:bg-black/[0.05] transition-colors"
             >
-              {moment.role === "author" && (
-                <>
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <circle cx="5" cy="12" r="1.75" />
+                <circle cx="12" cy="12" r="1.75" />
+                <circle cx="19" cy="12" r="1.75" />
+              </svg>
+            </button>
+
+            {menuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-[42px] min-w-[220px] bg-white rounded-[14px] shadow-[0_6px_24px_rgba(0,0,0,0.16)] py-[8px] z-20"
+              >
+                {isAuthor && (
                   <Link
                     href={`/moments/${moment._id}/edit`}
                     role="menuitem"
                     onClick={() => setMenuOpen(false)}
-                    className="w-full flex items-center justify-between gap-[12px] py-[12px] border-b border-[#C9C9C9] font-montserrat font-medium text-primary-blue text-[16px]"
+                    className="w-full flex items-center justify-between gap-[10px] px-[18px] py-[11px] font-montserrat text-[#232323] text-[14px] hover:bg-black/[0.04] transition-colors"
                   >
                     <span>Edit</span>
-                    <PencilIconInline width={20} />
+                    <PencilIcon />
                   </Link>
+                )}
+                {pinned && (
                   <button
                     type="button"
                     role="menuitem"
                     onClick={() => {
                       setMenuOpen(false);
-                      setDeleteTarget(moment);
+                      setRemovePinOpen(true);
                     }}
-                    className="cursor-pointer w-full flex items-center justify-between gap-[12px] py-[12px] font-montserrat font-medium text-primary-blue text-[16px]"
+                    className="cursor-pointer w-full flex items-center justify-between gap-[10px] px-[18px] py-[11px] font-montserrat text-[#232323] text-[14px] hover:bg-black/[0.04] transition-colors text-left"
                   >
-                    <span>Delete</span>
-                    <span className="text-[#D95F3B]">
-                      <TrashIconInline width={20} />
-                    </span>
+                    <span>Remove from Countdown</span>
+                    <CalendarIcon />
                   </button>
-                </>
-              )}
-              {moment.role === "participant" && (
+                )}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setShareOpen(true);
+                  }}
+                  className="cursor-pointer w-full flex items-center justify-between gap-[10px] px-[18px] py-[11px] font-montserrat text-[#232323] text-[14px] hover:bg-black/[0.04] transition-colors text-left"
+                >
+                  <span>Share</span>
+                  <SendIcon />
+                </button>
                 <button
                   type="button"
                   role="menuitem"
@@ -218,63 +205,94 @@ export default function MobileMomentDetailPage({
                     setMenuOpen(false);
                     setDeleteTarget(moment);
                   }}
-                  className="cursor-pointer w-full flex items-center justify-between gap-[12px] py-[12px] font-montserrat font-medium text-primary-blue text-[16px]"
+                  className="cursor-pointer w-full flex items-center justify-between gap-[10px] px-[18px] py-[11px] font-montserrat text-[#D95F3B] text-[14px] hover:bg-black/[0.04] transition-colors text-left"
                 >
-                  <span>Leave</span>
+                  <span>{isAuthor ? "Delete" : "Leave"}</span>
+                  <TrashIcon />
                 </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="text-center">
+          <h2 className="font-ivy font-normal text-[#232323] text-[26px] leading-[1.15]">
+            {moment.title}
+          </h2>
+          <p className="mt-[4px] font-montserrat text-[#848484] text-[13px]">
+            {formatFullDate(dateIso)}
+          </p>
+        </div>
+
+        <div className="flex justify-center mt-[4px]">
+          <div className="relative bg-white p-[10px] pb-[18px] shadow-[0_4px_18px_rgba(0,0,0,0.18)]">
+            <div
+              className="w-full max-w-[280px] aspect-square overflow-hidden bg-primary-blue/10"
+              style={
+                !cover ? { backgroundImage: fallbackGradient(moment.type) } : undefined
+              }
+            >
+              {cover && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={cover}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
               )}
             </div>
-          )}
+            <div className="absolute top-[18px] left-[18px] bg-white px-[12px] py-[6px] text-center shadow-[0_2px_6px_rgba(0,0,0,0.18)]">
+              <div className="font-ivy font-normal text-[#232323] text-[22px] leading-[1]">
+                {day}
+              </div>
+              <div className="mt-[1px] font-montserrat text-[#2c2c2c]/70 text-[11px]">
+                {month}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="relative -mt-[24px] rounded-t-[24px] bg-white px-[24px] pt-[48px] pb-[64px] md:pt-[80px] md:pb-[120px] flex flex-col items-center gap-[36px] md:gap-[48px]">
-        {participantCount > 0 && (
-          <Link
-            href={`/moments/${moment._id}/people`}
-            aria-label={`${participantCount} people tagged`}
-            className="cursor-pointer absolute top-[16px] right-[16px] inline-flex items-center gap-[5.7px] bg-[#EDEDED] rounded-full px-[10px] py-[5px] font-montserrat font-medium text-primary-blue text-[11.4px]"
-          >
-            <PersonIcon width={11.4} height={11.4} />
-            {participantCount}
-          </Link>
+        {participants.length > 0 && (
+          <div className="mt-[6px] flex flex-col">
+            {participants.map((p, i) => {
+              const user = p.userId;
+              const name = `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || "User";
+              const initial = (user?.firstName || "?").charAt(0).toUpperCase();
+              return (
+                <div
+                  key={user?._id ?? `p:${i}`}
+                  className="flex items-center gap-[10px] py-[10px] border-b border-black/10 last:border-b-0"
+                >
+                  <div className="w-[32px] h-[32px] rounded-full bg-[#C8D1DA] overflow-hidden flex items-center justify-center shrink-0">
+                    {user?.profilePicture ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={user.profilePicture}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="font-montserrat font-semibold text-white text-[12px]">
+                        {initial}
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-montserrat text-[#232323] text-[14px] truncate">
+                    {name}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         )}
 
-        <div className="flex flex-col items-center gap-[12px]">
-          <div className="w-[43px] h-[43px] rounded-full bg-[color:var(--color-surface-muted)] text-primary-blue flex items-center justify-center">
-            {momentTypeIcon(moment.type, 22)}
-          </div>
-          <div className="flex flex-col items-center gap-[8px] text-center">
-            <h1 className="font-montserrat font-medium text-black text-[24px] leading-[28px]">
-              {moment.title}
-            </h1>
-            <p className="font-montserrat font-medium text-black text-[16px] leading-[20px]">
-              {formatFullDate(moment.nextOccurrence || moment.date)}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-center gap-[12px]">
-          <span className="font-montserrat font-medium text-primary-blue text-[16px]">
-            Add to countdown
-          </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={pinned}
-            onClick={handleTogglePin}
-            disabled={pinBusy}
-            className={`cursor-pointer relative w-[40px] h-[22px] rounded-full transition-colors ${
-              pinned ? "bg-primary-orange" : "bg-[#C9C9C9] border-[0.6px] border-[#A5A5A5]"
-            }`}
-          >
-            <span
-              className={`absolute top-[2px] left-[2px] w-[16px] h-[16px] rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-transform ${
-                pinned ? "translate-x-[18px]" : "translate-x-0"
-              }`}
-            />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => router.push(`/new-story?momentId=${encodeURIComponent(moment._id)}`)}
+          className="mt-[6px] w-full cursor-pointer bg-primary-orange text-white font-montserrat font-semibold text-[15px] rounded-full py-[12px] hover:opacity-90 transition-opacity"
+        >
+          Create Lag
+        </button>
       </div>
 
       <DeleteMomentModal
@@ -285,6 +303,60 @@ export default function MobileMomentDetailPage({
           router.push("/moments");
         }}
       />
+      <RemoveFromCountdownModal
+        open={removePinOpen}
+        onClose={() => setRemovePinOpen(false)}
+        onConfirm={() => {
+          setRemovePinOpen(false);
+          handleTogglePin(false);
+        }}
+      />
+      <ShareMomentSheet
+        open={shareOpen}
+        moment={moment}
+        onClose={() => setShareOpen(false)}
+      />
     </div>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="4" width="18" height="17" rx="2" />
+      <line x1="3" y1="9" x2="21" y2="9" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+    </svg>
+  );
+}
+
+function SendIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M22 2L11 13" />
+      <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+      <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+    </svg>
   );
 }

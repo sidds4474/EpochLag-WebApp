@@ -79,8 +79,6 @@ export default function MomentsCalendar({
     nd++;
   }
 
-  const todayIso = isoDay(today);
-
   const gotoMonth = (delta: number) => {
     let m = monthIdx + delta;
     let y = year;
@@ -98,18 +96,18 @@ export default function MomentsCalendar({
   }, []);
 
   return (
-    <div className="rounded-[20px] bg-white p-[20px]">
+    <div className="rounded-none bg-white p-[20px] shadow-[0_4px_4px_0_rgba(0,0,0,0.25)]">
       {/* Month + year header */}
-      <div className="flex items-center justify-between mb-[10px]">
+      <div className="flex items-center justify-between mb-[14px]">
         <div className="flex items-center gap-[8px]">
-          <span className="font-montserrat font-medium text-primary-blue text-[15px]">
+          <span className="font-montserrat font-medium text-[#232323] text-[15px]">
             {MONTHS[monthIdx]}
           </span>
           <button
             type="button"
             onClick={() => gotoMonth(-1)}
             aria-label="Previous month"
-            className="cursor-pointer w-[22px] h-[22px] rounded-full text-primary-blue/70 hover:bg-black/[0.04] flex items-center justify-center"
+            className="cursor-pointer w-[22px] h-[22px] rounded-full text-[#2c2c2c]/70 hover:bg-black/[0.04] flex items-center justify-center"
           >
             <ChevronLeftIcon width={14} height={14} />
           </button>
@@ -117,7 +115,7 @@ export default function MomentsCalendar({
             type="button"
             onClick={() => gotoMonth(1)}
             aria-label="Next month"
-            className="cursor-pointer w-[22px] h-[22px] rounded-full text-primary-blue/70 hover:bg-black/[0.04] flex items-center justify-center"
+            className="cursor-pointer w-[22px] h-[22px] rounded-full text-[#2c2c2c]/70 hover:bg-black/[0.04] flex items-center justify-center"
           >
             <ChevronRightIcon width={14} height={14} />
           </button>
@@ -129,7 +127,7 @@ export default function MomentsCalendar({
             onClick={() => setYearPickerOpen((v) => !v)}
             aria-haspopup="listbox"
             aria-expanded={yearPickerOpen}
-            className="cursor-pointer bg-white rounded-full px-[10px] py-[4px] flex items-center gap-[6px] font-montserrat font-medium text-primary-blue text-[12px] shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+            className="cursor-pointer bg-white rounded-full px-[12px] py-[5px] flex items-center gap-[6px] font-montserrat font-medium text-[#232323] text-[12px] shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
           >
             {year}
             <ChevronDownIcon width={12} height={12} />
@@ -164,11 +162,11 @@ export default function MomentsCalendar({
       </div>
 
       {/* Weekday row */}
-      <div className="grid grid-cols-7 gap-y-[6px] mb-[4px]">
+      <div className="grid grid-cols-7 gap-y-[6px] mb-[8px]">
         {WEEKDAYS.map((w, i) => (
           <div
             key={i}
-            className="text-center font-montserrat text-primary-blue/50 text-[11px] lowercase"
+            className="text-center font-montserrat font-medium text-[#2c2c2c]/70 text-[12px] lowercase"
           >
             {w}
           </div>
@@ -176,24 +174,21 @@ export default function MomentsCalendar({
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-7 gap-y-[4px]">
+      <div className="grid grid-cols-7 gap-y-[6px]">
         {cells.map((c) => {
           const isSelected = selectedDay === c.iso;
-          const isToday = c.iso === todayIso;
           const hasDot = dotsByDay.has(c.iso);
           return (
             <button
               key={c.iso}
               type="button"
               onClick={() => onSelectDay(c.iso)}
-              className={`relative mx-auto w-[30px] h-[30px] rounded-full flex items-center justify-center font-montserrat text-[14px] transition-colors focus:outline-none focus-visible:outline-none ${
+              className={`relative mx-auto w-[32px] h-[32px] rounded-full flex items-center justify-center font-montserrat text-[14px] transition-colors focus:outline-none focus-visible:outline-none ${
                 isSelected
-                  ? "bg-primary-orange text-white font-semibold"
+                  ? "bg-primary-orange text-white font-medium"
                   : !c.inMonth
-                    ? "text-primary-blue/30"
-                    : isToday
-                      ? "text-primary-blue font-semibold"
-                      : "text-[#333333]"
+                    ? "text-[#2c2c2c]/30"
+                    : "text-[#232323]"
               }`}
             >
               {String(c.day).padStart(2, "0")}

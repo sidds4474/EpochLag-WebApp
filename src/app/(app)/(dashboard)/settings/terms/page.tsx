@@ -1,5 +1,3 @@
-import Gradient3 from "../../../../../assets/images/gradients/3.jpg";
-import HeroBanner from "../HeroBanner";
 import PanelMobileHeader from "../PanelMobileHeader";
 
 type Block =
@@ -278,21 +276,48 @@ const SECTIONS: Section[] = [
   },
 ];
 
+// Same pattern as the Privacy Policy panel: pull out a "Last updated: …"
+// paragraph from the first section so it renders as a grey subtitle under
+// the Lora heading instead of inline with the body copy.
+function pickLastUpdated(): { lastUpdated: string | null; sections: Section[] } {
+  if (SECTIONS.length === 0) return { lastUpdated: null, sections: SECTIONS };
+  const [first, ...rest] = SECTIONS;
+  const idx = first.blocks.findIndex(
+    (b) => b.type === "para" && /last updated/i.test(b.text)
+  );
+  if (idx === -1) return { lastUpdated: null, sections: SECTIONS };
+  const raw = (first.blocks[idx] as { type: "para"; text: string }).text;
+  const trimmed = first.blocks.filter((_, i) => i !== idx);
+  const lastUpdated = raw.replace(/^last\s*updated:?\s*/i, "").trim();
+  return {
+    lastUpdated,
+    sections: [{ ...first, blocks: trimmed }, ...rest],
+  };
+}
+
 export default function TermsPage() {
+  const { lastUpdated, sections } = pickLastUpdated();
+
   return (
     <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <PanelMobileHeader title="Terms of Services" />
-      <HeroBanner src={Gradient3.src} />
 
       <div className="flex flex-col gap-[20px] max-w-[760px]">
-        <h1 className="font-montserrat font-normal text-primary-blue text-[20px] md:text-[22px]">
-          Terms of Services
-        </h1>
+        <div className="flex flex-col gap-[4px]">
+          <h1 className="font-ivy font-normal text-[#232323] text-[24px] md:text-[28px] leading-[1.15]">
+            Terms of Services
+          </h1>
+          {lastUpdated && (
+            <p className="font-montserrat text-[#848484] text-[13px] md:text-[14px]">
+              Last updated: {lastUpdated}
+            </p>
+          )}
+        </div>
 
-        {SECTIONS.map((section, i) => (
+        {sections.map((section, i) => (
           <section key={i} className="flex flex-col gap-[10px]">
             {section.heading && (
-              <h2 className="font-montserrat font-bold text-primary-blue text-[15px] md:text-[16px]">
+              <h2 className="font-montserrat font-bold text-[#232323] text-[15px] md:text-[16px]">
                 {section.heading}
               </h2>
             )}
@@ -301,7 +326,7 @@ export default function TermsPage() {
                 return (
                   <p
                     key={j}
-                    className="font-montserrat text-primary-blue text-[14px] leading-[160%]"
+                    className="font-montserrat text-[#2c2c2c] text-[14px] leading-[160%]"
                   >
                     {block.text}
                   </p>
@@ -311,7 +336,7 @@ export default function TermsPage() {
                 return (
                   <p
                     key={j}
-                    className="font-montserrat font-semibold text-primary-blue text-[14px] mt-[4px]"
+                    className="font-montserrat font-semibold text-[#232323] text-[14px] mt-[4px]"
                   >
                     {block.text}
                   </p>
@@ -325,7 +350,7 @@ export default function TermsPage() {
                   {block.items.map((item, k) => (
                     <li
                       key={k}
-                      className="font-montserrat text-primary-blue text-[14px] leading-[160%]"
+                      className="font-montserrat text-[#2c2c2c] text-[14px] leading-[160%]"
                     >
                       {item}
                     </li>

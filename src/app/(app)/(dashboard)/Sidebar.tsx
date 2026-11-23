@@ -6,9 +6,9 @@ import type { ReactNode } from "react";
 import LogoDark from "../../../assets/images/logo-dark.webp";
 import {
   ChevronRightIcon,
+  CircleIcon,
   HomeIcon,
   LibraryIcon,
-  InteractionsIcon,
   PlusIcon,
   PromptIcon,
 } from "./icons";
@@ -28,10 +28,10 @@ const NAV_ITEMS: Array<{
     match: (p) => p === "/home",
   },
   {
-    href: "/moments",
-    label: "Moments",
-    icon: <InteractionsIcon width={20} height={20} />,
-    match: (p) => p.startsWith("/moments"),
+    href: "/circle",
+    label: "Your Circle",
+    icon: <CircleIcon width={20} height={20} />,
+    match: (p) => p.startsWith("/circle"),
   },
   {
     href: "/lags",

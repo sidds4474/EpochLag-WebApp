@@ -7,6 +7,7 @@ import type { User } from "../../../types/user";
 import Avatar from "../../../components/Avatar";
 import {
   ChevronRightIcon,
+  CircleIcon,
   HomeIcon,
   InteractionsIcon,
   LibraryIcon,
@@ -26,6 +27,12 @@ const NAV_ITEMS: NavItem[] = [
     label: "Home",
     icon: <HomeIcon width={20} height={20} />,
     match: (p) => p === "/home",
+  },
+  {
+    href: "/circle",
+    label: "Your Circle",
+    icon: <CircleIcon width={20} height={20} />,
+    match: (p) => p.startsWith("/circle"),
   },
   {
     href: "/moments",

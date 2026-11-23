@@ -6,8 +6,8 @@ import type { ReactNode } from "react";
 import type { User } from "../../../types/user";
 import Avatar from "../../../components/Avatar";
 import {
+  CircleIcon,
   HomeIcon,
-  InteractionsIcon,
   LibraryIcon,
   PersonIcon,
   PlusIcon,
@@ -31,10 +31,10 @@ export default function BottomTabBar({ user }: { user: User | null }) {
       match: (p) => p === "/home",
     },
     {
-      href: "/moments",
-      label: "Moments",
-      icon: <InteractionsIcon width={22} height={22} />,
-      match: (p) => p.startsWith("/moments"),
+      href: "/circle",
+      label: "Your Circle",
+      icon: <CircleIcon width={22} height={22} />,
+      match: (p) => p.startsWith("/circle"),
     },
     // center Create is rendered separately
     {

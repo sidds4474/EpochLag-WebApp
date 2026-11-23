@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import StoryCardBeach from "../../../../../assets/images/story-card-beach.png";
-import StoryCardCostume from "../../../../../assets/images/story-card-costume.png";
+import PolaroidImg1 from "../../../../../assets/images/newimgs/polaroidImg1.jpg";
+import PolaroidImg2 from "../../../../../assets/images/newimgs/polaroidImg2.jpg";
+import PolaroidImg3 from "../../../../../assets/images/newimgs/polaroidImg3.png";
 import PanelMobileHeader from "../PanelMobileHeader";
 import { CheckCircleFillIcon } from "../icons";
 
@@ -17,19 +18,16 @@ const CHECKLIST = [
   "Keep everything completely private",
 ];
 
-const TIMELINE = [
-  {
-    day: "30",
-    month: "Oct",
-    prompt: "What is the best trip you ever had?",
-    image: StoryCardBeach,
-  },
-  {
-    day: "13",
-    month: "Sept",
-    prompt: "What is your best childhood memory?",
-    image: StoryCardCostume,
-  },
+// Three polaroid photos stacked / overlapping at the bottom of the
+// Why Epoch Lag tab. Each one tilts slightly so they feel scattered.
+const POLAROIDS: Array<{
+  src: string;
+  rotate: string;
+  z: number;
+}> = [
+  { src: PolaroidImg2.src, rotate: "-rotate-[5deg]", z: 1 },
+  { src: PolaroidImg3.src, rotate: "rotate-[2deg]", z: 2 },
+  { src: PolaroidImg1.src, rotate: "-rotate-[3deg]", z: 1 },
 ];
 
 export default function AboutPage() {
@@ -92,64 +90,67 @@ export default function AboutPage() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-[24px] lg:gap-[40px]">
-          <div className="flex flex-col gap-[14px] max-w-[500px]">
-            <h2 className="font-montserrat font-normal text-primary-blue text-[20px] md:text-[22px] leading-[130%]">
-              Built for the stories<br />behind the photos
+        <div className="flex flex-col gap-[20px] md:gap-[24px] max-w-[760px]">
+          <div className="flex flex-col gap-[10px]">
+            <h2 className="font-ivy font-normal text-[#232323] text-[22px] md:text-[26px] leading-[1.2]">
+              Built for the stories behind the photos
             </h2>
-            <p className="font-montserrat text-primary-blue text-[14px] md:text-[15px] leading-[160%]">
+            <p className="font-montserrat text-[#092e4a] text-[14px] md:text-[15px] leading-[160%]">
               Epoch Lag was built to protect the moments that actually shape us, the stories and conversations, the memories, perspectives, and voices.
             </p>
-            <ul className="flex flex-col gap-[10px] mt-[4px]">
-              {CHECKLIST.map((item) => (
-                <li key={item} className="flex items-start gap-[10px]">
-                  <span className="mt-[1px]">
-                    <CheckCircleFillIcon width={18} height={18} />
-                  </span>
-                  <span className="font-montserrat text-primary-blue text-[14px] md:text-[15px] leading-[150%]">
-                    {item}
-                  </span>
-                </li>
-              ))}
-            </ul>
           </div>
 
-          <div className="relative flex flex-col gap-[20px] pl-[24px] pr-[16px] py-[12px] before:content-[''] before:absolute before:left-[6px] before:top-[20px] before:bottom-[20px] before:w-px before:bg-[#092E4A]">
-            <div className="flex flex-col gap-[16px]">
-              {TIMELINE.map((entry, i) => (
-                <div key={i} className="relative">
-                  <span
-                    className={`absolute -left-[24px] top-1/2 -translate-y-1/2 w-[13px] h-[13px] rounded-full border-2 ${
-                      i === 0 ? "bg-[#EF9849] border-[#FCD6A5]" : "bg-white border-primary-blue/60"
-                    }`}
-                  />
-                  <div className="bg-white shadow-[0_0_29.755px_0_rgba(0,0,0,0.15)] rounded-[12px] p-[10px] flex items-center gap-[10px]">
-                    <div className="text-center shrink-0 w-[52px]">
-                      <p className="font-montserrat font-normal text-primary-blue text-[36px] leading-none">{entry.day}</p>
-                      <p className="font-montserrat text-primary-blue/70 text-[13px] mt-[2px]">{entry.month}</p>
-                    </div>
-                    <div className="self-stretch w-px bg-[#092E4A]/20" />
-                    <p className="flex-1 font-montserrat text-primary-blue text-[13px] leading-[140%]">
-                      {entry.prompt}
-                    </p>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={entry.image.src}
-                      alt=""
-                      className="self-stretch w-[80px] -my-[4px] -mr-[4px] rounded-[8px] object-cover shrink-0"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-center lg:justify-end">
-              <Link
-                href="/settings/help"
-                className="cursor-pointer font-montserrat text-[14px] font-medium text-white bg-[#EF9849] px-[20px] py-[8px] rounded-full hover:opacity-90 transition-opacity"
+          <ul className="flex flex-col gap-[12px]">
+            {CHECKLIST.map((item) => (
+              <li key={item} className="flex items-start gap-[12px]">
+                <span className="mt-[2px] text-[#232323]">
+                  <CheckCircleFillIcon width={18} height={18} />
+                </span>
+                <span className="font-montserrat text-[#232323] text-[14px] md:text-[15px] leading-[150%]">
+                  {item}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          {/* Desktop Learn More — inline just below the checklist */}
+          <div className="hidden md:block">
+            <Link
+              href="/settings/help"
+              className="inline-flex cursor-pointer font-montserrat font-medium text-white bg-primary-orange rounded-full px-[32px] py-[10px] text-[14px] hover:opacity-90 transition-opacity"
+            >
+              Learn More
+            </Link>
+          </div>
+
+          {/* Polaroid cluster */}
+          <div className="relative flex items-center justify-center gap-[20px] md:gap-[40px] mt-[12px] md:mt-[16px] pb-[90px] md:pb-0">
+            {POLAROIDS.map((p, i) => (
+              <div
+                key={i}
+                style={{ zIndex: p.z }}
+                className={`relative bg-white rounded-[4px] p-[6px] md:p-[8px] shadow-[0_6px_16px_rgba(0,0,0,0.18)] ${p.rotate}`}
               >
-                Learn More
-              </Link>
-            </div>
+                <div className="relative w-[96px] h-[120px] md:w-[136px] md:h-[164px] overflow-hidden bg-primary-blue/10">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={p.src}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Mobile sticky Learn More */}
+          <div className="md:hidden fixed left-0 right-0 bottom-[80px] z-20 px-[16px] py-[14px] bg-gradient-to-t from-[#f3f1eb] via-[#f3f1eb] to-transparent">
+            <Link
+              href="/settings/help"
+              className="block w-full text-center cursor-pointer font-montserrat font-semibold text-white bg-primary-orange rounded-full py-[14px] text-[15px] hover:opacity-90 transition-opacity"
+            >
+              Learn More
+            </Link>
           </div>
         </div>
       )}

@@ -175,8 +175,8 @@ export function CopyIcon({ width = 16, height = 16, className }: IconProps) {
 export function CheckCircleFillIcon({ width = 18, height = 18, className }: IconProps) {
   return (
     <svg width={width} height={height} viewBox="0 0 24 24" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" fill="#FCD6A5" />
-      <path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="#092E4A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="10" fill="#2C2C2C" />
+      <path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

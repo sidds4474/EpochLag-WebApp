@@ -386,7 +386,7 @@ export default function InspirationCard() {
           <ul className="flex gap-[12px] py-[6px]">
             {items.map((c, i) => (
               <li
-                key={c._id}
+                key={`${c._id}-${i}`}
                 className="snap-start shrink-0 w-[50%]"
               >
                 <MobileCard c={c} index={i} />

@@ -205,7 +205,7 @@ export default function StudioPage() {
               {
                 icon: <NotificationsSvg width={18} height={19} />,
                 label: "Notifications",
-                href: "/notifications",
+                href: "/studio/notifications",
               },
               {
                 icon: <AccountsSvg width={20} height={20} />,

@@ -90,7 +90,10 @@ export default function StoryViewing({
   }
 
   const authorName = author?.firstName || 'EpochLag user';
-  const location = story.location || '';
+  const location =
+    typeof story.location === 'object'
+      ? (story.location?.formattedAddress ?? story.location?.city ?? '')
+      : story.location || '';
 
   return (
     <div className="bg-warm-cream min-h-screen flex flex-col">

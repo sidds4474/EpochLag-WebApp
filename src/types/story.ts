@@ -16,7 +16,14 @@ export type Story = {
   content?: string;
   createdAt?: string;
   dateOfStory?: string;
-  location?: string;
+  location?: {
+    formattedAddress?: string;
+    placeId?: string;
+    lat?: number;
+    lng?: number;
+    city?: string;
+    country?: string;
+  };
   music?: string;
   media?: StoryMedia[];
   // Replies (and new-ask flow) attach cover separately from media so it isn't

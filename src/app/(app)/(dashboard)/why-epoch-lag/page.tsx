@@ -20,7 +20,7 @@ export default function DashboardWhyEpochLagPage() {
   const { idx, isLast, goNext } = useWhyEpochCarousel(() => router.back());
 
   return (
-    <div className="h-full flex flex-col bg-primary-cream overflow-hidden">
+    <div className="h-full flex flex-col bg-[#f3f1eb] overflow-hidden">
       {/* 3-column header: back left, dots dead-centered, spacer right. */}
       <div className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-center px-[16px] md:px-[24px] lg:px-[40px] pt-[12px] pb-[8px]">
         <div className="justify-self-start">
@@ -59,7 +59,7 @@ export default function DashboardWhyEpochLagPage() {
           because the sticky button lives above the slide content. */}
       <div className="md:hidden flex-1 flex flex-col min-h-0 overflow-y-auto">
         <WhyEpochSlideMobile idx={idx} />
-        <div className="fixed bottom-[80px] left-0 right-0 z-30 px-[24px] pb-[16px] pt-[16px] bg-gradient-to-t from-primary-cream via-primary-cream to-transparent">
+        <div className="fixed bottom-[80px] left-0 right-0 z-30 px-[24px] pb-[16px] pt-[16px] bg-gradient-to-t from-[#f3f1eb] via-[#f3f1eb] to-transparent">
           <button
             type="button"
             onClick={goNext}

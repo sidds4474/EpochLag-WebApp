@@ -1,14 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { ApiError } from "../../../../../lib/api/client";
-import type { LibraryThread } from "../../../../../lib/library/api";
 import {
   blockUser,
   deriveRelationshipStatus,
-  fetchSharedStories,
   fetchUserProfile,
   removeConnection,
   respondToFriendRequest,
@@ -17,10 +15,11 @@ import {
   type ProfileWithRelationship,
   type RelationshipStatus,
 } from "../../../../../lib/connections/api";
+import Link from "next/link";
 import ConfirmationModal from "../../../../../components/ConfirmationModal/ConfirmationModal";
 import { ChevronLeftIcon } from "../../icons";
 import FriendProfileHeader from "./FriendProfileHeader";
-import SharedStoriesSection from "./SharedStoriesSection";
+import SuggestedQuestionsCard from "./SuggestedQuestionsCard";
 
 // Friend's profile page. Route: /profile/[id]. Renders someone else's
 // profile with a per-state CTA row (six relationship states), a 3-dot
@@ -40,12 +39,6 @@ export default function FriendProfilePage() {
   const [status, setStatus] = useState<RelationshipStatus | "">("");
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
-
-  const [stories, setStories] = useState<LibraryThread[]>([]);
-  const [storiesLoading, setStoriesLoading] = useState(false);
-  const [storiesPage, setStoriesPage] = useState(1);
-  const [storiesHasMore, setStoriesHasMore] = useState(false);
-  const [loadingMoreStories, setLoadingMoreStories] = useState(false);
 
   const [blockOpen, setBlockOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
@@ -79,54 +72,12 @@ export default function FriendProfilePage() {
     };
   }, [userId]);
 
-  // ── Fetch shared stories when status resolves to a section-visible
-  // state. Blocked + declined suppress the section entirely so we
-  // skip the network too.
+  // Blocked + declined suppress the suggested-questions card entirely.
   const shouldShowSharedSection =
     status === "connection" ||
     status === "notConnected" ||
     status === "pending" ||
     status === "requested";
-
-  useEffect(() => {
-    if (!userId || !shouldShowSharedSection) return;
-    let cancelled = false;
-    setStoriesLoading(true);
-    fetchSharedStories(userId, 1, 10)
-      .then(({ stories: list, pagination }) => {
-        if (cancelled) return;
-        setStories(list);
-        setStoriesPage(2);
-        setStoriesHasMore(hasMoreFromPagination(pagination, list.length, 10));
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setStories([]);
-          setStoriesHasMore(false);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setStoriesLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, shouldShowSharedSection]);
-
-  const loadMoreStories = useCallback(async () => {
-    if (loadingMoreStories || !storiesHasMore || stories.length === 0) return;
-    setLoadingMoreStories(true);
-    try {
-      const { stories: next, pagination } = await fetchSharedStories(userId, storiesPage, 10);
-      setStories((prev) => dedupeAppend(prev, next));
-      setStoriesPage((p) => p + 1);
-      setStoriesHasMore(hasMoreFromPagination(pagination, next.length, 10));
-    } catch {
-      /* silent — user can scroll again to retry */
-    } finally {
-      setLoadingMoreStories(false);
-    }
-  }, [userId, storiesPage, loadingMoreStories, storiesHasMore, stories.length]);
 
   const mutualCount = useMemo(() => {
     return profile?.friendsDetails?.length ?? profile?.friends?.length ?? 0;
@@ -228,13 +179,11 @@ export default function FriendProfilePage() {
     }
   }
 
-  function handleSendPrompt() {
+  function handleSendPrompt(prompt?: string) {
     if (!userId) return;
-    // Composer will pick up the recipient via query param and pre-select
-    // it in the Share sheet. Support for `recipient=` on the composer
-    // side is a follow-up — for now the route lands the user in the
-    // composer with the intent preserved in the URL.
-    router.push(`/new-story?recipient=${encodeURIComponent(userId)}`);
+    const base = `/new-ask?recipient=${encodeURIComponent(userId)}`;
+    const qs = prompt ? `${base}&prompt=${encodeURIComponent(prompt)}` : base;
+    router.push(qs);
   }
 
   // ── Render ───────────────────────────────────────────────────────
@@ -244,55 +193,58 @@ export default function FriendProfilePage() {
     : "";
 
   return (
-    <div className="h-full flex flex-col min-h-0 overflow-y-auto bg-white">
-      <div className="px-[16px] md:px-[24px] lg:px-[40px] pt-[16px] md:pt-[20px] pb-[100px] md:pb-[40px] max-w-[1440px] mx-auto w-full">
-        <div className="flex items-center gap-[10px] mb-[12px] md:mb-[16px]">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            aria-label="Back"
-            className="md:hidden cursor-pointer w-[36px] h-[36px] rounded-full text-primary-blue flex items-center justify-center hover:bg-black/[0.06] transition-colors"
+    <div className="h-full flex flex-col min-h-0 overflow-y-auto bg-[#f3f1eb]">
+      <div className="px-[16px] md:px-[24px] lg:px-[40px] pt-[16px] md:pt-[24px] pb-[100px] md:pb-[48px] max-w-[1400px] mx-auto w-full">
+        {/* Page title row: back + Studio + settings gear */}
+        <div className="flex items-center justify-between mb-[16px] md:mb-[20px]">
+          <div className="flex items-center gap-[12px]">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              aria-label="Back"
+              className="cursor-pointer w-[36px] h-[36px] rounded-full bg-white hover:bg-white/90 shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-[#232323] flex items-center justify-center transition-colors shrink-0"
+            >
+              <ChevronLeftIcon width={16} height={16} />
+            </button>
+            <h1 className="font-ivy font-normal text-[#232323] text-[26px] md:text-[32px] md:leading-[1.15]">
+              Studio
+            </h1>
+          </div>
+          <Link
+            href="/settings"
+            aria-label="Settings"
+            className="cursor-pointer w-[36px] h-[36px] md:w-[40px] md:h-[40px] rounded-full text-[#232323] hover:bg-black/[0.05] flex items-center justify-center transition-colors"
           >
-            <ChevronLeftIcon width={18} height={18} />
-          </button>
-          <h1 className="font-montserrat font-bold text-primary-blue text-[22px] md:text-[28px] leading-tight">
-            Studio
-          </h1>
+            <GearIcon width={22} height={22} />
+          </Link>
         </div>
 
         {loadingProfile && <SkeletonHeader />}
         {profileError && !loadingProfile && (
-          <div className="py-[40px] text-center font-montserrat text-primary-blue/60 text-[14px]">
+          <div className="py-[40px] text-center font-montserrat text-[#2c2c2c]/60 text-[14px]">
             {profileError}
           </div>
         )}
         {profile && !loadingProfile && (
-          <>
-            <FriendProfileHeader
-              profile={profile}
-              status={status}
-              mutualCount={mutualCount}
-              onSendRequest={handleSendRequest}
-              onAccept={handleAccept}
-              onDecline={handleDecline}
-              onUnblock={handleUnblock}
-              onBlockClick={() => setBlockOpen(true)}
-              onRemoveClick={() => setRemoveOpen(true)}
-            />
-
-            {shouldShowSharedSection && (
-              <SharedStoriesSection
-                firstName={firstName}
-                loading={storiesLoading}
-                stories={stories}
-                loadingMore={loadingMoreStories}
-                hasMore={storiesHasMore}
-                onLoadMore={loadMoreStories}
-                showSendPrompt={status === "connection"}
-                onSendPrompt={handleSendPrompt}
-              />
-            )}
-          </>
+          <FriendProfileHeader
+            profile={profile}
+            status={status}
+            mutualCount={mutualCount}
+            onSendRequest={handleSendRequest}
+            onAccept={handleAccept}
+            onDecline={handleDecline}
+            onUnblock={handleUnblock}
+            onBlockClick={() => setBlockOpen(true)}
+            onRemoveClick={() => setRemoveOpen(true)}
+            rightSlot={
+              shouldShowSharedSection ? (
+                <SuggestedQuestionsCard
+                  firstName={firstName}
+                  onSend={(prompt) => handleSendPrompt(prompt)}
+                />
+              ) : null
+            }
+          />
         )}
       </div>
 
@@ -318,26 +270,16 @@ export default function FriendProfilePage() {
   );
 }
 
-// ── Helpers ────────────────────────────────────────────────────────
-function dedupeAppend<T extends { _id: string }>(prev: T[], next: T[]): T[] {
-  if (next.length === 0) return prev;
-  const seen = new Set(prev.map((x) => x._id));
-  const fresh = next.filter((x) => !seen.has(x._id));
-  if (fresh.length === 0) return prev;
-  return [...prev, ...fresh];
-}
-
-function hasMoreFromPagination(
-  p: { totalPages?: number; currentPage?: number; pageNumber?: number } | null,
-  received: number,
-  limit: number
-): boolean {
-  if (!p) return received >= limit;
-  const current = p.currentPage ?? p.pageNumber;
-  if (typeof current === "number" && typeof p.totalPages === "number") {
-    return current < p.totalPages;
-  }
-  return received >= limit;
+function GearIcon({ width = 22, height = 22 }: { width?: number; height?: number }) {
+  return (
+    <svg width={width} height={height} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M11.078 1.5c-.784 0-1.44.578-1.545 1.353L9.4 3.964a8.5 8.5 0 00-1.585.657l-1.02-.674a1.56 1.56 0 00-2.03.26l-1.302 1.42a1.56 1.56 0 00-.148 1.972l.706 1.024a8.5 8.5 0 00-.638 1.605l-1.163.204A1.56 1.56 0 001 10.75v1.5c0 .784.578 1.44 1.353 1.545l1.11.15c.155.567.37 1.109.638 1.615l-.665.968a1.56 1.56 0 00.194 1.99l1.302 1.36c.55.575 1.442.65 2.08.176l.985-.732a8.5 8.5 0 001.583.66l.157 1.116c.105.775.761 1.353 1.545 1.353h1.844c.784 0 1.44-.578 1.545-1.353l.157-1.116a8.5 8.5 0 001.583-.66l.985.732a1.56 1.56 0 002.08-.176l1.302-1.36a1.56 1.56 0 00.194-1.99l-.665-.968a8.5 8.5 0 00.638-1.615l1.11-.15A1.56 1.56 0 0023 12.25v-1.5c0-.784-.578-1.44-1.353-1.545l-1.163-.204a8.5 8.5 0 00-.638-1.605l.706-1.024a1.56 1.56 0 00-.148-1.972l-1.302-1.42a1.56 1.56 0 00-2.03-.26l-1.02.674a8.5 8.5 0 00-1.585-.657l-.133-1.111A1.56 1.56 0 0013.844 1.5h-1.767a1.56 1.56 0 00-.999 0zM12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z"
+      />
+    </svg>
+  );
 }
 
 function SkeletonHeader() {

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
 import { urlForScreen } from "../../../lib/onboarding";
 import {
   GalleryIcon,
@@ -42,6 +41,7 @@ import { useUploads, useUploadStatus } from "../../../lib/onboarding/upload/Uplo
 import { makeBlockId } from "../../../lib/onboarding/upload/helpers";
 import toast from "react-hot-toast";
 import AudioRecorder from "../../(app)/(dashboard)/new-story/AudioRecorder";
+import { MusicPickerModal, type MusicValue } from "../../(app)/(dashboard)/new-story/pickers";
 import exifr from "exifr";
 import {
   setDate,
@@ -53,12 +53,15 @@ import type { LagLocation } from "../../../lib/onboarding/store/slices/createALa
 
 type FlipState = null | "editor";
 
-const TITLE = "Start by adding one of\nyour favorite memories";
-const HELPER = "Complete your story by adding text,\nvoice messages or videos";
+const TITLE = "Start by adding one of\nyour favorite photos";
+const HELPER_DESKTOP =
+  "Complete your story by adding text,\nvoice messages, music or videos";
+const HELPER_MOBILE =
+  "Complete your story by adding text,\nvoice messages or videos";
 const FLIP_HINT = "Tap to flip";
-const COVER_EMPTY_DESKTOP = "Upload an image";
+const COVER_EMPTY_DESKTOP = "Click to upload a photo";
 const COVER_EMPTY_MOBILE = "Tap to upload a photo";
-const COVER_CAPTION = "My favorite memory";
+const COVER_CAPTION = "";
 
 export default function AddMemoryPage() {
   const router = useRouter();
@@ -73,6 +76,8 @@ export default function AddMemoryPage() {
   const textBody = reduxTextBody;
   const setTextBody = (v: string) => dispatch(setTextBodyAction(v));
   const [audioModalOpen, setAudioModalOpen] = useState(false);
+  const [musicModalOpen, setMusicModalOpen] = useState(false);
+  const [music, setMusic] = useState<MusicValue | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
@@ -170,6 +175,19 @@ export default function AddMemoryPage() {
   const openImagePicker = () => imageInputRef.current?.click();
   const openVideoPicker = () => videoInputRef.current?.click();
   const openAudioModal = () => setAudioModalOpen(true);
+  const openMusicModal = () => setMusicModalOpen(true);
+  const onMusicPicked = (next: MusicValue) => {
+    setMusic(next);
+    setMusicModalOpen(false);
+    apiSaveAnonDraft({
+      music: {
+        trackName: next.trackName,
+        artistName: next.artistName,
+        artworkUrl: next.artworkUrl ?? null,
+        previewUrl: next.previewUrl ?? null,
+      },
+    }).catch(() => {});
+  };
 
   const onImagesPicked = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -328,119 +346,175 @@ export default function AddMemoryPage() {
           </div>
         </div>
       )}
-    <OnboardingShell
-      onNext={goNext}
-      hideMobileNext
-      desktopContent={
-        <div className="flex flex-col items-center text-primary-blue w-full">
+      {musicModalOpen && (
+        <MusicPickerModal
+          onClose={() => setMusicModalOpen(false)}
+          onSelect={onMusicPicked}
+        />
+      )}
+    <div className="fixed inset-0 z-40 bg-[#F3F1EB] overflow-hidden">
+      {/* Mobile + tablet layout (below lg) */}
+      <div className="lg:hidden absolute inset-0 overflow-y-auto px-[28px] pt-[max(env(safe-area-inset-top),32px)] pb-[180px]">
+        <div className="flex flex-col items-center">
           <PeachDot />
-          <h1 className="mt-[16px] font-montserrat font-bold text-[20px] lg:text-[17px] leading-[130%] text-center whitespace-pre-line">
+          <h1 className="mt-[14px] font-ivy font-normal text-[#232323] text-[22px] md:text-[24px] leading-[1.25] text-center whitespace-pre-line">
             {TITLE}
           </h1>
-
-          <FlipCard
-            flipped={flipped !== null}
-            front={<CoverFront empty={COVER_EMPTY_DESKTOP} coverUrl={coverUrl} onPick={openCoverPicker} />}
-            back={
-              <EditorBack
-                value={textBody}
-                onChange={setTextBody}
-                onDone={flipBack}
-                videos={videos}
-                images={extraImages}
-                audios={audios}
-                onRemoveVideo={removeVideo}
-                onRemoveImage={removeImage}
-                onRemoveAudio={removeAudioAt}
-              />
-            }
-            heightClass="h-[380px] lg:h-[320px]"
-            widthClass="w-full max-w-[420px] lg:max-w-[340px]"
-          />
-
-          <SubCardSlot flipped={flipped !== null} onFlipBack={flipBack} />
-
-          <PillRow
-            flipped={flipped !== null}
-            onText={() => flipTo("editor")}
-            onVoice={() => {
-              flipTo("editor");
-              setTimeout(openAudioModal, 250);
-            }}
-            onVideo={() => {
-              flipTo("editor");
-              setTimeout(openVideoPicker, 250);
-            }}
-            onImage={() => {
-              flipTo("editor");
-              setTimeout(openImagePicker, 250);
-            }}
-          />
         </div>
-      }
-      mobileContent={
-        <div className="flex flex-col min-h-screen px-[24px] pt-[24px] pb-[140px] text-primary-blue">
-          <div className="flex flex-col items-center">
-            <PeachDot />
-            <h1 className="mt-[12px] font-montserrat font-bold text-[22px] leading-[128%] text-center whitespace-pre-line">
-              {TITLE}
-            </h1>
+
+        <FlipCard
+          flipped={flipped !== null}
+          front={<CoverFront empty={COVER_EMPTY_MOBILE} coverUrl={coverUrl} onPick={openCoverPicker} mobile />}
+          back={
+            <EditorBack
+              value={textBody}
+              onChange={setTextBody}
+              onDone={flipBack}
+              mobile
+              videos={videos}
+              images={extraImages}
+              audios={audios}
+              onRemoveVideo={removeVideo}
+              onRemoveImage={removeImage}
+              onRemoveAudio={removeAudioAt}
+            />
+          }
+          heightClass="aspect-square h-auto"
+          widthClass="w-[280px] mx-auto"
+          wrapClass="mt-[28px]"
+        />
+
+        <SubCardSlot
+          flipped={flipped !== null}
+          onFlipBack={flipBack}
+          helper={HELPER_MOBILE}
+          mobile
+        />
+
+        <PillRow
+          flipped={flipped !== null}
+          onText={() => flipTo("editor")}
+          onVoice={() => {
+            flipTo("editor");
+            setTimeout(openAudioModal, 250);
+          }}
+          onVideo={() => {
+            flipTo("editor");
+            setTimeout(openVideoPicker, 250);
+          }}
+          onImage={() => {
+            flipTo("editor");
+            setTimeout(openImagePicker, 250);
+          }}
+          onMusic={openMusicModal}
+          mobile
+        />
+
+        {music && (
+          <div className="mt-[14px] flex justify-center">
+            <SelectedMusicPill
+              value={music}
+              onReplace={openMusicModal}
+              onClear={() => {
+                setMusic(null);
+                apiSaveAnonDraft({ music: null }).catch(() => {});
+              }}
+            />
           </div>
+        )}
+      </div>
 
-          <FlipCard
-            flipped={flipped !== null}
-            front={<CoverFront empty={COVER_EMPTY_MOBILE} coverUrl={coverUrl} onPick={openCoverPicker} mobile />}
-            back={
-              <EditorBack
-                value={textBody}
-                onChange={setTextBody}
-                onDone={flipBack}
-                mobile
-                videos={videos}
-                images={extraImages}
-                audios={audios}
-                onRemoveVideo={removeVideo}
-                onRemoveImage={removeImage}
-                onRemoveAudio={removeAudioAt}
-              />
-            }
-            heightClass="h-[280px]"
-            widthClass="w-full"
-            wrapClass="mt-[20px]"
-          />
-
-          <SubCardSlot flipped={flipped !== null} onFlipBack={flipBack} mobile />
-
-          <PillRow
-            flipped={flipped !== null}
-            onText={() => flipTo("editor")}
-            onVoice={() => {
-              flipTo("editor");
-              setTimeout(openAudioModal, 250);
-            }}
-            onVideo={() => {
-              flipTo("editor");
-              setTimeout(openVideoPicker, 250);
-            }}
-            onImage={() => {
-              flipTo("editor");
-              setTimeout(openImagePicker, 250);
-            }}
-            mobile
-          />
-
-          <div className="fixed bottom-0 left-0 right-0 z-30 px-[24px] pb-[24px] pt-[16px] bg-warm-cream">
-            <button
-              type="button"
-              onClick={goNext}
-              className="w-full cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity"
-            >
-              Next
-            </button>
-          </div>
+      {/* Desktop (lg+) layout — scroll when content overflows (e.g. once a
+          music pill joins the stack) so the top heading doesn't get clipped. */}
+      <div className="hidden lg:block absolute inset-0 overflow-y-auto">
+        <div className="min-h-full flex flex-col items-center justify-center px-[32px] pt-[48px] pb-[100px] gap-[24px]">
+        <div className="flex flex-col items-center">
+          <PeachDot />
+          <h1 className="mt-[14px] font-ivy font-normal text-[#232323] text-[24px] xl:text-[28px] leading-[1.25] text-center whitespace-pre-line">
+            {TITLE}
+          </h1>
         </div>
-      }
-    />
+
+        <FlipCard
+          flipped={flipped !== null}
+          front={<CoverFront empty={COVER_EMPTY_DESKTOP} coverUrl={coverUrl} onPick={openCoverPicker} />}
+          back={
+            <EditorBack
+              value={textBody}
+              onChange={setTextBody}
+              onDone={flipBack}
+              videos={videos}
+              images={extraImages}
+              audios={audios}
+              onRemoveVideo={removeVideo}
+              onRemoveImage={removeImage}
+              onRemoveAudio={removeAudioAt}
+            />
+          }
+          heightClass="aspect-square h-auto"
+          widthClass="w-[280px] xl:w-[300px]"
+          wrapClass="mt-[0px]"
+        />
+
+        <SubCardSlot
+          flipped={flipped !== null}
+          onFlipBack={flipBack}
+          helper={HELPER_DESKTOP}
+        />
+
+        <PillRow
+          flipped={flipped !== null}
+          onText={() => flipTo("editor")}
+          onVoice={() => {
+            flipTo("editor");
+            setTimeout(openAudioModal, 250);
+          }}
+          onVideo={() => {
+            flipTo("editor");
+            setTimeout(openVideoPicker, 250);
+          }}
+          onImage={() => {
+            flipTo("editor");
+            setTimeout(openImagePicker, 250);
+          }}
+          onMusic={openMusicModal}
+        />
+
+        {music && (
+          <div className="-mt-[16px] flex justify-center">
+            <SelectedMusicPill
+              value={music}
+              onReplace={openMusicModal}
+              onClear={() => {
+                setMusic(null);
+                apiSaveAnonDraft({ music: null }).catch(() => {});
+              }}
+            />
+          </div>
+        )}
+        </div>
+      </div>
+
+      {/* Desktop Next pill */}
+      <button
+        type="button"
+        onClick={goNext}
+        className="hidden lg:inline-flex absolute bottom-[32px] right-[32px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[15px] rounded-full px-[40px] py-[12px] hover:opacity-90 transition-opacity"
+      >
+        Next
+      </button>
+
+      {/* Mobile + tablet Next pill */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-[#F3F1EB] px-[24px] md:px-[48px] pb-[max(env(safe-area-inset-bottom),24px)] pt-[16px]">
+        <button
+          type="button"
+          onClick={goNext}
+          className="w-full max-w-[520px] mx-auto block cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity"
+        >
+          Next
+        </button>
+      </div>
+    </div>
     </>
   );
 }
@@ -505,7 +579,7 @@ function CoverFront({
   empty,
   coverUrl,
   onPick,
-  mobile = false,
+  mobile: _mobile = false,
 }: {
   empty: string;
   coverUrl: string | null;
@@ -513,30 +587,33 @@ function CoverFront({
   mobile?: boolean;
 }) {
   return (
-    <div className="w-full h-full bg-primary-white rounded-[20px] p-[16px] flex flex-col shadow-[0_10px_30px_rgba(9,46,74,0.10)]">
+    <div className="w-full h-full bg-white p-[10px] shadow-[0_6px_18px_rgba(0,0,0,0.18)]">
       <button
         type="button"
         onClick={onPick}
-        className="flex-1 w-full rounded-[14px] bg-[#E6E6E6] overflow-hidden flex flex-col items-center justify-center gap-[10px] cursor-pointer hover:bg-[#DEDEDE] transition-colors"
+        className="w-full h-full bg-[#E6E6E6] overflow-hidden flex flex-col items-center justify-center gap-[10px] cursor-pointer hover:bg-[#DEDEDE] transition-colors"
       >
         {coverUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={coverUrl} alt="" className="w-full h-full object-cover" />
-        ) : mobile ? (
-          <>
-            <GalleryIcon width={44} height={44} />
-            <span className="font-montserrat text-[16px] text-primary-blue">{empty}</span>
-          </>
         ) : (
           <>
-            <UploadGlyph />
-            <span className="font-montserrat text-[14px] text-primary-blue">{empty}</span>
+            <ImageTileGlyph />
+            <span className="font-montserrat text-[14px] text-[#232323]">{empty}</span>
           </>
         )}
       </button>
-      <div className={`mt-[12px] text-center font-montserrat ${mobile ? "text-[16px]" : "text-[14px]"} text-primary-blue`}>
-        {COVER_CAPTION}
-      </div>
     </div>
+  );
+}
+
+function ImageTileGlyph() {
+  return (
+    <svg width={34} height={34} viewBox="0 0 24 24" fill="none" stroke="#232323" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <circle cx="9" cy="9" r="1.6" />
+      <path d="M21 15l-5-5L5 21" />
+    </svg>
   );
 }
 
@@ -573,10 +650,10 @@ function EditorBack({
     el.style.height = `${el.scrollHeight}px`;
   }, [value]);
   return (
-    <div className="w-full h-full bg-primary-white rounded-[20px] p-[16px] flex flex-col shadow-[0_10px_30px_rgba(9,46,74,0.10)]">
+    <div className="w-full h-full bg-white p-[10px] flex flex-col shadow-[0_6px_18px_rgba(0,0,0,0.18)]">
       <div
         onClick={() => textareaRef.current?.focus()}
-        className="flex-1 w-full rounded-[14px] bg-[#E6E6E6] p-[16px] overflow-y-auto cursor-text [&::-webkit-scrollbar]:hidden"
+        className="flex-1 w-full bg-[#E6E6E6] p-[14px] overflow-y-auto cursor-text [&::-webkit-scrollbar]:hidden"
         style={{ scrollbarWidth: "none" }}
       >
         <textarea
@@ -683,52 +760,47 @@ function AudioRow({ mediaId, uri, onRemove }: { mediaId: string; uri: string; on
 function SubCardSlot({
   flipped,
   onFlipBack,
+  helper,
   mobile = false,
 }: {
   flipped: boolean;
   onFlipBack: () => void;
+  helper: string;
   mobile?: boolean;
 }) {
-  const height = mobile ? "h-[76px]" : "h-[68px]";
+  const height = mobile ? "h-[72px]" : "h-[60px]";
   return (
     <div className={`${height} w-full flex items-center justify-center`}>
       {flipped ? (
         <button
           type="button"
           onClick={onFlipBack}
-          className={`cursor-pointer flex items-center gap-[8px] px-[14px] py-[8px] rounded-full font-montserrat ${mobile ? "text-[14px]" : "text-[13px]"} text-primary-blue`}
+          className={`cursor-pointer flex items-center gap-[8px] px-[14px] py-[8px] rounded-full font-montserrat ${mobile ? "text-[14px]" : "text-[13px]"} text-[#232323]`}
           style={{ backgroundColor: "#FFE0BB" }}
         >
           <FlipGlyph />
           {FLIP_HINT}
         </button>
       ) : (
-        <div className="flex flex-col items-center gap-[8px]">
-          <p className={`text-center font-montserrat ${mobile ? "text-[14px]" : "text-[13px]"} leading-[150%] text-primary-blue/75 whitespace-pre-line`}>
-            {HELPER}
-          </p>
-          {mobile && <DownArrowGlyph />}
-        </div>
+        <p
+          className={`text-center font-montserrat ${
+            mobile ? "text-[13px]" : "text-[13px]"
+          } leading-[1.5] text-[#2c2c2c]/75 whitespace-pre-line`}
+        >
+          {helper}
+        </p>
       )}
     </div>
   );
 }
 
-function DownArrowGlyph() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-primary-blue/70">
-      <path d="M12 4v16" />
-      <path d="M6 14l6 6 6-6" />
-    </svg>
-  );
-}
-
 function PillRow({
-  flipped,
+  flipped: _flipped,
   onText,
   onVoice,
   onVideo,
   onImage,
+  onMusic,
   mobile = false,
 }: {
   flipped: boolean;
@@ -736,55 +808,136 @@ function PillRow({
   onVoice: () => void;
   onVideo: () => void;
   onImage: () => void;
+  onMusic: () => void;
   mobile?: boolean;
 }) {
-  const wrap = mobile ? "w-full" : "w-full max-w-[420px] lg:max-w-[340px]";
-  const iconSize = mobile ? 32 : 30;
-  const textSize = mobile ? "text-[20px]" : "text-[19px]";
+  const iconSize = 20;
+  const wrapClass = mobile
+    ? "w-full max-w-[380px] mx-auto flex items-center justify-between px-[14px]"
+    : "w-full max-w-[380px] bg-[#E8E6DF] rounded-full flex items-center justify-between px-[14px] py-[8px]";
+
   return (
-    <div className={`${wrap} flex items-center gap-[10px] mt-[8px]`}>
-      <Pill filled={flipped} onClick={onText} ariaLabel="Add text" mobile={mobile}>
-        <TextGlyph filled={flipped} size={textSize} />
-      </Pill>
-      <Pill filled={false} onClick={onVoice} ariaLabel="Record audio" mobile={mobile}>
-        <MicrophoneIcon width={iconSize} height={iconSize} />
-      </Pill>
-      <Pill filled={false} onClick={onVideo} ariaLabel="Add video" mobile={mobile}>
+    <div className={wrapClass}>
+      <PillIconBtn onClick={onVideo} ariaLabel="Add video">
         <VideoCameraAddIcon width={iconSize} height={iconSize} />
-      </Pill>
-      <Pill filled={false} onClick={onImage} ariaLabel="Add image" mobile={mobile}>
+      </PillIconBtn>
+      <PillIconBtn onClick={onImage} ariaLabel="Add image">
         <GalleryIcon width={iconSize} height={iconSize} />
-      </Pill>
+      </PillIconBtn>
+      <RecordMicBtn onClick={onVoice} />
+      <PillIconBtn onClick={onText} ariaLabel="Add text">
+        <span className="font-ivy text-[#232323] text-[18px] leading-none">T</span>
+      </PillIconBtn>
+      <PillIconBtn onClick={onMusic} ariaLabel="Add music">
+        <MusicGlyph size={iconSize} />
+      </PillIconBtn>
     </div>
   );
 }
 
-function Pill({
-  filled,
+function PillIconBtn({
   onClick,
   ariaLabel,
   children,
-  mobile = false,
 }: {
-  filled: boolean;
   onClick: () => void;
   ariaLabel: string;
   children: React.ReactNode;
-  mobile?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={ariaLabel}
-      className={`flex-1 ${mobile ? "h-[60px]" : "h-[60px] lg:h-[52px]"} rounded-full flex items-center justify-center cursor-pointer transition-colors ${
-        filled
-          ? "bg-primary-blue text-primary-white"
-          : "bg-primary-white text-primary-blue hover:bg-primary-white/90"
-      }`}
+      className="w-[42px] h-[42px] rounded-full flex items-center justify-center text-[#232323] cursor-pointer hover:bg-black/[0.05] transition-colors"
     >
       {children}
     </button>
+  );
+}
+
+// Center mic button — concentric rings with an orange core matching the
+// Figma highlight treatment.
+function RecordMicBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Record audio"
+      className="relative w-[54px] h-[54px] rounded-full flex items-center justify-center cursor-pointer"
+    >
+      <span className="absolute rounded-full" style={{ width: 54, height: 54, backgroundColor: "#FCD6A5" }} />
+      <span className="absolute rounded-full" style={{ width: 42, height: 42, backgroundColor: "#EF9849" }} />
+      <span className="absolute rounded-full" style={{ width: 30, height: 30, backgroundColor: "#D95F3B" }} />
+      <span className="relative text-white">
+        <MicrophoneIcon width={16} height={16} />
+      </span>
+    </button>
+  );
+}
+
+function SelectedMusicPill({
+  value,
+  onReplace,
+  onClear,
+}: {
+  value: MusicValue;
+  onReplace: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="inline-flex items-center gap-[10px] bg-white rounded-full pl-[6px] pr-[6px] py-[6px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] w-full max-w-[560px]">
+      <button
+        type="button"
+        onClick={onReplace}
+        aria-label="Change music"
+        className="flex items-center gap-[10px] pl-[2px] pr-[6px] min-w-0 flex-1 cursor-pointer"
+      >
+        <span className="w-[32px] h-[32px] rounded-full overflow-hidden bg-[#E8E6DF] shrink-0 flex items-center justify-center">
+          {value.artworkUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={value.artworkUrl}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <MusicGlyph size={16} />
+          )}
+        </span>
+        <span className="flex flex-col items-start min-w-0">
+          <span className="font-montserrat text-[#232323] text-[13px] leading-[1.1] truncate max-w-full">
+            {value.trackName}
+          </span>
+          {value.artistName && (
+            <span className="font-montserrat text-[#2c2c2c]/60 text-[11px] leading-[1.1] truncate max-w-full">
+              {value.artistName}
+            </span>
+          )}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label="Remove music"
+        className="w-[26px] h-[26px] rounded-full bg-black/[0.05] text-[#232323] flex items-center justify-center shrink-0 cursor-pointer hover:bg-black/[0.08] transition-colors"
+      >
+        <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" aria-hidden>
+          <line x1={18} y1={6} x2={6} y2={18} />
+          <line x1={6} y1={6} x2={18} y2={18} />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function MusicGlyph({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M9 18V5l12-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="18" cy="16" r="3" />
+    </svg>
   );
 }
 

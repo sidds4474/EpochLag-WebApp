@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
 import { urlForScreen } from "../../../lib/onboarding";
+import toast from "react-hot-toast";
 import { useAppDispatch, useAppSelector } from "../../../lib/onboarding/store";
 import {
   addParticipant,
@@ -40,6 +40,7 @@ export default function AddParticipantsPage() {
   const hydratedFromServerRef = useRef(false);
 
   const [name, setName] = useState("");
+  const [selectedRelationship, setSelectedRelationship] = useState<string | null>(null);
 
   const participantsRef = useRef(participants);
   participantsRef.current = participants;
@@ -58,15 +59,28 @@ export default function AddParticipantsPage() {
   }, [dispatch, hasDraftToken, hydrated]);
 
   const onPickRelationship = (slug: string) => {
+    setSelectedRelationship((prev) => (prev === slug ? null : slug));
+  };
+
+  const onAdd = () => {
     const seed = name.trim();
+    if (!seed) {
+      toast.error("Please enter a name");
+      return;
+    }
+    if (!selectedRelationship) {
+      toast.error("Please pick a relationship");
+      return;
+    }
     const participant: Participant = {
       id: `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       name: seed,
-      relationship: slug,
+      relationship: selectedRelationship,
       userId: null,
     };
     dispatch(addParticipant(participant));
-    if (seed) setName("");
+    setName("");
+    setSelectedRelationship(null);
   };
 
   const onRemove = (id: string) => dispatch(removeParticipant(id));
@@ -85,66 +99,60 @@ export default function AddParticipantsPage() {
   };
 
   return (
-    <OnboardingShell
-      onNext={goNext}
-      hideMobileNext
-      desktopContent={
-        <div className="flex flex-col items-center text-primary-blue w-full">
+    <div className="fixed inset-0 z-40 bg-[#F3F1EB] overflow-hidden">
+      <div className="absolute inset-0 overflow-y-auto px-[24px] md:px-[32px] pt-[max(env(safe-area-inset-top),32px)] pb-[160px] lg:pb-[100px]">
+        <div className="w-full max-w-[460px] mx-auto flex flex-col items-center">
           <RingDot />
-          <h1 className="mt-[16px] font-montserrat font-bold text-[18px] text-center">
+          <h1 className="mt-[14px] font-ivy font-normal text-[#232323] text-[22px] md:text-[24px] lg:text-[26px] leading-[1.25] text-center">
             {TITLE}
           </h1>
 
-          <div className="mt-[24px] w-full max-w-[460px]">
+          <div className="mt-[32px] w-full">
             <NameInput value={name} onChange={setName} />
           </div>
 
-          <div className="mt-[16px] w-full max-w-[460px]">
-            <RelationshipChips onPick={onPickRelationship} />
+          <div className="mt-[20px] w-full">
+            <RelationshipChips selected={selectedRelationship} onPick={onPickRelationship} />
           </div>
 
-          <div className="mt-[28px] w-full max-w-[460px] flex flex-col gap-[10px]">
-            {participants.map((p) => (
-              <ParticipantCard key={p.id} participant={p} onRemove={onRemove} onRename={onRename} />
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={onAdd}
+            className="mt-[24px] w-full h-[48px] cursor-pointer bg-[#1C1C1C] text-white rounded-full font-montserrat font-semibold text-[15px] hover:brightness-110 transition-[filter]"
+          >
+            Add
+          </button>
+
+          {participants.length > 0 && (
+            <div className="mt-[20px] w-full flex flex-col gap-[10px]">
+              {participants.map((p) => (
+                <ParticipantCard key={p.id} participant={p} onRemove={onRemove} onRename={onRename} />
+              ))}
+            </div>
+          )}
         </div>
-      }
-      mobileContent={
-        <div className="flex flex-col min-h-screen px-[24px] pt-[48px] pb-[120px] text-primary-blue">
-          <div className="flex flex-col items-center">
-            <RingDot />
-            <h1 className="mt-[16px] font-montserrat font-bold text-[22px] text-center">
-              {TITLE}
-            </h1>
-          </div>
+      </div>
 
-          <div className="mt-[24px]">
-            <NameInput value={name} onChange={setName} />
-          </div>
+      {/* Desktop Next pill */}
+      <button
+        type="button"
+        onClick={goNext}
+        className="hidden lg:inline-flex absolute bottom-[32px] right-[32px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[15px] rounded-full px-[40px] py-[12px] hover:opacity-90 transition-opacity"
+      >
+        Next
+      </button>
 
-          <div className="mt-[16px]">
-            <RelationshipChips onPick={onPickRelationship} />
-          </div>
-
-          <div className="mt-[24px] flex flex-col gap-[10px]">
-            {participants.map((p) => (
-              <ParticipantCard key={p.id} participant={p} onRemove={onRemove} onRename={onRename} />
-            ))}
-          </div>
-
-          <div className="fixed bottom-0 left-0 right-0 z-30 px-[24px] pb-[24px] pt-[16px] bg-warm-cream">
-            <button
-              type="button"
-              onClick={goNext}
-              className="w-full cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      }
-    />
+      {/* Mobile + tablet Next pill */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-[#F3F1EB] px-[24px] md:px-[48px] pb-[max(env(safe-area-inset-bottom),24px)] pt-[16px]">
+        <button
+          type="button"
+          onClick={goNext}
+          className="w-full max-w-[520px] mx-auto block cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity"
+        >
+          Next
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -170,46 +178,87 @@ function avatarColor(id: string): string {
 function RingDot() {
   return (
     <span
-      className="relative block h-[42px] w-[42px] rounded-full"
+      className="relative block h-[54px] w-[54px] rounded-full"
       style={{ backgroundColor: "#FCD6A5" }}
     >
       <span
-        className="absolute inset-[8px] rounded-full"
+        className="absolute inset-[6px] rounded-full"
+        style={{ backgroundColor: "#EF9849" }}
+      />
+      <span
+        className="absolute inset-[16px] rounded-full"
         style={{ backgroundColor: "#D95F3B" }}
       />
     </span>
   );
 }
 
-function NameInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function NameInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
   return (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder="Their Name"
-      className="w-full bg-primary-white rounded-full py-[14px] px-[18px] font-montserrat text-[15px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_4px_14px_rgba(9,46,74,0.05)]"
-    />
+    <div className="w-full flex items-center justify-between gap-[12px] pb-[8px] border-b border-[#2c2c2c]/30">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Name"
+        className="flex-1 bg-transparent font-montserrat text-[14px] text-[#232323] placeholder:text-[#2c2c2c]/50 outline-none"
+      />
+      <PersonGlyph />
+    </div>
+  );
+}
+
+function PersonGlyph() {
+  return (
+    <svg
+      width={18}
+      height={18}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#232323"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
   );
 }
 
 function RelationshipChips({
+  selected,
   onPick,
 }: {
+  selected: string | null;
   onPick: (slug: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-[10px]">
-      {RELATIONSHIPS.map((r) => (
-        <button
-          key={r.slug}
-          type="button"
-          onClick={() => onPick(r.slug)}
-          className="cursor-pointer bg-primary-white rounded-full px-[18px] py-[8px] font-montserrat text-[14px] text-primary-blue hover:bg-primary-white/85 transition-colors shadow-[0_2px_8px_rgba(9,46,74,0.05)]"
-        >
-          {r.label}
-        </button>
-      ))}
+    <div className="flex flex-wrap justify-center gap-[8px]">
+      {RELATIONSHIPS.map((r) => {
+        const isSelected = selected === r.slug;
+        return (
+          <button
+            key={r.slug}
+            type="button"
+            onClick={() => onPick(r.slug)}
+            className={`cursor-pointer rounded-full px-[18px] py-[8px] font-montserrat text-[13px] transition-colors ${
+              isSelected
+                ? "bg-[#1C1C1C] text-white"
+                : "bg-white text-[#232323] hover:brightness-95"
+            }`}
+          >
+            {r.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -227,9 +276,9 @@ function ParticipantCard({
     RELATIONSHIPS.find((r) => r.slug === participant.relationship)?.label ||
     participant.relationship;
   return (
-    <div className="w-full bg-primary-white rounded-[14px] px-[16px] py-[12px] flex items-center gap-[12px] shadow-[0_2px_10px_rgba(9,46,74,0.06)]">
+    <div className="w-full bg-white px-[16px] py-[12px] flex items-center gap-[12px] shadow-[0_4px_4px_0_rgba(0,0,0,0.25)]">
       <span
-        className="h-[40px] w-[40px] rounded-full flex items-center justify-center shrink-0 font-montserrat font-semibold text-[16px] text-primary-blue"
+        className="h-[40px] w-[40px] rounded-full flex items-center justify-center shrink-0 font-montserrat font-semibold text-[16px] text-[#232323]"
         style={{ backgroundColor: avatarColor(participant.id) }}
       >
         {(participant.name.trim()[0] || "?").toUpperCase()}
@@ -241,17 +290,17 @@ function ParticipantCard({
           onChange={(e) => onRename(participant.id, e.target.value)}
           placeholder="Their name"
           autoFocus={!participant.name}
-          className="w-full bg-transparent outline-none font-montserrat font-semibold text-[15px] text-primary-blue placeholder:text-primary-blue/40"
+          className="w-full bg-transparent outline-none font-montserrat font-semibold text-[15px] text-[#232323] placeholder:text-[#2c2c2c]/40"
         />
-        <p className="font-montserrat text-[13px] text-primary-blue/60 truncate">{label}</p>
+        <p className="font-montserrat text-[12px] text-[#2c2c2c]/60 truncate">{label}</p>
       </div>
       <button
         type="button"
         onClick={() => onRemove(participant.id)}
         aria-label="Remove"
-        className="h-[24px] w-[24px] rounded-full bg-black/5 text-primary-blue/70 flex items-center justify-center cursor-pointer hover:bg-black/10"
+        className="h-[26px] w-[26px] rounded-full bg-black/[0.05] text-[#232323]/70 flex items-center justify-center cursor-pointer hover:bg-black/[0.08] transition-colors"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
           <path d="M6 6l12 12M6 18L18 6" />
         </svg>
       </button>

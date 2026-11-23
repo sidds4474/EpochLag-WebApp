@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
 import { urlForScreen } from "../../../lib/onboarding";
 import { useAppDispatch, useAppSelector } from "../../../lib/onboarding/store";
 import {
@@ -15,7 +14,7 @@ import {
   apiGetAnonDraft,
 } from "../../../lib/onboarding/api/anonEndpoints";
 import { useAnyUploading } from "../../../lib/onboarding/upload/UploadContext";
-import { BookmarkIcon, MapPinIcon, CalendarIcon } from "../../(app)/(dashboard)/icons";
+import { useAuth } from "../../../lib/auth/AuthProvider";
 
 const TITLE = "You created a Lag!";
 
@@ -75,7 +74,14 @@ export default function LagPreviewPage() {
 
   const locationLabel =
     location?.city || location?.country || location?.formattedAddress || null;
-  const yearLabel = date ? String(new Date(date).getFullYear()) : null;
+  const dateChipLabel = date ? formatChipDate(date) : null;
+  const headerDateLabel = date ? formatHeaderDate(date) : null;
+  const { user } = useAuth();
+  const authorFirstName = (user?.firstName ?? "").trim();
+  const authorLastName = (user?.lastName ?? "").trim();
+  const authorName =
+    [authorFirstName, authorLastName].filter(Boolean).join(" ") || "You";
+  const authorAvatarUrl = user?.profilePicture ?? null;
 
   const goNext = () => {
     dispatch(setLastStep(4));
@@ -83,49 +89,49 @@ export default function LagPreviewPage() {
     router.push(urlForScreen("SignupScreen"));
   };
 
-  const card = (
-    <PreviewCard
-      coverUri={coverUri}
-      textBody={textBody}
-      locationLabel={locationLabel}
-      yearLabel={yearLabel}
-      participants={participants}
-    />
-  );
-
   return (
-    <OnboardingShell
-      onNext={goNext}
-      nextDisabled={uploading}
-      hideMobileNext
-      desktopContent={
-        <div className="flex flex-col items-center justify-center text-primary-blue w-full md:min-h-[78vh] lg:min-h-0">
-          <h1 className="font-montserrat font-bold text-[18px] text-center">
+    <div className="fixed inset-0 z-40 bg-[#F3F1EB] overflow-hidden">
+      <div className="absolute inset-0 overflow-y-auto px-[24px] md:px-[40px] pt-[max(env(safe-area-inset-top),32px)] pb-[160px] lg:pb-[100px]">
+        <div className="w-full max-w-[640px] mx-auto flex flex-col items-center">
+          <h1 className="font-ivy font-normal text-[#232323] text-[22px] md:text-[26px] lg:text-[30px] leading-[1.25] text-center">
             {TITLE}
           </h1>
-          <div className="mt-[24px] w-full max-w-[360px] lg:scale-[0.87] lg:origin-top">{card}</div>
-        </div>
-      }
-      mobileContent={
-        <div className="flex flex-col justify-center min-h-screen px-[24px] pt-[48px] pb-[120px] text-primary-blue">
-          <h1 className="font-montserrat font-bold text-[22px] text-center">
-            {TITLE}
-          </h1>
-          <div className="mt-[24px]">{card}</div>
 
-          <div className="fixed bottom-0 left-0 right-0 z-30 px-[24px] pb-[24px] pt-[16px] bg-warm-cream">
-            <button
-              type="button"
-              onClick={goNext}
-              disabled={uploading}
-              className="w-full cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {uploading ? "Uploading…" : "Next"}
-            </button>
-          </div>
+          <PreviewCard
+            coverUri={coverUri}
+            textBody={textBody}
+            locationLabel={locationLabel}
+            dateChipLabel={dateChipLabel}
+            headerDateLabel={headerDateLabel}
+            participants={participants}
+            authorName={authorName}
+            authorAvatarUrl={authorAvatarUrl}
+          />
         </div>
-      }
-    />
+      </div>
+
+      {/* Desktop Next pill */}
+      <button
+        type="button"
+        onClick={goNext}
+        disabled={uploading}
+        className="hidden lg:inline-flex absolute bottom-[32px] right-[32px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[15px] rounded-full px-[40px] py-[12px] hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {uploading ? "Uploading…" : "Next"}
+      </button>
+
+      {/* Mobile + tablet Next pill */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-[#F3F1EB] px-[24px] md:px-[48px] pb-[max(env(safe-area-inset-bottom),24px)] pt-[16px]">
+        <button
+          type="button"
+          onClick={goNext}
+          disabled={uploading}
+          className="w-full max-w-[520px] mx-auto block cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {uploading ? "Uploading…" : "Next"}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -133,68 +139,128 @@ function PreviewCard({
   coverUri,
   textBody,
   locationLabel,
-  yearLabel,
+  dateChipLabel,
+  headerDateLabel,
   participants,
+  authorName,
+  authorAvatarUrl,
 }: {
   coverUri: string | null;
   textBody: string;
   locationLabel: string | null;
-  yearLabel: string | null;
+  dateChipLabel: string | null;
+  headerDateLabel: string | null;
   participants: Participant[];
+  authorName: string;
+  authorAvatarUrl: string | null;
 }) {
   const paragraphs = textBody
     .split(/\n\s*\n/)
     .map((p) => p.trim())
     .filter(Boolean);
+  const bodyText = paragraphs.join("\n\n").trim();
+  const firstChar = bodyText.charAt(0);
+  const restBody = bodyText.slice(1);
 
   return (
-    <div className="w-full bg-primary-white rounded-[18px] p-[14px] shadow-[0_6px_24px_rgba(9,46,74,0.08)]">
-      {coverUri ? (
-        <div className="relative w-full aspect-[16/10] rounded-t-[12px] overflow-hidden bg-primary-blue/5">
-          <img
-            src={coverUri}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-          <button
-            type="button"
-            aria-label="Save"
-            className="absolute top-[10px] right-[10px] h-[36px] w-[36px] rounded-full bg-primary-white flex items-center justify-center text-primary-blue shadow-[0_2px_8px_rgba(9,46,74,0.15)]"
-          >
-            <BookmarkIcon width={14} height={18} />
-          </button>
+    <div className="w-full flex flex-col items-center mt-[24px] md:mt-[32px]">
+      {coverUri && (
+        <div
+          className="bg-white p-[10px]"
+          style={{
+            transform: "rotate(1.513deg)",
+            boxShadow: "0 4.957px 4.957px 0 rgba(0, 0, 0, 0.25)",
+          }}
+        >
+          <div className="relative w-[220px] h-[220px] md:w-[240px] md:h-[240px] lg:w-[280px] lg:h-[280px] overflow-hidden bg-[#D9D9D9]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={coverUri}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+          </div>
         </div>
-      ) : null}
+      )}
 
-      {(locationLabel || yearLabel) && (
-        <div className="mt-[14px] flex flex-wrap gap-[8px]">
-          {locationLabel && (
-            <span className="inline-flex items-center gap-[6px] rounded-full px-[12px] py-[6px] font-montserrat text-[13px] text-primary-blue" style={{ backgroundColor: "#EDEDED" }}>
-              <MapPinIcon width={12} height={14} />
-              {locationLabel}
+      <div className="w-full max-w-[560px] mt-[32px] md:mt-[40px]">
+        <div className="flex items-center justify-between gap-[12px] pb-[12px] border-b border-[#2c2c2c]/15">
+          <div className="flex items-center gap-[10px] min-w-0">
+            <AuthorAvatar name={authorName} src={authorAvatarUrl} />
+            <span className="font-montserrat text-[#232323] text-[14px] truncate">
+              {authorName}
+            </span>
+          </div>
+          {headerDateLabel && (
+            <span className="font-montserrat text-[#2c2c2c]/70 text-[12.5px] shrink-0">
+              {headerDateLabel}
             </span>
           )}
-          {yearLabel && (
-            <span className="inline-flex items-center gap-[6px] rounded-full px-[12px] py-[6px] font-montserrat text-[13px] text-primary-blue" style={{ backgroundColor: "#EDEDED" }}>
-              <CalendarIcon width={12} height={12} />
-              {yearLabel}
-            </span>
-          )}
         </div>
-      )}
 
-      {paragraphs.length > 0 && (
-        <p className="mt-[14px] font-montserrat text-[13.5px] leading-[160%] text-primary-blue whitespace-pre-line line-clamp-8">
-          {paragraphs.join("\n\n")}
-        </p>
-      )}
+        {(dateChipLabel || locationLabel) && (
+          <div className="mt-[14px] flex flex-wrap gap-[8px]">
+            {dateChipLabel && (
+              <span
+                className="inline-flex items-center rounded-full px-[14px] py-[6px] font-montserrat text-[12.5px] text-[#232323]"
+                style={{ backgroundColor: "#E8E6DF" }}
+              >
+                {dateChipLabel}
+              </span>
+            )}
+            {locationLabel && (
+              <span
+                className="inline-flex items-center rounded-full px-[14px] py-[6px] font-montserrat text-[12.5px] text-[#232323]"
+                style={{ backgroundColor: "#E8E6DF" }}
+              >
+                {locationLabel}
+              </span>
+            )}
+          </div>
+        )}
 
-      {participants.length > 0 && (
-        <div className="mt-[16px] flex items-center">
-          <ParticipantStack participants={participants} />
-        </div>
-      )}
+        {bodyText && (
+          <p className="mt-[22px] font-montserrat text-[13.5px] md:text-[14px] leading-[1.6] text-[#232323] whitespace-pre-line">
+            {firstChar && (
+              <span className="font-ivy text-[28px] md:text-[32px] leading-[0.8] mr-[4px] align-middle">
+                {firstChar}
+              </span>
+            )}
+            {restBody}
+          </p>
+        )}
+
+        {participants.length > 0 && (
+          <div className="mt-[18px] flex items-center">
+            <ParticipantStack participants={participants} />
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+function AuthorAvatar({ name, src }: { name: string; src: string | null }) {
+  const [failed, setFailed] = useState(false);
+  const hasImage = !!src && !failed;
+  const initial = (name.trim()[0] || "?").toUpperCase();
+  return (
+    <span
+      className="h-[32px] w-[32px] rounded-full overflow-hidden shrink-0 flex items-center justify-center text-[#232323] font-montserrat font-semibold text-[13px]"
+      style={{ backgroundColor: hasImage ? "transparent" : "#C8D1DA" }}
+    >
+      {hasImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src ?? undefined}
+          alt=""
+          className="w-full h-full object-cover"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span className="text-white">{initial}</span>
+      )}
+    </span>
   );
 }
 
@@ -210,7 +276,7 @@ function ParticipantStack({ participants }: { participants: Participant[] }) {
             <span
               key={p.id}
               title={`${p.name || label}`}
-              className="h-[28px] w-[28px] rounded-full flex items-center justify-center font-montserrat font-semibold text-[12px] text-primary-blue ring-2 ring-primary-white"
+              className="h-[28px] w-[28px] rounded-full flex items-center justify-center font-montserrat font-semibold text-[12px] text-[#232323] ring-2 ring-[#F3F1EB]"
               style={{ backgroundColor: avatarColor(p.id) }}
             >
               {(p.name.trim()[0] || "?").toUpperCase()}
@@ -219,10 +285,27 @@ function ParticipantStack({ participants }: { participants: Participant[] }) {
         })}
       </div>
       {extra > 0 && (
-        <span className="ml-[8px] font-montserrat text-[12px] font-semibold text-primary-blue">
+        <span className="ml-[8px] font-montserrat text-[12px] font-semibold text-[#232323]">
           +{extra}
         </span>
       )}
     </div>
   );
+}
+
+const MONTHS_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sept", "Oct", "Nov", "Dec",
+];
+
+function formatChipDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}, ${d.getFullYear()}`;
+}
+
+function formatHeaderDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}, ${d.getFullYear()}`;
 }

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { APIProvider, useMapsLibrary } from "@vis.gl/react-google-maps";
-import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
 import { urlForScreen } from "../../../lib/onboarding";
 import { useAppDispatch, useAppSelector } from "../../../lib/onboarding/store";
 import {
@@ -116,76 +115,57 @@ function AddTimePlaceInner() {
           onSubmit={onPickLocation}
         />
       )}
-      <OnboardingShell
-      onNext={goNext}
-      hideMobileNext
-      desktopContent={
-        <div className="flex flex-col items-center text-primary-blue w-full">
-          <RingDot />
-          <h1 className="mt-[16px] font-montserrat font-bold text-[18px] text-center">
-            {TITLE}
-          </h1>
-
-          <div className="mt-[24px] w-full max-w-[420px] bg-primary-white rounded-[18px] p-[18px] shadow-[0_8px_24px_rgba(9,46,74,0.08)]">
-            <Calendar selectedIso={selectedIso} onSelect={setSelectedIso} />
-          </div>
-
-          <div className="mt-[16px] w-full max-w-[420px]">
-            <LocationField
-              value={location}
-              placeholder="Add place"
-              disabled={dontKnowLocation}
-              onClick={() => setLocationOpen(true)}
-            />
-          </div>
-
-          <div className="mt-[14px] w-full max-w-[420px]">
-            <DontKnowCheckbox checked={dontKnowLocation} onToggle={toggleDontKnow} />
-          </div>
-        </div>
-      }
-      mobileContent={
-        <div className="flex flex-col min-h-screen px-[24px] pt-[48px] pb-[120px] text-primary-blue">
-          <div className="flex flex-col items-center">
+      <div className="fixed inset-0 z-40 bg-[#F3F1EB] overflow-hidden">
+        <div className="absolute inset-0 overflow-y-auto px-[24px] md:px-[32px] pt-[max(env(safe-area-inset-top),32px)] pb-[160px] lg:pb-[100px]">
+          <div className="w-full max-w-[460px] mx-auto flex flex-col items-center">
             <RingDot />
-            <h1 className="mt-[16px] font-montserrat font-bold text-[22px] text-center">
+            <h1 className="mt-[14px] font-ivy font-normal text-[#232323] text-[22px] md:text-[24px] lg:text-[26px] leading-[1.25] text-center">
               {TITLE}
             </h1>
-          </div>
 
-          <div className="mt-[24px]">
-            <DateField iso={selectedIso} onClick={() => {}} />
-          </div>
+            <div className="mt-[28px] w-full">
+              <DateField iso={selectedIso} />
+            </div>
 
-          <div className="mt-[12px] bg-primary-white rounded-[18px] p-[16px] shadow-[0_8px_24px_rgba(9,46,74,0.08)]">
-            <Calendar selectedIso={selectedIso} onSelect={onPickDate} compact />
-          </div>
+            <div className="mt-[14px] w-full bg-white p-[16px] md:p-[20px] shadow-[0_4px_4px_0_rgba(0,0,0,0.25)]">
+              <Calendar selectedIso={selectedIso} onSelect={onPickDate} />
+            </div>
 
-          <div className="mt-[16px]">
-            <DontKnowCheckbox checked={dontKnowLocation} onToggle={toggleDontKnow} />
-          </div>
+            <div className="mt-[20px] w-full">
+              <LocationField
+                value={location}
+                placeholder="Add location"
+                disabled={dontKnowLocation}
+                onClick={() => setLocationOpen(true)}
+              />
+            </div>
 
-          <div className="mt-[12px]">
-            <LocationField
-              value={location}
-              placeholder="Add place"
-              disabled={dontKnowLocation}
-              onClick={() => setLocationOpen(true)}
-            />
-          </div>
-
-          <div className="fixed bottom-0 left-0 right-0 z-30 px-[24px] pb-[24px] pt-[16px] bg-warm-cream">
-            <button
-              type="button"
-              onClick={goNext}
-              className="w-full cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity"
-            >
-              Next
-            </button>
+            <div className="mt-[14px] w-full">
+              <DontKnowCheckbox checked={dontKnowLocation} onToggle={toggleDontKnow} />
+            </div>
           </div>
         </div>
-      }
-    />
+
+        {/* Desktop Next pill */}
+        <button
+          type="button"
+          onClick={goNext}
+          className="hidden lg:inline-flex absolute bottom-[32px] right-[32px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[15px] rounded-full px-[40px] py-[12px] hover:opacity-90 transition-opacity"
+        >
+          Next
+        </button>
+
+        {/* Mobile + tablet Next pill */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-[#F3F1EB] px-[24px] md:px-[48px] pb-[max(env(safe-area-inset-bottom),24px)] pt-[16px]">
+          <button
+            type="button"
+            onClick={goNext}
+            className="w-full max-w-[520px] mx-auto block cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity"
+          >
+            Next
+          </button>
+        </div>
+      </div>
     </>
   );
 }
@@ -359,19 +339,19 @@ function RingDot() {
   );
 }
 
-function DateField({ iso, onClick }: { iso: string | null; onClick: () => void }) {
+function DateField({ iso }: { iso: string | null }) {
   const label = iso ? formatDate(iso) : "Add date";
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full cursor-pointer bg-primary-white rounded-full py-[14px] px-[18px] flex items-center justify-between shadow-[0_4px_14px_rgba(9,46,74,0.05)]"
-    >
-      <span className={`font-montserrat text-[15px] ${iso ? "text-primary-blue" : "text-primary-blue/50"}`}>
+    <div className="w-full flex items-center justify-between gap-[12px] pb-[8px] border-b border-[#2c2c2c]/30">
+      <span
+        className={`font-montserrat text-[14px] ${
+          iso ? "text-[#232323]" : "text-[#2c2c2c]/50"
+        }`}
+      >
         {label}
       </span>
-      <CalendarIcon width={20} height={20} className="text-primary-blue" />
-    </button>
+      <CalendarIcon width={18} height={18} className="text-[#232323]" />
+    </div>
   );
 }
 
@@ -392,12 +372,18 @@ function LocationField({
       type="button"
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
-      className={`w-full ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} bg-primary-white rounded-full py-[14px] px-[18px] flex items-center justify-between shadow-[0_4px_14px_rgba(9,46,74,0.05)]`}
+      className={`w-full ${
+        disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+      } flex items-center justify-between gap-[12px] pb-[8px] border-b border-[#2c2c2c]/30 text-left`}
     >
-      <span className={`font-montserrat text-[15px] ${value ? "text-primary-blue" : "text-primary-blue/50"} truncate`}>
+      <span
+        className={`font-montserrat text-[14px] ${
+          value ? "text-[#232323]" : "text-[#2c2c2c]/50"
+        } truncate`}
+      >
         {label}
       </span>
-      <MapPinIcon width={20} height={20} className="text-primary-blue shrink-0 ml-[8px]" />
+      <MapPinIcon width={18} height={18} className="text-[#232323] shrink-0" />
     </button>
   );
 }
@@ -416,15 +402,19 @@ function DontKnowCheckbox({
       className="flex items-center gap-[10px] cursor-pointer"
     >
       <span
-        className={`h-[18px] w-[18px] rounded-[4px] border-[1.5px] border-primary-blue flex items-center justify-center ${checked ? "bg-primary-blue" : "bg-transparent"}`}
+        className={`h-[18px] w-[18px] rounded-[4px] border flex items-center justify-center transition-colors ${
+          checked
+            ? "bg-primary-orange border-primary-orange"
+            : "bg-white border-[#2c2c2c]/40"
+        }`}
       >
         {checked && (
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
         )}
       </span>
-      <span className="font-montserrat text-[14px] text-primary-blue">
+      <span className="font-montserrat text-[14px] text-[#232323]">
         I don&apos;t know the location
       </span>
     </button>
@@ -495,21 +485,21 @@ function Calendar({
     <div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-[10px]">
-          <span className="font-montserrat font-semibold text-primary-blue text-[15px]">
+          <span className="font-montserrat font-medium text-[#232323] text-[15px]">
             {MONTHS[viewMonth]}
           </span>
-          <button type="button" onClick={prevMonth} className="cursor-pointer text-primary-blue">
-            <ChevronLeftIcon width={16} height={16} />
+          <button type="button" onClick={prevMonth} aria-label="Previous month" className="cursor-pointer w-[22px] h-[22px] rounded-full text-[#232323]/70 hover:bg-black/[0.05] flex items-center justify-center">
+            <ChevronLeftIcon width={14} height={14} />
           </button>
-          <button type="button" onClick={nextMonth} className="cursor-pointer text-primary-blue">
-            <ChevronRightIcon width={16} height={16} />
+          <button type="button" onClick={nextMonth} aria-label="Next month" className="cursor-pointer w-[22px] h-[22px] rounded-full text-[#232323]/70 hover:bg-black/[0.05] flex items-center justify-center">
+            <ChevronRightIcon width={14} height={14} />
           </button>
         </div>
         <div className="relative">
           <button
             type="button"
             onClick={() => setYearOpen((v) => !v)}
-            className="cursor-pointer flex items-center gap-[6px] bg-[#EEEEEE] rounded-full px-[10px] py-[4px] font-montserrat text-[13px] text-primary-blue"
+            className="cursor-pointer flex items-center gap-[8px] bg-white rounded-full px-[12px] py-[6px] font-montserrat text-[13px] text-[#232323] shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
           >
             {viewYear}
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -517,7 +507,7 @@ function Calendar({
             </svg>
           </button>
           {yearOpen && (
-            <div className="absolute right-0 top-full mt-[6px] z-20 bg-primary-white rounded-[10px] shadow-lg max-h-[220px] overflow-y-auto min-w-[80px]">
+            <div className="absolute right-0 top-full mt-[6px] z-20 bg-white rounded-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] max-h-[220px] overflow-y-auto min-w-[90px] py-[4px]">
               {yearOptions.map((y) => (
                 <button
                   key={y}
@@ -526,7 +516,7 @@ function Calendar({
                     setViewYear(y);
                     setYearOpen(false);
                   }}
-                  className={`w-full text-left cursor-pointer px-[12px] py-[6px] font-montserrat text-[13px] hover:bg-black/[0.05] ${y === viewYear ? "text-primary-orange font-semibold" : "text-primary-blue"}`}
+                  className={`w-full text-left cursor-pointer px-[14px] py-[6px] font-montserrat text-[13px] hover:bg-black/[0.04] ${y === viewYear ? "text-[#232323] font-semibold" : "text-[#232323]/80"}`}
                 >
                   {y}
                 </button>
@@ -536,9 +526,9 @@ function Calendar({
         </div>
       </div>
 
-      <div className={`mt-[14px] grid grid-cols-7 gap-y-[6px] ${dayFont}`}>
+      <div className="mt-[14px] grid grid-cols-7 gap-y-[6px]">
         {DAY_HEADERS.map((d, i) => (
-          <div key={i} className="text-center font-montserrat text-primary-blue/50 text-[12px]">
+          <div key={i} className="text-center font-montserrat text-[#232323]/50 text-[12px] lowercase">
             {d}
           </div>
         ))}
@@ -551,12 +541,12 @@ function Calendar({
               type="button"
               disabled={!cell.inMonth}
               onClick={() => onSelect(toIso(cell.year, cell.month, cell.day))}
-              className={`h-[32px] flex items-center justify-center rounded-full font-montserrat ${dayFont} ${
+              className={`h-[34px] mx-auto w-[34px] flex items-center justify-center rounded-full font-montserrat ${dayFont} transition-colors ${
                 cell.inMonth
                   ? isSelected
-                    ? "bg-primary-blue text-primary-white"
-                    : "text-primary-blue cursor-pointer hover:bg-black/[0.05]"
-                  : "text-primary-blue/25 cursor-not-allowed"
+                    ? "bg-primary-orange text-white font-semibold"
+                    : "text-[#333333] cursor-pointer hover:bg-black/[0.05]"
+                  : "text-[#232323]/25 cursor-not-allowed"
               }`}
             >
               {pad2(cell.day)}

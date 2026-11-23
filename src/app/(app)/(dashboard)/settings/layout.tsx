@@ -36,7 +36,7 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
           <SettingsMenu />
         </aside>
         <section
-          className={`${onIndex ? "hidden" : "block"} md:block min-w-0 min-h-0 md:overflow-y-auto scrollbar-hide pb-[20px] md:pb-0 md:pt-[8px]`}
+          className={`${onIndex ? "hidden" : "block"} md:block min-w-0 min-h-0 overflow-y-auto scrollbar-hide pb-[20px] md:pb-0 md:pt-[8px]`}
         >
           {children}
         </section>

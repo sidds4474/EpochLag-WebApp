@@ -9,7 +9,7 @@ export default function SettingsMenu() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-col gap-[6px] flex-1 min-h-0">
+    <nav className="flex flex-col gap-[2px] flex-1 min-h-0">
       {SETTINGS_NAV.map(({ href, label, Icon }) => {
         const active = pathname === href || pathname.startsWith(href + "/");
         return (
@@ -18,8 +18,8 @@ export default function SettingsMenu() {
             href={href}
             className={`flex items-center gap-[14px] px-[14px] py-[12px] rounded-[10px] font-montserrat text-[14px] transition-colors ${
               active
-                ? "bg-[#EDEDED] text-primary-blue font-semibold"
-                : "text-primary-blue hover:bg-[#EDEDED]/60 font-medium"
+                ? "bg-[#E8E6DF] text-[#232323] font-semibold"
+                : "text-[#232323] hover:bg-black/[0.04] font-medium"
             }`}
           >
             <Icon width={20} height={20} />

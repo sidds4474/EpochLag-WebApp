@@ -11,7 +11,7 @@ export default function SettingsIndexPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.matchMedia("(min-width: 768px)").matches) {
-      router.replace("/settings/account");
+      router.replace("/settings/about");
     }
   }, [router]);
 

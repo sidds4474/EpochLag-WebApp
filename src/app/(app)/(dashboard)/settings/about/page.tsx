@@ -2,10 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Gradient1 from "../../../../../assets/images/gradients/1.jpg";
 import StoryCardBeach from "../../../../../assets/images/story-card-beach.png";
 import StoryCardCostume from "../../../../../assets/images/story-card-costume.png";
-import HeroBanner from "../HeroBanner";
 import PanelMobileHeader from "../PanelMobileHeader";
 import { CheckCircleFillIcon } from "../icons";
 
@@ -40,14 +38,15 @@ export default function AboutPage() {
   return (
     <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <PanelMobileHeader title="About" />
-      <HeroBanner src={Gradient1.src} />
 
-      <div className="inline-flex self-start bg-[#EDEDED] rounded-full p-[4px]">
+      <div className="inline-flex self-start gap-[8px]">
         <button
           type="button"
           onClick={() => setTab("about")}
-          className={`cursor-pointer px-[18px] py-[8px] rounded-full font-montserrat text-[13px] md:text-[14px] font-semibold transition-colors ${
-            tab === "about" ? "bg-primary-blue text-white" : "text-primary-blue/70"
+          className={`cursor-pointer px-[20px] py-[9px] rounded-full font-montserrat font-medium text-[13px] md:text-[14px] transition-colors ${
+            tab === "about"
+              ? "bg-[#2c2c2c] text-white"
+              : "bg-[#E8E6DF] text-[#232323] hover:bg-[#dcd8ca]"
           }`}
         >
           About
@@ -55,8 +54,10 @@ export default function AboutPage() {
         <button
           type="button"
           onClick={() => setTab("why")}
-          className={`cursor-pointer px-[18px] py-[8px] rounded-full font-montserrat text-[13px] md:text-[14px] font-semibold transition-colors ${
-            tab === "why" ? "bg-primary-blue text-white" : "text-primary-blue/70"
+          className={`cursor-pointer px-[20px] py-[9px] rounded-full font-montserrat font-medium text-[13px] md:text-[14px] transition-colors ${
+            tab === "why"
+              ? "bg-[#2c2c2c] text-white"
+              : "bg-[#E8E6DF] text-[#232323] hover:bg-[#dcd8ca]"
           }`}
         >
           Why Epoch Lag
@@ -64,19 +65,31 @@ export default function AboutPage() {
       </div>
 
       {tab === "about" ? (
-        <div className="flex flex-col gap-[14px] max-w-[500px]">
-          <h2 className="font-montserrat font-normal text-primary-blue text-[20px] md:text-[22px]">
+        <div className="flex flex-col gap-[10px] max-w-[560px]">
+          <h2 className="font-ivy font-normal text-[#232323] text-[24px] md:text-[26px] leading-[1.2]">
             Stories that Connect
           </h2>
-          <p className="font-montserrat text-primary-blue text-[14px] md:text-[15px] leading-[160%]">
-            The intentional pause between eras, not rushing into the next epoch, but lingering to absorb lessons, memories, or meaning from the last.
+          <p className="font-montserrat text-[#848484] text-[13px] -mt-[2px]">
+            Version 1.0.5
           </p>
-          <p className="font-montserrat text-primary-blue text-[14px] md:text-[15px] leading-[160%]">
-            Epoch Lag is your digital haven to create, connect, and cherish. Whether it&rsquo;s sharing everyday moments or preserving unforgettable memories, we make it easy to stay close to the people who matter most.
+          <p className="font-montserrat text-[#092e4a] text-[14px] md:text-[15px] leading-[160%] mt-[6px]">
+            Epoch Lag is your digital haven to create, connect, and cherish.
           </p>
-          <p className="font-montserrat text-primary-blue text-[14px] md:text-[15px] leading-[160%]">
-            We are and will always be: private, secure. Our mission is simple: to inspire meaningful storytelling and effortless connection, helping you turn life&rsquo;s moments into lasting memories.
+          <p className="font-montserrat text-[#092e4a] text-[14px] md:text-[15px] leading-[160%]">
+            Whether it&rsquo;s sharing everyday moments or preserving unforgettable memories, we make it easy to stay close to the people who matter most.
           </p>
+          <p className="font-montserrat text-[#092e4a] text-[14px] md:text-[15px] leading-[160%]">
+            We are and will always be private, secure. Our mission is simple: to inspire meaningful storytelling and effortless connection, helping you turn life&rsquo;s moments into lasting memories.
+          </p>
+
+          <div className="mt-[12px]">
+            <Link
+              href="/settings/help"
+              className="inline-flex cursor-pointer font-montserrat font-medium text-white bg-primary-orange rounded-full px-[32px] py-[10px] text-[14px] hover:opacity-90 transition-opacity"
+            >
+              Learn More
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-[24px] lg:gap-[40px]">

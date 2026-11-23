@@ -24,8 +24,14 @@ import {
 } from "../../../../lib/circle/api";
 import AddMemberForm from "./AddMemberForm";
 import NodeActionCard from "./NodeActionCard";
+import TreeConnector from "./TreeConnector";
+import { NODE_GAP, NODE_SIZE, NODE_SLOT_W } from "./treeConstants";
 
-const NODE_SIZE = 56;
+function indexOfSlug(list: FamilyTreePerson[], slug: string): number {
+  return list.findIndex(
+    (p) => (p.relationshipSlug || "").toLowerCase() === slug,
+  );
+}
 
 type Props = {
   people: FamilyTreePerson[];
@@ -119,30 +125,97 @@ export default function FamilyTreeView({ people, currentUser }: Props) {
     rows.children.length > 0 ||
     rows.grandchildren.length > 0;
 
+  const hasGrand = rows.grandparents.length > 0;
+  const hasParents = rows.parents.length > 0;
+  const hasChildren = rows.children.length > 0;
+  const hasGrandchildren = rows.grandchildren.length > 0;
+
+  // Row 1→2 (Parents → Me) — fractional anchor between mother and father.
+  const momI = indexOfSlug(rows.parents, "mother");
+  const dadI = indexOfSlug(rows.parents, "father");
+  const parents12Anchor =
+    momI !== -1 && dadI !== -1
+      ? (momI + dadI) / 2
+      : momI !== -1
+        ? momI
+        : dadI !== -1
+          ? dadI
+          : undefined;
+
+  // Row 2→3 (Me row → Children) — anchor between Me and Spouse, and the fork
+  // only reaches son/daughter indexes. Nieces/nephews share the row but
+  // belong to a sibling's branch so they skip the drop.
+  const meI = rows.self.findIndex((n) => n.isMe);
+  const spouseI = rows.self.findIndex((n) => {
+    const s = (n.relationshipSlug || "").toLowerCase();
+    return s === "spouse" || s === "partner";
+  });
+  const self23Anchor =
+    meI !== -1 && spouseI !== -1
+      ? (meI + spouseI) / 2
+      : meI !== -1
+        ? meI
+        : undefined;
+  const kidsStart = rows.children.findIndex((p) => {
+    const s = (p.relationshipSlug || "").toLowerCase();
+    return s === "son" || s === "daughter";
+  });
+  const kidsIndexes =
+    kidsStart === -1
+      ? []
+      : rows.children.map((_, i) => i).filter((i) => i >= kidsStart);
+
   const tree = anyTree ? (
     <div className="flex flex-col items-center">
       <p className="font-montserrat text-[#848484] text-[12px] md:text-[13px] mb-[12px]">
         Click on a person to add a relative
       </p>
-      {rows.grandparents.length > 0 && (
+      {hasGrand && (
         <Bucket>
           <Row people={rows.grandparents} overrideMe={null} onPick={openNode} />
         </Bucket>
       )}
-      {rows.parents.length > 0 && (
+      {hasGrand && hasParents && (
+        <TreeConnector
+          parentCount={rows.grandparents.length}
+          childCount={rows.parents.length}
+        />
+      )}
+      {hasParents && (
         <PlainRow>
           <Row people={rows.parents} overrideMe={null} onPick={openNode} />
         </PlainRow>
       )}
+      {hasParents && (
+        <TreeConnector
+          parentCount={rows.parents.length}
+          childCount={1}
+          parentAnchorIndex={parents12Anchor}
+        />
+      )}
       <Bucket>
         <Row people={rows.self} overrideMe={me} onPick={openNode} />
       </Bucket>
-      {rows.children.length > 0 && (
+      {hasChildren && kidsIndexes.length > 0 && (
+        <TreeConnector
+          parentCount={rows.self.length}
+          childCount={rows.children.length}
+          parentAnchorIndex={self23Anchor}
+          connectableChildIndexes={kidsIndexes}
+        />
+      )}
+      {hasChildren && (
         <PlainRow>
           <Row people={rows.children} overrideMe={null} onPick={openNode} />
         </PlainRow>
       )}
-      {rows.grandchildren.length > 0 && (
+      {hasChildren && hasGrandchildren && (
+        <TreeConnector
+          parentCount={rows.children.length}
+          childCount={rows.grandchildren.length}
+        />
+      )}
+      {hasGrandchildren && (
         <Bucket>
           <Row people={rows.grandchildren} overrideMe={null} onPick={openNode} />
         </Bucket>
@@ -278,14 +351,14 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 
 function Bucket({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-[20px] px-[24px] py-[20px] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <div className="bg-white rounded-[20px] px-[16px] py-[12px] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       {children}
     </div>
   );
 }
 
 function PlainRow({ children }: { children: React.ReactNode }) {
-  return <div className="py-[18px]">{children}</div>;
+  return <div className="py-[4px]">{children}</div>;
 }
 
 function Row({
@@ -298,7 +371,10 @@ function Row({
   onPick: (p: FamilyTreePerson) => void;
 }) {
   return (
-    <div className="flex items-start justify-center gap-[20px] md:gap-[28px]">
+    <div
+      className="flex items-start justify-center"
+      style={{ gap: NODE_GAP }}
+    >
       {people.map((p) => (
         <Node
           key={p._id}
@@ -328,11 +404,11 @@ function Node({
   const content = (
     <>
       <NodeAvatar person={person} state={state} />
-      <p className="mt-[6px] font-ivy text-[#2C2C2C] text-[13px] md:text-[14px] text-center leading-tight max-w-[88px] truncate">
+      <p className="mt-[6px] font-ivy text-[#2C2C2C] text-[12px] md:text-[13px] text-center leading-tight w-full truncate px-[2px]">
         {name}
       </p>
       {label && (
-        <p className="font-montserrat text-[#848484] text-[11px] md:text-[12px] text-center leading-tight">
+        <p className="font-montserrat text-[#848484] text-[10px] md:text-[11px] text-center leading-tight w-full truncate px-[2px]">
           {label}
         </p>
       )}
@@ -341,7 +417,12 @@ function Node({
 
   if (inert) {
     return (
-      <div className="flex flex-col items-center min-w-[64px]">{content}</div>
+      <div
+        className="flex flex-col items-center"
+        style={{ width: NODE_SLOT_W }}
+      >
+        {content}
+      </div>
     );
   }
 
@@ -349,7 +430,8 @@ function Node({
     <button
       type="button"
       onClick={() => onPick(person)}
-      className="flex flex-col items-center min-w-[64px] cursor-pointer focus:outline-none"
+      className="flex flex-col items-center cursor-pointer focus:outline-none"
+      style={{ width: NODE_SLOT_W }}
     >
       {content}
     </button>

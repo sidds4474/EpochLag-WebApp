@@ -17,6 +17,7 @@ import {
 } from "../../../../lib/circle/api";
 import { useAuth } from "../../../../lib/auth/AuthProvider";
 import { PersonIcon } from "../icons";
+import AddConnectionSheet from "./AddConnectionSheet";
 import FamilyTreeView from "./FamilyTreeView";
 import GroupsPanel from "./GroupsPanel";
 import RingView from "./RingView";
@@ -31,6 +32,7 @@ export default function CirclePage() {
   const [loading, setLoading] = useState(!initial.isFresh);
   const [tree, setTree] = useState<FamilyTreePerson[] | null>(null);
   const [treeLoading, setTreeLoading] = useState(false);
+  const [addConnectionOpen, setAddConnectionOpen] = useState(false);
   // Separate ref guard so StrictMode's double-invoke doesn't start two
   // fetches whose cleanups then race each other and cancel both.
   const treeFetchStarted = useRef(false);
@@ -115,7 +117,11 @@ export default function CirclePage() {
         >
           <div className="min-w-0">
             {tab === "relationship" ? (
-              <RelationshipBody feed={feed} loading={loading} />
+              <RelationshipBody
+                feed={feed}
+                loading={loading}
+                onAddConnection={() => setAddConnectionOpen(true)}
+              />
             ) : (
               <FamilyTreeBody
                 people={tree}
@@ -130,6 +136,11 @@ export default function CirclePage() {
           )}
         </div>
       </div>
+
+      <AddConnectionSheet
+        open={addConnectionOpen}
+        onClose={() => setAddConnectionOpen(false)}
+      />
     </div>
   );
 }
@@ -137,9 +148,11 @@ export default function CirclePage() {
 function RelationshipBody({
   feed,
   loading,
+  onAddConnection,
 }: {
   feed: CirclesFeed | null;
   loading: boolean;
+  onAddConnection: () => void;
 }) {
   if (loading && !feed) {
     return (
@@ -162,7 +175,7 @@ function RelationshipBody({
       </div>
     );
   }
-  return <RingView people={people} />;
+  return <RingView people={people} onAddConnection={onAddConnection} />;
 }
 
 function FamilyTreeBody({

@@ -45,7 +45,7 @@ export default function WaitingOnYou({
             <li key={`req-${req._id}`}>
               <button
                 type="button"
-                onClick={() => router.push("/friends-and-family")}
+                onClick={() => router.push("/connections")}
                 className="cursor-pointer w-full text-left flex items-center gap-[10px] p-[10px] rounded-[14px] hover:bg-black/[0.03] transition-colors"
               >
                 <Avatar src={person?.profilePicture} name={name} />

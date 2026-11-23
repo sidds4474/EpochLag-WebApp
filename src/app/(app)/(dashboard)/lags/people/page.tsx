@@ -205,7 +205,7 @@ export default function LagsPeoplePage() {
         </p>
         <button
           type="button"
-          onClick={() => router.push("/friends-and-family")}
+          onClick={() => router.push("/connections")}
           className="mt-[20px] inline-flex items-center gap-[6px] bg-primary-orange text-white font-montserrat font-semibold text-[13px] px-[18px] py-[10px] rounded-full hover:opacity-90 transition-opacity cursor-pointer"
         >
           <PlusIcon width={14} height={14} />

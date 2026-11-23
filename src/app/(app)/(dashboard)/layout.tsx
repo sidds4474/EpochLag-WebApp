@@ -23,7 +23,7 @@ const COMMON_ROUTES = [
   "/new-ask",
   "/settings",
   "/notifications",
-  "/friends-and-family",
+  "/connections",
   "/friends",
   "/inspiration",
   "/why-epoch-lag",

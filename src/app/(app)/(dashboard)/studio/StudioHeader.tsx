@@ -124,7 +124,7 @@ export default function StudioHeader({
       <div className="hidden md:flex mt-[16px] items-center justify-end gap-[10px] pl-[160px]">
         <ConnectionsPill
           count={connectionsCount}
-          onClick={() => router.push("/friends-and-family")}
+          onClick={() => router.push("/connections")}
         />
         <Link
           href="/studio/edit"
@@ -177,7 +177,7 @@ export default function StudioHeader({
       <div className="md:hidden mt-[14px] px-[4px]">
         <ConnectionsPill
           count={connectionsCount}
-          onClick={() => router.push("/friends-and-family")}
+          onClick={() => router.push("/connections")}
         />
       </div>
     </div>

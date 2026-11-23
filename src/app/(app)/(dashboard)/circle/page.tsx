@@ -83,7 +83,7 @@ export default function CirclePage() {
             Your Circle
           </h1>
           <Link
-            href="/friends-and-family"
+            href="/connections"
             className="shrink-0 inline-flex items-center gap-[8px] rounded-full border border-[#092E4A]/25 text-[#2C2C2C] px-[14px] py-[8px] font-montserrat text-[12px] md:text-[13px] hover:bg-black/[0.03] transition-colors"
           >
             <PersonIcon width={16} height={16} />

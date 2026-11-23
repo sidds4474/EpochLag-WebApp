@@ -181,7 +181,7 @@ export default function ConversationsList({
               Create
             </Link>
             <Link
-              href="/friends-and-family"
+              href="/connections"
               className="inline-flex items-center gap-[8px] text-[#2C2C2C] rounded-full px-[18px] py-[12px] border border-[#092E4A]/80 font-montserrat text-[14px] md:text-[15px] hover:bg-black/[0.03] transition-colors"
             >
               Add People

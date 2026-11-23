@@ -11,7 +11,7 @@ export default function InvitePage() {
         <div className="flex items-center gap-[12px]">
           <button
             type="button"
-            onClick={() => router.push("/friends-and-family")}
+            onClick={() => router.push("/connections")}
             aria-label="Back"
             className="cursor-pointer w-[36px] h-[36px] rounded-full text-primary-blue flex items-center justify-center hover:bg-black/[0.06] transition"
           >

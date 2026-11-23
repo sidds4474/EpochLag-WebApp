@@ -614,7 +614,7 @@ async function resolveRoute(n: Notification): Promise<string | null> {
     case "family_invite":
     case "family_invite_accepted":
       // No dedicated tree tab on web — closest surface is the F&F page.
-      return "/friends-and-family";
+      return "/connections";
     case "lag_reminder":
       // Closest to mobile's LagYourDayEntry — the quick-create entry point.
       return "/new-lag";
@@ -631,11 +631,11 @@ async function resolveRoute(n: Notification): Promise<string | null> {
     case "added_to_group":
     case "member_added_to_group":
     case "member_left_group": {
-      // Groups live under /friends-and-family/groups/<id> on web; the old
+      // Groups live under /circle/group/<id> on web; the old
       // top-level /groups/<id> was a dead link.
       const groupId =
         n.navigation?.groupId || n.profileDetails?.groupId || null;
-      return groupId ? `/friends-and-family/groups/${groupId}` : null;
+      return groupId ? `/circle/group/${groupId}` : null;
     }
     case "album_user_added":
     case "story_added_to_album": {
@@ -714,7 +714,7 @@ async function resolveRoute(n: Notification): Promise<string | null> {
         const albumId = nav?.albumId || n.profileDetails?.albumId;
         if (albumId) return `/lags/albums/${albumId}`;
         const groupId = nav?.groupId || n.profileDetails?.groupId;
-        if (groupId) return `/friends-and-family/groups/${groupId}`;
+        if (groupId) return `/circle/group/${groupId}`;
         const promptId = nav?.promptDetails?.prompt?._id;
         if (promptId) {
           return `/new-story?promptId=${encodeURIComponent(promptId)}`;

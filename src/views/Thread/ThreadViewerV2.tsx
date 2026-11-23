@@ -15,6 +15,7 @@ import { deleteStory, shareStory } from "../../lib/create/api";
 import { toggleStoryLike } from "../../lib/interactions/api";
 import { parseContentToBlocks } from "../../lib/parseStoryContent";
 import MusicPill from "./MusicPill";
+import { threadHasRealPrompt } from "./threadPrompt";
 import type { ContentBlock } from "../../types/story";
 import type {
   Story,
@@ -363,8 +364,10 @@ export default function ThreadViewerV2({
           </button>
 
           {/* View more pill — center. Routes up to PromptViewer so the user
-              sees sibling responses to the same question. */}
-          {threadId && (
+              sees sibling responses to the same question. Hidden on
+              story-only threads: those have no prompt hub to route to, and
+              PromptViewerPage would just redirect right back. */}
+          {threadId && threadHasRealPrompt(data) && (
             <button
               type="button"
               onClick={() => router.push(`/thread/${threadId}`)}

@@ -11,6 +11,7 @@ import { fetchThread } from "../../../../../lib/interactions/api";
 import { fetchUserCard } from "../../../../../lib/home/api";
 import type { ThreadResponse, UserCard } from "../../../../../types/home";
 import PromptViewer from "../../../../../views/Thread/PromptViewer";
+import { threadHasRealPrompt } from "../../../../../views/Thread/threadPrompt";
 
 type State =
   | { kind: "loading" }
@@ -44,17 +45,6 @@ function userCardToThread(card: UserCard): ThreadResponse {
   };
 }
 
-function threadHasPrompt(data: ThreadResponse): boolean {
-  const p = data.thread?.prompt;
-  if (!p) return false;
-  // Mobile parity: a "prompt" is only real content when the user has typed
-  // something — the placeholder title state (isTitleAvailable) isn't a prompt.
-  const hasBody = Boolean(
-    (p.content && p.content.trim()) || p.imageUrl
-  );
-  if (!hasBody) return false;
-  return !p.isTitleAvailable;
-}
 
 export default function PromptViewerPage() {
   const router = useRouter();
@@ -73,7 +63,7 @@ export default function PromptViewerPage() {
         if (cancelled) return;
         // Story-only thread → bounce to the first story so the lag viewer
         // handles rendering. No prompt hero to render here.
-        if (!threadHasPrompt(data) && data.stories.length > 0) {
+        if (!threadHasRealPrompt(data) && data.stories.length > 0) {
           router.replace(`/thread/${threadId}/story/${data.stories[0]._id}`);
           return;
         }

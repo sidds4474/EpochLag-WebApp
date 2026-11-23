@@ -4,7 +4,6 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
-import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
 import { CountryPicker } from "../../../components/auth/CountryPicker";
 import { ApiError } from "../../../lib/api/client";
 import { useAuth } from "../../../lib/auth/AuthProvider";
@@ -18,6 +17,7 @@ import { postLoginSync } from "../../../lib/auth/postLoginSync";
 import { trackOnboarding } from "../../../lib/analytics/track";
 import { useAppDispatch } from "../../../lib/onboarding/store";
 import { queueAnonMergeIfNeeded } from "../../../lib/onboarding/merge/queueAnonMergeIfNeeded";
+import DecorativePolaroids from "../../../components/auth/DecorativePolaroids";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 const PROBE_PASSWORD = "___probe___";
@@ -356,40 +356,33 @@ function LoginPageInner() {
           check();
         }}
       />
-      <OnboardingShell
-        hideDesktopNext
-        hideMobileNext
-        desktopContent={
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="relative w-full flex flex-col items-center justify-center min-h-[78vh] lg:min-h-0"
-          >
-            <div className="w-full max-w-[400px] flex flex-col items-center">
-              {desktopForm}
-            </div>
-          </motion.div>
-        }
-        mobileContent={
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="flex flex-col min-h-screen px-[24px] pt-[24px] pb-[48px] text-primary-blue"
-          >
-            <BackChip onClick={() => router.back()} inline />
-            <div className="flex-1 flex flex-col items-center justify-center">
-              <div className="w-full max-w-[420px] flex flex-col items-center">
-                {mobileForm}
-              </div>
-            </div>
-          </motion.div>
-        }
-      />
+      <div className="fixed inset-0 z-40 bg-[#F3F1EB] overflow-hidden">
+        {/* Decorative polaroid photos — desktop only */}
+        <DecorativePolaroids />
+
+        {/* Mobile back chip */}
+        <div className="md:hidden absolute top-[max(env(safe-area-inset-top),16px)] left-[16px] z-20">
+          <BackChip onClick={() => router.back()} inline />
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center px-[24px] overflow-y-auto py-[48px]"
+        >
+          <div className="w-full max-w-[380px] flex flex-col items-center md:hidden">
+            {mobileForm}
+          </div>
+          <div className="w-full max-w-[380px] hidden md:flex flex-col items-center">
+            {desktopForm}
+          </div>
+        </motion.div>
+      </div>
     </>
   );
 }
+
 
 function FormBody({
   authMode,
@@ -431,11 +424,11 @@ function FormBody({
   return (
     <>
       <RingDot />
-      <h1 className="mt-[24px] font-montserrat font-bold text-[24px] text-primary-blue text-center leading-[130%]">
-        Log in to your account
+      <h1 className="mt-[16px] font-ivy font-normal text-[22px] md:text-[24px] text-[#232323] text-center leading-[1.3]">
+        Log in
       </h1>
 
-      <div className="mt-[24px]">
+      <div className="mt-[20px]">
         <SegmentedControl value={authMode} onChange={onSwitchMode} />
       </div>
 

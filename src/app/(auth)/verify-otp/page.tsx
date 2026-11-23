@@ -1,9 +1,9 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
 import { OtpInput } from "../../../components/auth/OtpInput";
+import DecorativePolaroids from "../../../components/auth/DecorativePolaroids";
 import { ApiError } from "../../../lib/api/client";
 import { useAuth } from "../../../lib/auth/AuthProvider";
 import {
@@ -321,111 +321,99 @@ function VerifyOtpContent() {
     router.replace("/onboarding/create-account?mode=social");
   };
 
-  const content = (
-    <div className="w-full flex flex-col items-center max-w-[420px]">
-      <h1 className="font-montserrat font-bold text-[22px] text-primary-blue text-center">
-        {mode === "email" ? "Verify Email" : "Verify Phone Number"}
-      </h1>
-      <p className="mt-[6px] font-montserrat text-[14px] text-primary-blue/80 text-center">
-        Enter the OTP sent to <strong>{identifierLabel}</strong>
-      </p>
+  return (
+    <div className="fixed inset-0 z-40 bg-[#F3F1EB] overflow-hidden">
+      <DecorativePolaroids />
 
-      <div className="mt-[28px]">
-        <OtpInput
-          length={otpLength}
-          value={code}
-          onChange={setCode}
-          onComplete={(v) => submit(v)}
-        />
+      <div className="md:hidden absolute top-[max(env(safe-area-inset-top),16px)] left-[16px] z-20">
+        <BackChip onClick={() => router.back()} />
       </div>
 
-      {phoneTaken && (
-        <div
-          className="mt-[20px] w-full rounded-[16px] p-[16px]"
-          style={{ backgroundColor: "#F8E2C6" }}
-        >
-          <p className="font-montserrat font-semibold text-[14px] text-primary-blue text-center leading-[150%]">
-            This number is already registered
-            <br />
-            to another account.
+      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center px-[24px] overflow-y-auto py-[48px]">
+        <div className="w-full flex flex-col items-center max-w-[380px]">
+          <h1 className="font-ivy font-normal text-[22px] md:text-[24px] text-[#232323] text-center leading-[1.3]">
+            {mode === "email" ? "Verify Email" : "Verify Phone Number"}
+          </h1>
+          <p className="mt-[6px] font-montserrat text-[13px] md:text-[14px] text-[#2c2c2c]/70 text-center">
+            Enter the OTP sent to{" "}
+            <span className="text-[#232323]">{identifierLabel}</span>
           </p>
-          <div className="mt-[12px] flex flex-col items-center gap-[8px]">
-            <button
-              type="button"
-              onClick={handleLogInInstead}
-              className="font-montserrat font-bold text-[14px] text-primary-blue underline cursor-pointer"
-            >
-              Log in instead
-            </button>
-            <button
-              type="button"
-              onClick={handleUseDifferentNumber}
-              className="font-montserrat text-[14px] text-primary-blue underline cursor-pointer"
-            >
-              Use a different number
-            </button>
+
+          <div className="mt-[28px]">
+            <OtpInput
+              length={otpLength}
+              value={code}
+              onChange={setCode}
+              onComplete={(v) => submit(v)}
+            />
           </div>
-        </div>
-      )}
 
-      {error && (
-        <p className="mt-[12px] font-montserrat text-[13px] text-[#C0392B] text-center">
-          {error}
-        </p>
-      )}
+          {phoneTaken && (
+            <div className="mt-[20px] w-full rounded-[16px] p-[16px] bg-[#F8E2C6]">
+              <p className="font-montserrat font-semibold text-[14px] text-[#232323] text-center leading-[150%]">
+                This number is already registered
+                <br />
+                to another account.
+              </p>
+              <div className="mt-[12px] flex flex-col items-center gap-[8px]">
+                <button
+                  type="button"
+                  onClick={handleLogInInstead}
+                  className="font-montserrat font-bold text-[14px] text-[#232323] underline cursor-pointer"
+                >
+                  Log in instead
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUseDifferentNumber}
+                  className="font-montserrat text-[14px] text-[#232323] underline cursor-pointer"
+                >
+                  Use a different number
+                </button>
+              </div>
+            </div>
+          )}
 
-      {notice && !error && (
-        <p className="mt-[12px] font-montserrat text-[13px] text-primary-blue/70 text-center">
-          {notice}
-        </p>
-      )}
+          {error && (
+            <p className="mt-[12px] font-montserrat text-[13px] text-[#C0392B] text-center">
+              {error}
+            </p>
+          )}
 
-      <button
-        type="button"
-        onClick={() => submit()}
-        disabled={submitting || code.length !== otpLength}
-        className="mt-[20px] w-full h-[50px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {submitting ? "Verifying…" : "Submit"}
-      </button>
+          {notice && !error && (
+            <p className="mt-[12px] font-montserrat text-[13px] text-[#2c2c2c]/70 text-center">
+              {notice}
+            </p>
+          )}
 
-      <p className="mt-[16px] font-montserrat text-[13px] text-primary-blue/70 text-center">
-        Didn&apos;t get it?{" "}
-        {resendTimer > 0 ? (
-          <span className="text-primary-blue/40">
-            Send a new code ({formatTimer(resendTimer)})
-          </span>
-        ) : (
           <button
             type="button"
-            onClick={handleResend}
-            className="text-primary-blue font-semibold underline cursor-pointer"
+            onClick={() => submit()}
+            disabled={submitting || code.length !== otpLength}
+            className="mt-[20px] w-full h-[48px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[15px] rounded-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Send a new code
+            {submitting ? "Verifying…" : "Submit"}
           </button>
-        )}
-      </p>
-    </div>
-  );
 
-  return (
-    <OnboardingShell
-      hideDesktopNext
-      hideMobileNext
-      desktopContent={
-        <div className="w-full flex flex-col items-center justify-center min-h-[78vh] lg:min-h-0">
-          {content}
+          <p className="mt-[16px] font-montserrat text-[13px] text-[#2c2c2c]/70 text-center">
+            Didn&apos;t get it?{" "}
+            {resendTimer > 0 ? (
+              <span className="text-[#2c2c2c]/40">
+                Send a new code ({formatTimer(resendTimer)})
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResend}
+                className="text-[#232323] font-semibold underline cursor-pointer"
+              >
+                Send a new code
+              </button>
+            )}
+          </p>
         </div>
-      }
-      mobileContent={
-        <div className="flex flex-col min-h-screen px-[24px] pt-[24px] pb-[48px] text-primary-blue">
-          <BackChip onClick={() => router.back()} />
-          <div className="flex-1 flex flex-col items-center justify-center">
-            {content}
-          </div>
-        </div>
-      }
-    />
+      </div>
+    </div>
   );
 }
 
@@ -435,7 +423,7 @@ function BackChip({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label="Back"
-      className="self-start h-[40px] w-[40px] rounded-full bg-primary-white flex items-center justify-center text-primary-blue shadow-[0_2px_8px_rgba(9,46,74,0.08)] cursor-pointer hover:bg-primary-white/85"
+      className="h-[36px] w-[36px] rounded-full bg-white flex items-center justify-center text-[#232323] shadow-[0_2px_8px_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.02] transition-colors"
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
         <path

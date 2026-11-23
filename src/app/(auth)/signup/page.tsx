@@ -3,8 +3,9 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { useRouter, useSearchParams } from "next/navigation";
-import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
+import { motion } from "motion/react";
 import { CountryPicker } from "../../../components/auth/CountryPicker";
+import DecorativePolaroids from "../../../components/auth/DecorativePolaroids";
 import { ApiError } from "../../../lib/api/client";
 import { useAuth } from "../../../lib/auth/AuthProvider";
 import {
@@ -257,27 +258,29 @@ function SignupPageInner() {
           check();
         }}
       />
-      <OnboardingShell
-        hideDesktopNext
-        hideMobileNext
-        desktopContent={
-          <div className="relative w-full flex flex-col items-center justify-center min-h-[78vh] lg:min-h-0">
-            <div className="w-full max-w-[400px] flex flex-col items-center">
-              {desktopForm}
-            </div>
+      <div className="fixed inset-0 z-40 bg-[#F3F1EB] overflow-hidden">
+        {/* Decorative polaroids — desktop (lg+) only */}
+        <DecorativePolaroids />
+
+        {/* Mobile back chip */}
+        <div className="md:hidden absolute top-[max(env(safe-area-inset-top),16px)] left-[16px] z-20">
+          <BackChip onClick={() => router.back()} inline />
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center px-[24px] overflow-y-auto py-[48px]"
+        >
+          <div className="w-full max-w-[380px] flex flex-col items-center md:hidden">
+            {mobileForm}
           </div>
-        }
-        mobileContent={
-          <div className="flex flex-col min-h-screen px-[24px] pt-[24px] pb-[48px] text-primary-blue">
-            <BackChip onClick={() => router.back()} inline />
-            <div className="flex-1 flex flex-col items-center justify-center">
-              <div className="w-full max-w-[420px] flex flex-col items-center">
-                {mobileForm}
-              </div>
-            </div>
+          <div className="w-full max-w-[380px] hidden md:flex flex-col items-center">
+            {desktopForm}
           </div>
-        }
-      />
+        </motion.div>
+      </div>
     </>
   );
 }
@@ -308,13 +311,11 @@ function FormBody({
   return (
     <>
       <RingDot />
-      <h1 className="mt-[24px] font-montserrat font-bold text-[24px] text-primary-blue text-center leading-[130%]">
-        {TITLE_LINES[0]}
-        <br />
-        {TITLE_LINES[1]}
+      <h1 className="mt-[16px] font-ivy font-normal text-[22px] md:text-[24px] text-[#232323] text-center leading-[1.3]">
+        Sign up
       </h1>
 
-      <div className="mt-[32px] w-full flex items-center gap-[10px]">
+      <div className="mt-[20px] w-full flex items-center gap-[10px]">
         <CountryPicker
           value={countryCode}
           onChange={onCountryCode}
@@ -349,11 +350,11 @@ function FormBody({
       </button>
 
       <div className="mt-[24px] w-full flex items-center gap-[12px]">
-        <div className="flex-1 h-px bg-primary-blue/15" />
-        <span className="font-montserrat text-[14px] text-primary-blue/60">
+        <div className="flex-1 h-px bg-[#2c2c2c]/15" />
+        <span className="font-montserrat text-[14px] text-[#2c2c2c]/60">
           or
         </span>
-        <div className="flex-1 h-px bg-primary-blue/15" />
+        <div className="flex-1 h-px bg-[#2c2c2c]/15" />
       </div>
 
       <div
@@ -368,22 +369,13 @@ function FormBody({
   );
 }
 
-function BackChip({
-  onClick,
-  inline = false,
-}: {
-  onClick: () => void;
-  inline?: boolean;
-}) {
-  const positionClass = inline
-    ? "self-start"
-    : "absolute top-[16px] left-[16px]";
+function BackChip({ onClick }: { onClick: () => void; inline?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label="Back"
-      className={`${positionClass} h-[40px] w-[40px] rounded-full bg-primary-white flex items-center justify-center text-primary-blue shadow-[0_2px_8px_rgba(9,46,74,0.08)] cursor-pointer hover:bg-primary-white/85`}
+      className="h-[36px] w-[36px] rounded-full bg-white flex items-center justify-center text-[#232323] shadow-[0_2px_8px_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.02] transition-colors"
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
         <path
@@ -403,30 +395,7 @@ function RingDot() {
     <img
       src="/onboarding/Logo.svg"
       alt=""
-      className="h-[64px] w-[64px] object-contain"
+      className="h-[72px] w-[72px] object-contain"
     />
-  );
-}
-
-function GoogleGlyph() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24">
-      <path
-        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.75h3.57c2.08-1.92 3.28-4.74 3.28-8.07z"
-        fill="#4285F4"
-      />
-      <path
-        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.75c-.99.66-2.26 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-        fill="#34A853"
-      />
-      <path
-        d="M5.84 14.12c-.22-.66-.35-1.36-.35-2.12s.13-1.46.35-2.12V7.04H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.96l3.66-2.84z"
-        fill="#FBBC05"
-      />
-      <path
-        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.04l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"
-        fill="#EA4335"
-      />
-    </svg>
   );
 }

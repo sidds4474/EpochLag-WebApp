@@ -45,7 +45,7 @@ export default function SiteHeader() {
             >
               Get the app
             </a>
-            <a className="account" href="/login" aria-label="Account">
+            <a className="account" href="/onboarding/welcome" aria-label="Account">
               <svg viewBox="0 0 24 24" fill="#232323">
                 <circle cx="12" cy="7.5" r="4.5" />
                 <path d="M3.5 21c0-4.4 3.8-7.5 8.5-7.5s8.5 3.1 8.5 7.5z" />
@@ -91,7 +91,7 @@ export default function SiteHeader() {
             </svg>
           </button>
           <nav aria-label="Mobile">
-            <a href="/login">Login</a>
+            <a href="/onboarding/welcome">Login</a>
             <a href="/newsletters">Newsletter</a>
             <a href="/contact">Contact</a>
           </nav>

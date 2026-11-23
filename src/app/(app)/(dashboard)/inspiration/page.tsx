@@ -2,40 +2,32 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { ApiError } from "../../../../lib/api/client";
 import { createUserCard, shareUserCard } from "../../../../lib/create/api";
 import { fetchInspirationFeed, seedUserCard } from "../../../../lib/home/api";
 import type { UserCard } from "../../../../types/home";
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "../icons";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from "../icons";
 import SendToDrawer from "../../../../components/share/SendToDrawer";
 import PromptPreviewCard from "../../../../components/share/PromptPreviewCard";
-import InspirationCard from "./InspirationCard";
+import PromptTile from "./PromptTile";
 
 export default function InspirationPage() {
   const router = useRouter();
   const scrollerRef = useRef<HTMLDivElement | null>(null);
-  // True while we're mid-way through an arrow-triggered smooth scroll. Blocks
-  // handleScroll from clobbering our eager activeIndex with whichever card is
-  // momentarily closest to center during the animation.
+  const cardListRef = useRef<HTMLUListElement | null>(null);
   const programmaticScrollRef = useRef(false);
   const programmaticScrollTimerRef = useRef<number | null>(null);
-  // Debounce timer for detecting when a manual scroll has settled — on rest
-  // we soft-snap the closest card back to true center.
   const settleTimerRef = useRef<number | null>(null);
-  // rAF handle for the scroll-driven scale updater. Coalesces scroll events
-  // to at most one paint frame.
-  const rafRef = useRef<number | null>(null);
-  // Ref to the <ul>. We set paddingInlineEnd via JS so the scroller has
-  // enough trailing scrollable width to center the final card. Padding on
-  // the ul itself is included in ul.offsetWidth (unlike marginInlineEnd on
-  // the last flex child, which Chrome silently drops from scrollWidth).
-  const cardListRef = useRef<HTMLUListElement | null>(null);
   const [cards, setCards] = useState<UserCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [shareCard, setShareCard] = useState<UserCard | null>(null);
 
   useEffect(() => {
@@ -45,7 +37,7 @@ export default function InspirationPage() {
         const { cards: fetched } = await fetchInspirationFeed(1, 30);
         if (cancelled) return;
         const unique = Array.from(
-          new Map(fetched.map((c) => [c._id, c])).values()
+          new Map(fetched.map((c) => [c._id, c])).values(),
         );
         setCards(unique);
       } catch (err) {
@@ -64,8 +56,6 @@ export default function InspirationPage() {
     };
   }, []);
 
-  // Tag chips derived from the loaded feed — mobile filter row. Deduped and
-  // lower-cased for match, but rendered with capitalize.
   const tags = useMemo(() => {
     const seen = new Set<string>();
     const out: string[] = [];
@@ -78,11 +68,24 @@ export default function InspirationPage() {
         }
       }
     }
-    return out.slice(0, 12);
+    return out;
   }, [cards]);
 
-  // Give the card list enough trailing padding that the last card can
-  // scroll to true viewport center. Sized from JS + re-synced on resize.
+  const visibleCards = useMemo(() => {
+    if (selectedTags.size === 0) return cards;
+    return cards.filter((c) =>
+      (c.tags ?? []).some((t) => selectedTags.has(t.trim().toLowerCase())),
+    );
+  }, [cards, selectedTags]);
+
+  // Reset active index when the filtered pool changes so we never point past
+  // the end of the shortened array.
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [selectedTags]);
+
+  // Carousel side gutters: half the leftover width so first/last cards snap
+  // to center.
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el || loading) return;
@@ -98,67 +101,13 @@ export default function InspirationPage() {
     const ro = new ResizeObserver(sync);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [loading, cards, activeTag]);
+  }, [loading, visibleCards]);
 
-  // Scroll-driven scale/opacity: on every scroll frame, interpolate each
-  // card's transform based on its distance from the viewport center. Cards
-  // continuously grow as they approach center and shrink as they leave, so
-  // the magnify effect tracks scroll velocity 1:1 instead of firing as a
-  // separate 250ms CSS transition after activeIndex updates.
-  const MIN_SCALE = 0.82;
-  const MIN_OPACITY = 0.55;
-  const updateCardTransforms = useCallback(() => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    const cards = el.querySelectorAll<HTMLElement>("[data-card]");
-    if (cards.length === 0) return;
-    const scrollerRect = el.getBoundingClientRect();
-    const viewportCenter = scrollerRect.left + el.clientWidth / 2;
-    for (let i = 0; i < cards.length; i++) {
-      const card = cards[i];
-      const wrapper = card.firstElementChild as HTMLElement | null;
-      if (!wrapper) continue;
-      const r = card.getBoundingClientRect();
-      const cardCenter = r.left + r.width / 2;
-      // Falloff = one card + gap; beyond that, card is fully minimized.
-      const falloff = card.offsetWidth + 24;
-      const t = Math.min(1, Math.abs(cardCenter - viewportCenter) / falloff);
-      const scale = 1 - t * (1 - MIN_SCALE);
-      const opacity = 1 - t * (1 - MIN_OPACITY);
-      wrapper.style.transform = `scale(${scale})`;
-      wrapper.style.opacity = `${opacity}`;
-    }
-  }, []);
-
-  // Scroll listener that schedules updateCardTransforms via rAF. Also runs
-  // once on mount / when cards change so the initial paint has the right
-  // scale without waiting for the first scroll event.
+  // Live active-index tracking — a card is "active" when it occupies the
+  // center 10% band of the scroller viewport.
   useEffect(() => {
     const el = scrollerRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      if (rafRef.current !== null) return;
-      rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = null;
-        updateCardTransforms();
-      });
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    // Initial paint after cards render.
-    updateCardTransforms();
-    return () => {
-      el.removeEventListener("scroll", onScroll);
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-    };
-  }, [updateCardTransforms, cards, loading, activeTag]);
-
-  // Live active-index tracking: observe cards against a narrow center band of
-  // the scroller. A card entering the band becomes active; leaving does
-  // nothing (the next entrant takes over). Naturally hysteretic, so no
-  // ping-pong flicker at the midpoint between two cards.
-  useEffect(() => {
-    const el = scrollerRef.current;
-    if (!el || loading || cards.length === 0) return;
+    if (!el || loading || visibleCards.length === 0) return;
     const cardEls = el.querySelectorAll<HTMLElement>("[data-card]");
     if (cardEls.length === 0) return;
     const observer = new IntersectionObserver(
@@ -167,89 +116,59 @@ export default function InspirationPage() {
         for (const entry of entries) {
           if (!entry.isIntersecting) continue;
           const idx = Number(
-            (entry.target as HTMLElement).dataset.cardIndex ?? "-1"
+            (entry.target as HTMLElement).dataset.cardIndex ?? "-1",
           );
           if (idx >= 0) setActiveIndex(idx);
         }
       },
       {
         root: el,
-        // Narrow 10% center band — a card must actually occupy the middle
-        // slice of the viewport to be considered active.
         rootMargin: "0px -45% 0px -45%",
         threshold: 0,
-      }
+      },
     );
     cardEls.forEach((c) => observer.observe(c));
     return () => observer.disconnect();
-  }, [cards, loading, activeTag]);
+  }, [visibleCards, loading]);
 
-  const visibleCards = useMemo(() => {
-    if (!activeTag) return cards;
-    return cards.filter((c) =>
-      (c.tags ?? []).some((t) => t.trim().toLowerCase() === activeTag)
-    );
-  }, [cards, activeTag]);
+  const centerCard = useCallback(
+    (targetIdx: number, behavior: ScrollBehavior) => {
+      const el = scrollerRef.current;
+      if (!el) return;
+      const cards = el.querySelectorAll<HTMLElement>("[data-card]");
+      const target = cards[targetIdx];
+      if (!target) return;
+      const scrollerRect = el.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const delta =
+        targetRect.left -
+        scrollerRect.left -
+        (el.clientWidth - target.offsetWidth) / 2;
+      if (Math.abs(delta) < 1) return;
+      el.scrollTo({ left: el.scrollLeft + delta, behavior });
+    },
+    [],
+  );
 
-  const scrollByCard = (direction: 1 | -1) => {
+  const step = (direction: 1 | -1) => {
     const el = scrollerRef.current;
     if (!el) return;
-    const cards = el.querySelectorAll<HTMLElement>("[data-card]");
-    if (cards.length === 0) return;
-    // Navigate by target index rather than a relative delta. Relative scrollBy
-    // fights `snap-mandatory` when the current scrollLeft isn't exactly on a
-    // snap point — the browser snaps back and the click feels like a no-op.
     const targetIdx = Math.min(
-      cards.length - 1,
-      Math.max(0, activeIndex + direction)
+      visibleCards.length - 1,
+      Math.max(0, activeIndex + direction),
     );
-    const target = cards[targetIdx];
-    // offsetLeft is relative to the <ul> (target's offsetParent), which skips
-    // the scroller's own padding. Use bounding rects instead so the math is
-    // padding-agnostic and always centers correctly.
-    const scrollerRect = el.getBoundingClientRect();
-    const targetRect = target.getBoundingClientRect();
-    const delta =
-      targetRect.left -
-      scrollerRect.left -
-      (el.clientWidth - target.offsetWidth) / 2;
-    const left = el.scrollLeft + delta;
+    if (targetIdx === activeIndex) return;
     setActiveIndex(targetIdx);
     programmaticScrollRef.current = true;
     if (programmaticScrollTimerRef.current !== null) {
       window.clearTimeout(programmaticScrollTimerRef.current);
     }
-    // Release the lock after the smooth scroll should have settled. Manual
-    // swipes past this window fall back to handleScroll's center detection.
     programmaticScrollTimerRef.current = window.setTimeout(() => {
       programmaticScrollRef.current = false;
     }, 500);
-    el.scrollTo({ left, behavior: "smooth" });
+    centerCard(targetIdx, "smooth");
   };
 
-  // Center a specific card via the same rect-based math used by scrollByCard.
-  // Used both by the arrow buttons and the scroll-settle soft-snap.
-  const centerCard = (targetIdx: number, behavior: ScrollBehavior) => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    const cards = el.querySelectorAll<HTMLElement>("[data-card]");
-    const target = cards[targetIdx];
-    if (!target) return;
-    const scrollerRect = el.getBoundingClientRect();
-    const targetRect = target.getBoundingClientRect();
-    const delta =
-      targetRect.left -
-      scrollerRect.left -
-      (el.clientWidth - target.offsetWidth) / 2;
-    // Skip tiny corrections — under 1px is imperceptible and would fight the
-    // browser's snap engine.
-    if (Math.abs(delta) < 1) return;
-    el.scrollTo({ left: el.scrollLeft + delta, behavior });
-  };
-
-  // Debounced scroll-settle: after the user stops scrolling for ~140ms, snap
-  // the closest card back to true center. Handles trackpad drags that land
-  // between snap points and keeps activeIndex in sync with rest state.
   const handleScroll = () => {
     const el = scrollerRef.current;
     if (!el || visibleCards.length === 0) return;
@@ -259,7 +178,7 @@ export default function InspirationPage() {
     }
     settleTimerRef.current = window.setTimeout(() => {
       const cards = Array.from(
-        el.querySelectorAll<HTMLElement>("[data-card]")
+        el.querySelectorAll<HTMLElement>("[data-card]"),
       );
       if (cards.length === 0) return;
       const scrollerRect = el.getBoundingClientRect();
@@ -279,9 +198,17 @@ export default function InspirationPage() {
     }, 140);
   };
 
-  const handleAnswer = (card: UserCard) => {
+  const handleAnswer = () => {
+    const card = visibleCards[activeIndex];
+    if (!card) return;
     seedUserCard(card);
     router.push(`/new-lag?promptId=${encodeURIComponent(card._id)}`);
+  };
+
+  const handleSendIt = () => {
+    const card = visibleCards[activeIndex];
+    if (!card) return;
+    setShareCard(card);
   };
 
   const handleWriteOwn = () => {
@@ -291,14 +218,10 @@ export default function InspirationPage() {
   const handleShareSend = async (
     userIds: string[],
     groupIds: string[],
-    note: string
+    note: string,
   ) => {
     if (!shareCard) return;
     try {
-      // Inspo cards come from an external prompt service — their _id doesn't
-      // exist in BE's UserCard collection, so POST /api/user-card/:id/share
-      // 404s with "Card not found". Materialize a real user-owned UserCard
-      // first (same pattern as new-ask's ensurePromptId), then share that.
       let cardId = shareCard._id;
       if (shareCard.isGenerated) {
         const minted = await createUserCard({
@@ -311,7 +234,6 @@ export default function InspirationPage() {
       await shareUserCard(cardId, {
         shareWith: userIds,
         groupIds,
-        // sendSeparately dropped in v1 — see share drawer migration notes.
         sendSeparately: false,
         note,
       });
@@ -324,152 +246,171 @@ export default function InspirationPage() {
     }
   };
 
-  const showControls = !loading && !error && visibleCards.length > 0;
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) => {
+      const next = new Set(prev);
+      if (next.has(tag)) next.delete(tag);
+      else next.add(tag);
+      return next;
+    });
+  };
+
+  const clearTags = () => setSelectedTags(new Set());
+
+  void toast; // kept for future error toasts
 
   return (
-    <div className="h-full flex flex-col min-h-0 px-[16px] md:px-[24px] lg:px-[40px] pt-[16px] pb-[24px] overflow-hidden">
-      {/* Header row: title left, "Write my own question" right on md+. On
-          mobile the button lives at the bottom of the scroll area instead. */}
-      <div className="flex items-center justify-between gap-[16px] mb-[16px] md:mb-[24px]">
-        <h1 className="font-montserrat font-bold text-primary-blue text-[24px] md:text-[28px] lg:text-[32px] leading-tight">
-          Inspiration
-        </h1>
-        <button
-          type="button"
-          onClick={handleWriteOwn}
-          className="hidden md:inline-flex cursor-pointer items-center gap-[10px] bg-primary-orange text-white rounded-full px-[16px] py-[12px] font-montserrat font-medium text-[16px] leading-[20px] hover:brightness-95 transition-[filter]"
-        >
-          <PlusIcon width={18} height={18} strokeWidth={2.5} />
-          Write my own question
-        </button>
-      </div>
-
-      {/* Tag filter row — mobile + tablet only. Desktop (lg+) uses the carousel
-          nav directly with no filter chips per design. */}
-      {tags.length > 0 && (
-        <div className="lg:hidden mb-[16px] -mx-[16px] md:-mx-0 overflow-x-auto scrollbar-hide">
-          <ul className="flex gap-[6px] px-[16px] md:px-0">
-            <li>
-              <TagChip
-                label="All"
-                active={activeTag === null}
-                onClick={() => setActiveTag(null)}
-              />
-            </li>
-            {tags.map((t) => (
-              <li key={t}>
-                <TagChip
-                  label={t}
-                  active={activeTag === t}
-                  onClick={() => setActiveTag(t)}
-                />
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Carousel row — center-snap so the visually-centered card is the
-          "featured" one. paddingInline = half the leftover width so the
-          first and last cards can snap into viewport center. Different
-          card widths per breakpoint (323px < lg, 280px lg+). */}
-      <div
-        ref={scrollerRef}
-        onScroll={handleScroll}
-        className="flex-1 min-h-0 -mx-[16px] md:-mx-[24px] lg:-mx-[40px] py-[8px] overflow-x-auto overflow-y-hidden scrollbar-hide snap-x snap-mandatory scroll-smooth px-[calc((100%-323px)/2)] lg:px-[calc((100%-280px)/2)]"
-      >
-        {loading ? (
-          <ul className="flex gap-[24px] items-start h-full">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <li
-                key={i}
-                className="shrink-0 w-[323px] lg:w-[280px] h-[554px] lg:h-[420px] max-h-full"
-              >
-                <SkeletonCard delayMs={i * 120} />
-              </li>
-            ))}
-          </ul>
-        ) : error ? (
-          <p className="font-montserrat text-primary-blue/60 text-[14px]">
-            {error}
-          </p>
-        ) : visibleCards.length === 0 ? (
-          <p className="font-montserrat text-primary-blue/50 text-[14px]">
-            No inspiration cards for this filter.
-          </p>
-        ) : (
-          <ul ref={cardListRef} className="flex gap-[24px] items-center h-full min-w-max">
-            {visibleCards.map((card, i) => {
-              return (
-                <li
-                  key={card._id}
-                  data-card
-                  data-card-index={i}
-                  className="shrink-0 snap-center w-[323px] lg:w-[280px] h-[554px] lg:h-[420px] max-h-full"
-                >
-                  {/* Scale/opacity are driven per-frame by the scroll
-                      listener above (updateCardTransforms) — no CSS
-                      transition here so the scale tracks scroll velocity
-                      exactly instead of running its own timeline. */}
-                  <div
-                    className="w-full h-full origin-center will-change-transform"
-                  >
-                    <InspirationCard
-                      card={card}
-                      onAnswer={() => handleAnswer(card)}
-                      onShare={() => setShareCard(card)}
-                    />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      {/* Desktop controls: chevron-left, dots, chevron-right. Hidden on mobile
-          where users swipe the row instead. */}
-      {showControls && (
-        <div className="hidden md:flex mt-[16px] items-center justify-center gap-[16px]">
-          <button
-            type="button"
-            aria-label="Previous"
-            onClick={() => scrollByCard(-1)}
-            className="cursor-pointer w-[36px] h-[36px] rounded-full bg-black/[0.06] text-primary-blue flex items-center justify-center hover:bg-black/[0.1] transition-colors"
-          >
-            <ChevronLeftIcon width={16} height={16} />
-          </button>
-          <div className="flex items-center gap-[6px]">
-            {visibleCards.map((card, i) => (
-              <span
-                key={card._id}
-                className={`h-[10px] w-[10px] rounded-full transition-colors ${
-                  i === activeIndex ? "bg-primary-orange" : "bg-black/[0.15]"
-                }`}
-              />
-            ))}
+    <div className="min-h-full bg-[#F3F1EB] px-[20px] md:px-[32px] pt-[20px] md:pt-[24px] pb-[40px] flex flex-col overflow-hidden">
+      <div className="max-w-[1120px] w-full mx-auto flex flex-col flex-1 min-h-0">
+        <div className="flex items-start justify-between gap-[16px] mb-[20px] md:mb-[28px]">
+          <div className="flex items-center gap-[12px]">
+            <button
+              type="button"
+              onClick={() => router.push("/home")}
+              aria-label="Back to home"
+              className="cursor-pointer w-[28px] h-[28px] text-[#232323] flex items-center justify-center hover:opacity-70 transition-opacity"
+            >
+              <ChevronLeftIcon width={16} height={16} />
+            </button>
+            <h1 className="font-ivy font-normal text-[#232323] text-[24px] md:text-[32px] leading-[1.15]">
+              Inspiration
+            </h1>
           </div>
-          <button
-            type="button"
-            aria-label="Next"
-            onClick={() => scrollByCard(1)}
-            className="cursor-pointer w-[36px] h-[36px] rounded-full bg-primary-orange text-white flex items-center justify-center hover:brightness-95 transition-[filter]"
-          >
-            <ChevronRightIcon width={16} height={16} />
-          </button>
-        </div>
-      )}
 
-      {/* Mobile: full-width Write-my-own button pinned below the carousel. */}
-      <div className="md:hidden mt-[16px]">
-        <button
-          type="button"
-          onClick={handleWriteOwn}
-          className="w-full cursor-pointer inline-flex items-center justify-center gap-[10px] bg-primary-orange text-white rounded-full px-[16px] py-[12px] font-montserrat font-medium text-[16px] leading-[20px] hover:brightness-95 transition-[filter]"
-        >
-          <PlusIcon width={18} height={18} strokeWidth={2.5} />
-          Write my own question
-        </button>
+          <CategoriesControl
+            tags={tags}
+            selected={selectedTags}
+            open={categoriesOpen}
+            onToggleOpen={() => setCategoriesOpen((v) => !v)}
+            onClose={() => setCategoriesOpen(false)}
+            onToggleTag={toggleTag}
+            onClear={clearTags}
+          />
+        </div>
+
+        <div className="relative flex-1 min-h-0 flex flex-col">
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="w-full max-w-[780px] h-[280px] md:h-[320px] bg-[#E8E6DF] rounded-[16px] animate-pulse" />
+            </div>
+          ) : error ? (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="font-montserrat text-[#2c2c2c]/60 text-[14px]">
+                {error}
+              </p>
+            </div>
+          ) : visibleCards.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="font-montserrat text-[#2c2c2c]/60 text-[14px]">
+                No prompts for these categories.
+              </p>
+            </div>
+          ) : (
+            <div className="relative flex-1 min-h-0 flex items-center">
+              {/* Desktop chevrons */}
+              <button
+                type="button"
+                aria-label="Previous"
+                onClick={() => step(-1)}
+                disabled={activeIndex === 0}
+                className={`hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 w-[36px] h-[36px] items-center justify-center text-[#232323] transition-opacity ${
+                  activeIndex === 0 ? "opacity-30 cursor-not-allowed" : "opacity-100 cursor-pointer hover:opacity-70"
+                }`}
+              >
+                <ChevronLeftIcon width={18} height={18} />
+              </button>
+
+              <div
+                ref={scrollerRef}
+                onScroll={handleScroll}
+                className="flex-1 min-h-0 max-h-full overflow-x-auto overflow-y-hidden scrollbar-hide snap-x snap-mandatory scroll-smooth px-[calc((100%-280px)/2)] md:px-[calc((100%-260px)/2)] py-[8px]"
+              >
+                <ul
+                  ref={cardListRef}
+                  className="flex gap-[24px] items-center h-full min-w-max"
+                >
+                  {visibleCards.map((card, i) => (
+                    <li
+                      key={card._id}
+                      data-card
+                      data-card-index={i}
+                      className={`shrink-0 snap-center transition-transform duration-200 ${
+                        i === activeIndex
+                          ? "scale-100"
+                          : "scale-[0.92] opacity-70"
+                      }`}
+                    >
+                      <div className="w-[280px] h-[300px] md:w-[260px] md:h-[280px]">
+                        <PromptTile card={card} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <button
+                type="button"
+                aria-label="Next"
+                onClick={() => step(1)}
+                disabled={activeIndex >= visibleCards.length - 1}
+                className={`hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 w-[36px] h-[36px] items-center justify-center text-[#232323] transition-opacity ${
+                  activeIndex >= visibleCards.length - 1
+                    ? "opacity-30 cursor-not-allowed"
+                    : "opacity-100 cursor-pointer hover:opacity-70"
+                }`}
+              >
+                <ChevronRightIcon width={18} height={18} />
+              </button>
+            </div>
+          )}
+
+          {!loading && !error && visibleCards.length > 1 && (
+            <div className="mt-[12px] md:mt-[20px] flex items-center justify-center gap-[6px]">
+              {visibleCards.slice(0, 7).map((_, i) => {
+                const isActive = i === activeIndex;
+                return (
+                  <span
+                    key={i}
+                    className={`rounded-full transition-all ${
+                      isActive
+                        ? "w-[18px] h-[6px] bg-primary-orange"
+                        : "w-[6px] h-[6px] bg-[#C9C9C9]"
+                    }`}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {!loading && !error && visibleCards.length > 0 && (
+          <div className="mt-[24px] flex flex-col items-center gap-[10px]">
+            <button
+              type="button"
+              onClick={handleAnswer}
+              className="cursor-pointer w-full max-w-[380px] h-[46px] rounded-full bg-primary-orange text-white font-montserrat font-semibold text-[15px] flex items-center justify-center gap-[8px] hover:opacity-90 transition-opacity"
+            >
+              <MicIcon />
+              Answer it
+            </button>
+            <button
+              type="button"
+              onClick={handleSendIt}
+              className="cursor-pointer w-full max-w-[380px] h-[46px] rounded-full border-[1.5px] border-[#2c2c2c] text-[#232323] font-montserrat font-medium text-[15px] flex items-center justify-center gap-[8px] hover:bg-black/[0.03] transition-colors"
+            >
+              <PaperPlaneIcon />
+              Send it
+            </button>
+            <button
+              type="button"
+              onClick={handleWriteOwn}
+              className="cursor-pointer inline-flex items-center gap-[8px] mt-[4px] text-[#232323] font-montserrat text-[14px] hover:text-primary-orange transition-colors"
+            >
+              <PencilIcon />
+              Write my own question
+            </button>
+          </div>
+        )}
       </div>
 
       <SendToDrawer
@@ -485,53 +426,178 @@ export default function InspirationPage() {
   );
 }
 
-// Shimmer skeleton that mirrors the real InspirationCard silhouette (image
-// block, tag pill, save/share icons on the right, caption strip). Staggered
-// entry via `delayMs` so the row feels alive rather than a flat wall.
-function SkeletonCard({ delayMs = 0 }: { delayMs?: number }) {
+function CategoriesControl({
+  tags,
+  selected,
+  open,
+  onToggleOpen,
+  onClose,
+  onToggleTag,
+}: {
+  tags: string[];
+  selected: Set<string>;
+  open: boolean;
+  onToggleOpen: () => void;
+  onClose: () => void;
+  onToggleTag: (tag: string) => void;
+  onClear: () => void;
+}) {
+  const count = selected.size;
+
   return (
-    <div
-      className="w-full h-full bg-white rounded-[32px] shadow-[0_0_13.4px_rgba(0,0,0,0.15)] pt-[12px] px-[12px] pb-[24px] flex flex-col gap-[20px] opacity-0 animate-[skeleton-in_320ms_ease-out_forwards]"
-      style={{ animationDelay: `${delayMs}ms` }}
-    >
-      <div className="relative flex-1 min-h-0 rounded-t-[24px] overflow-hidden bg-primary-blue/[0.06]">
-        <div className="absolute inset-0 animate-[skeleton-shimmer_1.4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent bg-[length:200%_100%]" />
-        <div className="relative flex items-start justify-between pt-[16px] pl-[16px] pr-[12px]">
-          <span className="h-[26px] w-[88px] rounded-full bg-white/80" />
-          <div className="flex flex-col items-center gap-[12px]">
-            <span className="w-[36px] h-[36px] rounded-full bg-white/80" />
-            <span className="w-[36px] h-[36px] rounded-full bg-white/80" />
-          </div>
+    <>
+      <button
+        type="button"
+        onClick={onToggleOpen}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className="cursor-pointer inline-flex items-center gap-[10px] bg-white rounded-full pl-[14px] pr-[6px] py-[6px] font-montserrat text-[#232323] text-[13px] md:text-[14px] shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+      >
+        <FilterIcon />
+        <span className="hidden sm:inline">Categories</span>
+        <span
+          className={`inline-flex items-center justify-center w-[22px] h-[22px] rounded-full text-[12px] font-semibold transition-colors ${
+            count > 0
+              ? "bg-primary-orange text-white"
+              : "bg-[#EDEDED] text-[#232323]/60"
+          }`}
+        >
+          {count}
+        </span>
+      </button>
+
+      <CategoriesSheet
+        open={open}
+        tags={tags}
+        selected={selected}
+        onClose={onClose}
+        onToggleTag={onToggleTag}
+      />
+    </>
+  );
+}
+
+function CategoriesSheet({
+  open,
+  tags,
+  selected,
+  onClose,
+  onToggleTag,
+}: {
+  open: boolean;
+  tags: string[];
+  selected: Set<string>;
+  onClose: () => void;
+  onToggleTag: (tag: string) => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50">
+      {/* Dim the main content behind the sheet */}
+      <div
+        className="absolute inset-0 bg-black/30"
+        onClick={onClose}
+        aria-hidden
+      />
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="Categories"
+        className="absolute right-0 top-0 h-full w-full sm:max-w-[380px] bg-[#F3F1EB] flex flex-col shadow-[0_10px_40px_rgba(0,0,0,0.2)]"
+      >
+        <div className="flex items-center justify-between gap-[16px] px-[24px] pt-[24px] pb-[16px]">
+          <h2 className="font-ivy font-normal text-[#232323] text-[22px] leading-[1.15]">
+            Categories ({tags.length})
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="cursor-pointer w-[32px] h-[32px] rounded-full bg-[#EDEDED] text-[#232323] flex items-center justify-center hover:brightness-95 transition"
+          >
+            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
+              <line x1={18} y1={6} x2={6} y2={18} />
+              <line x1={6} y1={6} x2={18} y2={18} />
+            </svg>
+          </button>
         </div>
-      </div>
-      <div className="flex flex-col items-center gap-[6px] px-[8px]">
-        <div className="h-[12px] w-[80%] rounded-full bg-primary-blue/[0.08]" />
-        <div className="h-[12px] w-[60%] rounded-full bg-primary-blue/[0.08]" />
-      </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto px-[24px] pb-[24px]">
+          {tags.length === 0 ? (
+            <p className="font-montserrat text-[#2c2c2c]/60 text-[13px] py-[12px]">
+              No categories available
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-[8px]">
+              {tags.map((t) => {
+                const checked = selected.has(t);
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => onToggleTag(t)}
+                    className={`cursor-pointer h-[34px] px-[16px] rounded-full font-montserrat text-[13px] md:text-[14px] capitalize transition-colors ${
+                      checked
+                        ? "bg-[#1C1C1C] text-white"
+                        : "bg-transparent border border-[#2c2c2c]/50 text-[#232323] hover:bg-black/[0.03]"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </aside>
     </div>
   );
 }
 
-function TagChip({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
+function PencilIcon() {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`cursor-pointer whitespace-nowrap rounded-full border-[1.5px] px-[12px] py-[4px] font-montserrat font-medium text-[16px] leading-[20px] capitalize transition-colors ${
-        active
-          ? "bg-primary-blue border-primary-blue text-white"
-          : "bg-transparent border-primary-blue text-primary-blue hover:bg-primary-blue/[0.04]"
-      }`}
-    >
-      {label}
-    </button>
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+    </svg>
+  );
+}
+
+function MicIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+    </svg>
+  );
+}
+
+function PaperPlaneIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M22 2L11 13" />
+      <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+    </svg>
+  );
+}
+
+function FilterIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <line x1={4} y1={6} x2={20} y2={6} />
+      <line x1={7} y1={12} x2={17} y2={12} />
+      <line x1={10} y1={18} x2={14} y2={18} />
+    </svg>
   );
 }

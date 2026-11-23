@@ -10,7 +10,6 @@ import {
   HomeIcon,
   LibraryIcon,
   PlusIcon,
-  PromptIcon,
 } from "./icons";
 
 // Three primary destinations only. Old routes (interactions, bookmarks, drafts)
@@ -38,12 +37,6 @@ const NAV_ITEMS: Array<{
     label: "Lags",
     icon: <LibraryIcon width={20} height={20} />,
     match: (p) => p.startsWith("/lags"),
-  },
-  {
-    href: "/inspiration",
-    label: "Inspiration",
-    icon: <PromptIcon width={26} height={26} />,
-    match: (p) => p.startsWith("/inspiration"),
   },
 ];
 
@@ -97,13 +90,13 @@ export default function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-[12px] px-[12px] py-[12px] rounded-[12px] font-montserrat text-[15px] transition-colors ${
+                className={`flex items-center gap-[12px] px-[12px] py-[12px] rounded-[12px] font-montserrat text-[15px] text-[#2C2C2C] transition-colors ${
                   active
-                    ? "bg-[#EFEDE5] text-primary-blue font-semibold"
-                    : "text-primary-blue/85 font-medium hover:bg-black/[0.03]"
+                    ? "bg-[#EFEDE5] font-semibold"
+                    : "font-medium hover:bg-black/[0.03]"
                 }`}
               >
-                <span className="w-[26px] h-[26px] shrink-0 flex items-center justify-center">
+                <span className="w-[26px] h-[26px] shrink-0 flex items-center justify-center text-[#2C2C2C]">
                   {item.icon}
                 </span>
                 <span className="flex-1">{item.label}</span>
@@ -111,7 +104,7 @@ export default function Sidebar() {
                   <ChevronRightIcon
                     width={14}
                     height={14}
-                    className="text-primary-blue/60"
+                    className="text-[#2C2C2C]/60"
                   />
                 )}
               </Link>

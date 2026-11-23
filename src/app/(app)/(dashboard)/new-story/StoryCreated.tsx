@@ -116,7 +116,7 @@ export default function StoryCreatedOverlay({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#FFEFDC] lg:bg-[#f7ecd8] flex items-center justify-center px-[24px]">
+    <div className="fixed inset-0 z-50 bg-[#F3F1EB] flex items-center justify-center px-[24px]">
       <div className="w-full max-w-[420px] flex flex-col items-center">
         <SuccessCelebration title="Story Created!">
           <div className="w-full flex items-center gap-[12px]">

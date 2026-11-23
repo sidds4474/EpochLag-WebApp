@@ -243,6 +243,7 @@ function NavCard({ items }: { items: NavItem[] }) {
         <Link
           key={it.label}
           href={it.href}
+          prefetch={false}
           className="flex items-center gap-[14px] py-[11px] border-b border-black/10 last:border-b-0 hover:opacity-80 transition-opacity"
         >
           <span className="w-[20px] h-[20px] shrink-0 flex items-center justify-center text-[#232323]">

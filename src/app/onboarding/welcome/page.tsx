@@ -2,100 +2,86 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { OnboardingShell, MobileLogo } from "../../../lib/onboarding/components/OnboardingShell";
 import { urlForScreen } from "../../../lib/onboarding";
+import { MobileLogo } from "../../../lib/onboarding/components/OnboardingShell";
 
-const HEADING = "Stories weren't meant to disappear in a feed";
+const HEADING = "Stories weren’t meant to disappear in a feed";
 const BODY =
-  "Whether it's your family history, or sharing important stories amongst friends, we make it easy to preserve and share meaningful memories.";
+  "Whether it’s your family history, or sharing important stories amongst friends, we make it easy to preserve and share meaningful memories.";
 
+// Full-bleed welcome: a looping hero video fills the viewport (mobile + desktop),
+// dimmed by a dark overlay. The onboarding layout's split-panel chrome is kept
+// out of view by rendering this screen as a fixed cover — no persistent cream
+// card, no left blurred cover peek. Log in link floats top-right.
 export default function WelcomePage() {
   const router = useRouter();
   const goNext = () => router.push(urlForScreen("WhyEpochLag"));
 
   return (
-    <>
-      <Link
-        href="/login"
-        className="fixed top-[24px] right-[24px] z-40 font-montserrat text-[15px] underline underline-offset-[4px] cursor-pointer hover:opacity-90 text-primary-white md:hidden"
-      >
-        Log in
-      </Link>
-      <Link
-        href="/login"
-        className="hidden md:inline-flex fixed top-[28px] right-[32px] z-40 h-[30px] items-center gap-[8px] rounded-full bg-primary-white border border-primary-blue/10 px-[16px] font-montserrat font-semibold text-[13px] text-primary-blue shadow-[0_6px_20px_rgba(9,46,74,0.08)] hover:bg-warm-cream cursor-pointer transition-colors"
-      >
-        Log in
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M5 12h14M13 5l7 7-7 7"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </Link>
-      <OnboardingShell
-      onNext={goNext}
-      mobileTheme="dark"
-      hideMobileNext
-      desktopContent={
-        <div className="flex flex-col items-center text-center text-primary-blue">
-          <div className="w-full max-w-[720px] h-[360px] rounded-[24px] overflow-hidden bg-primary-blue/5">
-            <video
-              src="/videos/Epoch_Lag_Hero.mp4"
-              poster="/onboarding/Epoch_Lag_Hero_poster.jpg"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="auto"
-              className="h-full w-full object-cover"
-            />
-          </div>
-          <h1 className="mt-[28px] font-montserrat font-bold text-[24px] lg:text-[26px] leading-[120%] max-w-[460px]">
-            {HEADING}
-          </h1>
-          <p className="mt-[12px] font-montserrat text-[13px] leading-[160%] text-primary-blue/70 max-w-[500px]">
-            {BODY}
-          </p>
-        </div>
-      }
-      mobileContent={
-        <div className="relative w-full min-h-dvh overflow-hidden">
-          <video
-            src="/videos/Epoch_Lag_Hero.mp4"
-            poster="/onboarding/Epoch_Lag_Hero_poster.jpg"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-          <div className="absolute inset-0 bg-black/55" />
-          <div className="relative z-10 flex flex-col items-center min-h-dvh px-[28px] pt-[56px] pb-[110px] text-primary-white text-center">
-            <MobileLogo variant="light" className="w-[140px]" />
-            <div className="flex-1 flex flex-col justify-center">
-              <h1 className="font-montserrat font-bold text-[28px] leading-[120%]">{HEADING}</h1>
-              <p className="mt-[16px] font-montserrat text-[14px] leading-[155%] text-primary-white/85 max-w-[300px] mx-auto">
-                {BODY}
-              </p>
-            </div>
-          </div>
-          <div className="fixed bottom-0 left-0 right-0 z-30 px-[24px] pb-[24px] pt-[16px]">
-            <button
-              type="button"
-              onClick={goNext}
-              className="w-full cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      }
+    <div className="fixed inset-0 z-40 overflow-hidden text-primary-white">
+      <video
+        src="/videos/Epoch_Lag_Hero.mp4"
+        poster="/onboarding/Epoch_Lag_Hero_poster.jpg"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        className="absolute inset-0 h-full w-full object-cover"
       />
-    </>
+      <div className="absolute inset-0 bg-black/55" />
+
+      {/* Mobile-only epoch lag wordmark at the top */}
+      <div className="md:hidden absolute top-[max(env(safe-area-inset-top),64px)] left-1/2 -translate-x-1/2 z-10">
+        <MobileLogo variant="light" className="w-[140px]" />
+      </div>
+
+      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-[28px] pb-[120px] md:pb-[0px]">
+        <h1 className="font-ivy font-normal text-[26px] md:text-[32px] lg:text-[36px] leading-[1.2] max-w-[520px]">
+          {HEADING}
+        </h1>
+        <p className="mt-[16px] font-montserrat text-[14px] md:text-[15px] leading-[1.55] text-primary-white/80 max-w-[460px]">
+          {BODY}
+        </p>
+
+        {/* Desktop (lg+) inline Next + Log in link */}
+        <button
+          type="button"
+          onClick={goNext}
+          className="hidden lg:inline-flex mt-[28px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[15px] rounded-full w-full max-w-[360px] py-[14px] items-center justify-center hover:opacity-90 transition-opacity"
+        >
+          Next
+        </button>
+        <p className="hidden lg:block mt-[14px] font-montserrat text-[14px] text-primary-white/90">
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            className="underline underline-offset-[4px] hover:opacity-90"
+          >
+            Log in
+          </Link>
+        </p>
+      </div>
+
+      {/* Mobile + tablet — pin both to the bottom of the viewport */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 px-[24px] md:px-[48px] pb-[max(env(safe-area-inset-bottom),24px)] pt-[16px] flex flex-col items-center gap-[14px]">
+        <button
+          type="button"
+          onClick={goNext}
+          className="w-full max-w-[420px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity"
+        >
+          Next
+        </button>
+        <p className="font-montserrat text-[14px] md:text-[15px] text-primary-white/90">
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            className="underline underline-offset-[4px] hover:opacity-90"
+          >
+            Log in
+          </Link>
+        </p>
+      </div>
+    </div>
   );
 }

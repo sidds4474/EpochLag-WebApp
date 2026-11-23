@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import LogoDark from "../assets/images/logo-dark.webp";
+import PolaroidImg1 from "../assets/images/newimgs/polaroidImg1.jpg";
+import PolaroidImg2 from "../assets/images/newimgs/polaroidImg2.jpg";
+import PolaroidImg3 from "../assets/images/newimgs/polaroidImg3.png";
 import { PRIVACY_SECTIONS } from "../lib/privacy/content";
 
 // Shared 3-slide "Why Epoch Lag" carousel used by:
@@ -88,45 +91,88 @@ export function useWhyEpochCarousel(onFinish: () => void) {
 
 const INTRO_BODY =
   "The intentional pause between eras, not rushing into the next epoch, but lingering to absorb lessons, memories, or meaning from the last.";
-const INTRO_TAG = "Epoch Lag is about remembering and connection";
 
 function SlideIntroDesktop({ compact = false }: { compact?: boolean }) {
+  // Compact variant (dashboard entry) keeps the old centered layout. Full
+  // variant (onboarding) uses the Figma 2-column design: polaroid cluster
+  // on the left, epoch lag wordmark + body on the right.
+  if (compact) {
+    return (
+      <div className="flex flex-col items-center text-center text-[#232323] px-[24px]">
+        <img src={LogoDark.src} alt="Epoch Lag" className="w-[120px] h-auto object-contain" />
+        <p className="mt-[12px] font-montserrat text-[13px] leading-[150%] text-[#2c2c2c]/80 max-w-[440px]">
+          {INTRO_BODY}
+        </p>
+        <PolaroidCluster compact={compact} />
+      </div>
+    );
+  }
   return (
-    <div className="flex flex-col items-center text-center text-primary-blue px-[24px]">
-      <img
-        src={LogoDark.src}
-        alt="Epoch Lag"
-        className={`${compact ? "w-[120px]" : "w-[160px]"} h-auto object-contain`}
+    <div className="w-full h-full flex flex-row items-center justify-between px-[6vw] xl:px-[8vw] 2xl:px-[10vw] gap-[48px]">
+      <div className="flex-1 flex items-center justify-center">
+        <IntroCluster />
+      </div>
+      <div className="flex-1 flex flex-col items-start text-left max-w-[520px]">
+        <img
+          src={LogoDark.src}
+          alt="Epoch Lag"
+          className="w-[130px] lg:w-[140px] xl:w-[150px] h-auto object-contain"
+        />
+        <p className="mt-[16px] font-montserrat text-[12.5px] lg:text-[13px] xl:text-[13.5px] leading-[1.55] text-[#2c2c2c]/80 max-w-[360px]">
+          {INTRO_BODY}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Stand-alone cluster for the onboarding intro slide. Sized in percentages
+// so it fills the left column on wide viewports without feeling restricted.
+function IntroCluster() {
+  return (
+    <div className="relative w-[340px] h-[340px] xl:w-[380px] xl:h-[380px]">
+      <div
+        className="absolute top-[18%] left-[42%] -translate-x-1/2 rounded-full"
+        style={{
+          width: "62%",
+          height: "62%",
+          backgroundColor: "#E6E3D9",
+        }}
       />
-      <p
-        className={`${
-          compact ? "mt-[12px]" : "mt-[20px]"
-        } font-montserrat text-[13px] leading-[150%] text-primary-blue/80 max-w-[440px]`}
-      >
-        {INTRO_BODY}
-      </p>
-      <p
-        className={`${
-          compact ? "mt-[10px]" : "mt-[16px]"
-        } font-montserrat font-bold text-[14px] text-primary-blue max-w-[300px]`}
-      >
-        {INTRO_TAG}
-      </p>
-      <PolaroidCluster compact={compact} />
+      <div className="absolute top-[18%] left-[6%] -rotate-[6deg] w-[52%]">
+        <IntroPolaroid src="/onboarding/kids-car.jpg" />
+      </div>
+      <div className="absolute bottom-[4%] right-[32%] rotate-[8deg] w-[40%]">
+        <IntroPolaroid src="/onboarding/van_img.jpg" />
+      </div>
+    </div>
+  );
+}
+
+function IntroPolaroid({ src }: { src: string }) {
+  return (
+    <div className="bg-white p-[6px] shadow-[0_6px_18px_rgba(0,0,0,0.18)] aspect-square">
+      <div className="w-full h-full overflow-hidden bg-[#D9D9D9]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="" className="w-full h-full object-cover" />
+      </div>
     </div>
   );
 }
 
 function SlideIntroMobile({ compact: _compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex flex-col items-center text-center text-primary-blue px-[28px] pt-[40px] pb-[110px]">
-      <img src={LogoDark.src} alt="Epoch Lag" className="w-[140px] h-auto object-contain" />
-      <p className="mt-[16px] font-montserrat text-[14px] leading-[160%] text-primary-blue/80">
-        {INTRO_BODY}
-      </p>
-      <p className="mt-[12px] font-montserrat font-bold text-[15px] text-primary-blue">
-        {INTRO_TAG}
-      </p>
+    <div className="flex flex-col items-center justify-center text-center text-[#232323] px-[32px] pt-[max(env(safe-area-inset-top),24px)] pb-[120px] min-h-dvh gap-[24px]">
+      <div className="flex flex-col items-center">
+        <img
+          src={LogoDark.src}
+          alt="Epoch Lag"
+          className="w-[150px] md:w-[170px] h-auto object-contain"
+        />
+        <p className="mt-[16px] md:mt-[18px] font-montserrat text-[14px] md:text-[15px] leading-[1.55] text-[#2c2c2c]/80 max-w-[320px] md:max-w-[420px]">
+          {INTRO_BODY}
+        </p>
+      </div>
       <PolaroidCluster mobile />
     </div>
   );
@@ -153,7 +199,7 @@ function PolaroidCluster({
   const smallSize = mobile ? "sm" : compact ? "sm" : "sm";
   return (
     <div className={`relative ${wrap}`}>
-      <div className={`absolute left-1/2 -translate-x-1/2 rounded-full bg-primary-orange/45 ${circle}`} />
+      <div className={`absolute left-1/2 -translate-x-1/2 rounded-full bg-[#E6E3D9] ${circle}`} />
       <div className="absolute left-1/2 top-[6%] -translate-x-[70%] -rotate-[6deg]">
         <Polaroid src="/onboarding/kids-car.jpg" size={bigSize} />
       </div>
@@ -173,21 +219,17 @@ function Polaroid({
   size: "xl" | "lg" | "md" | "sm";
   objectPosition?: string;
 }) {
+  // Symmetric padding on every side (no bottom-heavy polaroid lip) — the
+  // inner photo fills whatever's left via flex-1.
   const box = {
     xl: "w-[240px] h-[220px] p-[12px]",
     lg: "w-[190px] h-[170px] p-[10px]",
     md: "w-[180px] h-[170px] p-[10px]",
     sm: "w-[140px] h-[130px] p-[8px]",
   }[size];
-  const inner = {
-    xl: "h-[168px]",
-    lg: "h-[128px]",
-    md: "h-[130px]",
-    sm: "h-[100px]",
-  }[size];
   return (
-    <div className={`${box} bg-primary-white rounded-[6px] shadow-[0_8px_24px_rgba(9,46,74,0.18)]`}>
-      <div className={`w-full ${inner} overflow-hidden`}>
+    <div className={`${box} bg-primary-white rounded-[6px] shadow-[0_8px_24px_rgba(9,46,74,0.18)] flex`}>
+      <div className="w-full flex-1 overflow-hidden">
         <img src={src} alt="" className="w-full h-full object-cover" style={{ objectPosition }} />
       </div>
     </div>
@@ -221,52 +263,121 @@ const TIMELINE: TimelineItem[] = [
 ];
 
 function SlideFeaturesDesktop({ compact = false }: { compact?: boolean }) {
+  if (compact) {
+    return (
+      <div className="flex flex-col items-center text-[#232323] px-[16px]">
+        <h1 className="text-center font-ivy font-normal text-[20px] leading-[1.25] max-w-[320px]">
+          Built for the stories behind the photos
+        </h1>
+        <ul className="mt-[16px] flex flex-col gap-[8px] self-center">
+          {FEATURE_BULLETS.map((b) => (
+            <li key={b} className="flex items-center gap-[10px] font-montserrat text-[12.5px] text-[#2c2c2c]/90">
+              <CheckDot /> <span>{b}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-[20px]">
+          <FeaturePolaroidRow />
+        </div>
+      </div>
+    );
+  }
   return (
-    <div className="flex flex-col items-center text-primary-blue">
-      <h1 className="text-center font-montserrat font-bold text-[20px] lg:text-[22px] leading-[125%] max-w-[360px]">
-        Built for the stories behind the photos
-      </h1>
-      <ul
-        className={`${
-          compact ? "mt-[12px] gap-[6px]" : "mt-[20px] gap-[8px]"
-        } flex flex-col self-center`}
-      >
-        {FEATURE_BULLETS.map((b) => (
-          <li key={b} className="flex items-center gap-[10px] font-montserrat text-[12.5px] text-primary-blue/90">
-            <CheckDot /> <span>{b}</span>
-          </li>
-        ))}
-      </ul>
-      <Timeline items={compact ? TIMELINE.slice(0, 2) : TIMELINE} compact={compact} />
+    <div className="w-full h-full flex flex-row items-center pl-[2vw] pr-[6vw] xl:pr-[8vw] gap-[48px]">
+      <div className="shrink-0 flex items-center justify-start">
+        <FeaturePolaroidStack />
+      </div>
+      <div className="flex-1 flex flex-col items-start text-left max-w-[520px]">
+        <h1 className="font-ivy font-normal text-[#232323] text-[24px] lg:text-[26px] xl:text-[28px] leading-[1.2] max-w-[380px]">
+          Built for the stories behind the photos
+        </h1>
+        <ul className="mt-[22px] flex flex-col gap-[12px]">
+          {FEATURE_BULLETS.map((b) => (
+            <li
+              key={b}
+              className="flex items-center gap-[12px] font-montserrat text-[13px] lg:text-[13.5px] text-[#232323]"
+            >
+              <CheckDot />
+              <span>{b}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
 
 function SlideFeaturesMobile({ compact: _compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex flex-col items-center text-primary-blue px-[28px] pt-[48px] pb-[110px]">
-      <h1 className="text-center font-montserrat font-bold text-[22px] leading-[125%]">
-        Built for the stories behind the photos
-      </h1>
-      <ul className="mt-[16px] flex flex-col gap-[8px] self-start max-w-[340px]">
-        {FEATURE_BULLETS.map((b) => (
-          <li key={b} className="flex items-start gap-[12px] font-montserrat text-[16px] leading-[135%] text-primary-blue/90">
-            <span className="pt-[2px]"><CheckDot size="md" /></span>
-            <span>{b}</span>
-          </li>
-        ))}
-      </ul>
-      <Timeline items={TIMELINE.slice(0, 2)} mobile />
+    <div className="flex flex-col items-center justify-center text-[#232323] px-[28px] pt-[max(env(safe-area-inset-top),32px)] pb-[120px] min-h-dvh gap-[88px]">
+      <div className="flex flex-col items-center gap-[20px]">
+        <h1 className="text-center font-ivy font-normal text-[22px] md:text-[24px] leading-[1.25] max-w-[320px]">
+          Built for the stories behind the photos
+        </h1>
+        <ul className="flex flex-col gap-[12px] self-center max-w-[340px]">
+          {FEATURE_BULLETS.map((b) => (
+            <li
+              key={b}
+              className="flex items-center gap-[12px] font-montserrat text-[14px] md:text-[15px] leading-[1.35] text-[#232323]"
+            >
+              <CheckDot />
+              <span>{b}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <FeaturePolaroidRow />
     </div>
   );
 }
 
-function CheckDot({ size = "sm" }: { size?: "sm" | "md" }) {
-  const dim = size === "md" ? "h-[22px] w-[22px]" : "h-[18px] w-[18px]";
-  const svg = size === "md" ? 13 : 10;
+// Three polaroids stacked vertically with alternating rotations for the
+// desktop left column.
+function FeaturePolaroidStack() {
+  const items: Array<{ src: string; rotate: string }> = [
+    { src: PolaroidImg2.src, rotate: "rotate-[6deg]" },
+    { src: PolaroidImg3.src, rotate: "-rotate-[5deg]" },
+    { src: PolaroidImg1.src, rotate: "rotate-[7deg]" },
+  ];
   return (
-    <span className={`inline-flex ${dim} items-center justify-center rounded-full text-primary-blue shrink-0`} style={{ backgroundColor: "#FFE0BB" }}>
-      <svg width={svg} height={svg} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+    <div className="relative flex flex-col items-center gap-[24px]">
+      {items.map((it, i) => (
+        <div
+          key={i}
+          className={`${it.rotate} w-[200px] h-[200px] xl:w-[220px] xl:h-[220px]`}
+        >
+          <IntroPolaroid src={it.src} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Three polaroids in a horizontal row for the mobile footer.
+function FeaturePolaroidRow() {
+  const items: Array<{ src: string; rotate: string }> = [
+    { src: PolaroidImg3.src, rotate: "-rotate-[10deg]" },
+    { src: PolaroidImg1.src, rotate: "rotate-[6deg]" },
+    { src: PolaroidImg2.src, rotate: "-rotate-[8deg]" },
+  ];
+  return (
+    <div className="flex items-center justify-center gap-[36px]">
+      {items.map((it, i) => (
+        <div
+          key={i}
+          className={`${it.rotate} w-[170px] h-[170px] md:w-[190px] md:h-[190px]`}
+        >
+          <IntroPolaroid src={it.src} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CheckDot() {
+  return (
+    <span className="inline-flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-full bg-[#1C1C1C] text-white">
+      <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="20 6 9 17 4 12" />
       </svg>
     </span>
@@ -290,7 +401,7 @@ function Timeline({
   return (
     <div className={`relative mx-auto ${wrap}`}>
       <div
-        className={`absolute rounded-full bg-primary-orange/40 pointer-events-none ${
+        className={`absolute rounded-full bg-[#E6E3D9] pointer-events-none ${
           mobile
             ? "left-[-14px] top-[-24px] w-[300px] h-[300px]"
             : "left-[0px] top-[24px] w-[220px] h-[220px] lg:left-[-22px] lg:w-[260px] lg:h-[260px]"
@@ -349,11 +460,11 @@ function TimelineCard({ item, mobile = false }: { item: TimelineItem; mobile?: b
 
 function SlidePrivacyDesktop({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex flex-col items-center text-primary-blue px-[16px]">
-      <h1 className="text-center font-montserrat font-bold text-[22px] lg:text-[24px] leading-[125%] max-w-[340px]">
+    <div className="w-full max-w-[720px] mx-auto flex flex-col text-[#232323] px-[32px]">
+      <h1 className="font-ivy font-normal text-[26px] lg:text-[28px] xl:text-[30px] leading-[1.25]">
         Epoch Lag is secure and private, always.
       </h1>
-      <p className="mt-[12px] text-center font-montserrat text-[12.5px] leading-[160%] text-primary-blue/70 max-w-[340px]">
+      <p className="mt-[8px] font-montserrat text-[13px] lg:text-[13.5px] leading-[1.6] text-[#2c2c2c]/70">
         We take your privacy seriously. We will never sell your personal data to third parties.
       </p>
       <PrivacyCard compact={compact} />
@@ -363,11 +474,11 @@ function SlidePrivacyDesktop({ compact = false }: { compact?: boolean }) {
 
 function SlidePrivacyMobile({ compact: _compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex flex-col text-primary-blue px-[24px] pt-[40px] pb-[110px]">
-      <h1 className="font-montserrat font-bold text-[22px] leading-[125%]">
+    <div className="flex flex-col text-[#232323] px-[28px] pt-[max(env(safe-area-inset-top),32px)] pb-[120px]">
+      <h1 className="font-ivy font-normal text-[24px] md:text-[26px] leading-[1.25]">
         Epoch Lag is secure and private, always.
       </h1>
-      <p className="mt-[10px] font-montserrat text-[13px] leading-[160%] text-primary-blue/70">
+      <p className="mt-[10px] font-montserrat text-[13px] md:text-[14px] leading-[1.55] text-[#2c2c2c]/70">
         We take your privacy seriously. We will never sell your personal data to third parties.
       </p>
       <PrivacyCard mobile />
@@ -383,38 +494,38 @@ function PrivacyCard({
   compact?: boolean;
 }) {
   const sizing = mobile
-    ? "w-full h-[360px]"
+    ? "w-full h-[460px]"
     : compact
-      ? "w-full max-w-[540px] h-[300px] lg:h-[260px]"
-      : "w-full max-w-[540px] h-[560px] lg:h-[340px]";
+      ? "w-full h-[260px] lg:h-[240px]"
+      : "w-full h-[520px] lg:h-[480px] xl:h-[520px]";
   return (
     <div
-      className={`${mobile ? "mt-[16px]" : "mt-[24px]"} ${sizing} bg-primary-white rounded-[14px] shadow-[0_6px_24px_rgba(9,46,74,0.08)] overflow-y-auto p-[20px] text-left [&::-webkit-scrollbar]:hidden`}
+      className={`${mobile ? "mt-[20px]" : "mt-[28px]"} ${sizing} bg-white rounded-[14px] shadow-[0_6px_24px_rgba(0,0,0,0.06)] overflow-y-auto p-[24px] md:p-[28px] text-left [&::-webkit-scrollbar]:hidden`}
       style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
     >
-      <h3 className="font-montserrat font-bold text-[15px] text-primary-blue">Privacy Policy</h3>
+      <h3 className="font-montserrat font-semibold text-[15px] text-[#232323]">Privacy Policy</h3>
       {PRIVACY_SECTIONS.map((section, i) => (
-        <div key={i} className="mt-[14px] flex flex-col gap-[8px]">
+        <div key={i} className="mt-[16px] flex flex-col gap-[8px]">
           {section.heading && (
-            <h4 className="font-montserrat font-bold text-[13px] text-primary-blue">{section.heading}</h4>
+            <h4 className="font-montserrat font-semibold text-[13.5px] text-[#232323]">{section.heading}</h4>
           )}
           {section.blocks.map((block, j) => {
             if (block.type === "para") {
               return (
-                <p key={j} className="font-montserrat text-[12.5px] leading-[160%] text-primary-blue/85">
+                <p key={j} className="font-montserrat text-[12.5px] leading-[1.6] text-[#232323]/85">
                   {block.text}
                 </p>
               );
             }
             if (block.type === "subheading") {
               return (
-                <p key={j} className="mt-[2px] font-montserrat font-semibold text-[12.5px] text-primary-blue">
+                <p key={j} className="mt-[2px] font-montserrat font-semibold text-[12.5px] text-[#232323]">
                   {block.text}
                 </p>
               );
             }
             return (
-              <ul key={j} className="pl-[16px] list-disc font-montserrat text-[12.5px] leading-[170%] text-primary-blue/85 space-y-[2px]">
+              <ul key={j} className="pl-[18px] list-disc font-montserrat text-[12.5px] leading-[1.6] text-[#232323]/85 space-y-[4px]">
                 {block.items.map((item, k) => (
                   <li key={k}>{item}</li>
                 ))}

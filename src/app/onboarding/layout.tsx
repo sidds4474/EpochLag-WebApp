@@ -2,9 +2,24 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import LogoLight from "../../assets/images/logo-light.webp";
 import { PersistentChromeProvider } from "../../lib/onboarding/components/OnboardingShell";
+
+// Routes that render their own full-bleed frame (hero video, scattered
+// polaroids, split layout etc.) and bring their own epoch-lag wordmark.
+// Hide the persistent left cover + top-left logo link on these so the
+// layout chrome doesn't peek through.
+const FULL_BLEED_ROUTES = new Set<string>([
+  "/onboarding/welcome",
+  "/onboarding/why-epoch-lag",
+  "/onboarding/whats-a-lag",
+  "/onboarding/add-memory",
+  "/onboarding/add-time-place",
+  "/onboarding/add-participants",
+  "/onboarding/lag-preview",
+]);
 
 // Persistent onboarding chrome (Option B).
 //
@@ -23,35 +38,42 @@ export default function OnboardingLayout({
 }: {
   children: ReactNode;
 }) {
+  const pathname = usePathname() ?? "";
+  const isFullBleed = FULL_BLEED_ROUTES.has(pathname);
+
   return (
     <>
-      {/* Fixed left cover — decorative, pointer-events off. */}
-      <aside
-        className="hidden md:block fixed left-0 top-0 h-screen md:w-[34%] lg:w-[44%] xl:w-[46%] z-0 overflow-hidden pointer-events-none"
-        aria-hidden
-      >
-        <div className="absolute inset-0 scale-110">
-          <Image
-            src="/onboarding/coverimage.png"
-            alt=""
-            fill
-            priority
-            sizes="(min-width: 1280px) 46vw, (min-width: 1024px) 44vw, (min-width: 768px) 42vw, 0vw"
-            className="object-cover object-center blur-[24px]"
-          />
-        </div>
-        <div className="absolute inset-0 bg-black/10" />
-      </aside>
-      <Link
-        href="/"
-        className="hidden md:block fixed z-20 top-[56px] left-[56px] cursor-pointer w-fit"
-      >
-        <img
-          src={LogoLight.src}
-          alt="Epoch Lag"
-          className="w-[130px] lg:w-[145px] h-auto object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.25)]"
-        />
-      </Link>
+      {!isFullBleed && (
+        <>
+          {/* Fixed left cover — decorative, pointer-events off. */}
+          <aside
+            className="hidden md:block fixed left-0 top-0 h-screen md:w-[34%] lg:w-[44%] xl:w-[46%] z-0 overflow-hidden pointer-events-none"
+            aria-hidden
+          >
+            <div className="absolute inset-0 scale-110">
+              <Image
+                src="/onboarding/coverimage.png"
+                alt=""
+                fill
+                priority
+                sizes="(min-width: 1280px) 46vw, (min-width: 1024px) 44vw, (min-width: 768px) 42vw, 0vw"
+                className="object-cover object-center blur-[24px]"
+              />
+            </div>
+            <div className="absolute inset-0 bg-black/10" />
+          </aside>
+          <Link
+            href="/"
+            className="hidden md:block fixed z-20 top-[56px] left-[56px] cursor-pointer w-fit"
+          >
+            <img
+              src={LogoLight.src}
+              alt="Epoch Lag"
+              className="w-[130px] lg:w-[145px] h-auto object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.25)]"
+            />
+          </Link>
+        </>
+      )}
 
       {/* Persistent frame. Every class is md:-gated so mobile stays
           passthrough (no chrome, no bg). */}

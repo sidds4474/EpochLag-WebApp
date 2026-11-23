@@ -144,13 +144,33 @@ export type CirclePersonLag = {
   isBookmarked?: boolean;
 };
 
+// Short-lived cache so a prewarm fetch (from e.g. NodeActionCard) can hand
+// the loaded payload to the person page without a second round-trip.
+const personDetailCache = new Map<
+  string,
+  { data: CirclePersonDetail; at: number }
+>();
+const PERSON_DETAIL_TTL_MS = 30_000;
+
 export async function fetchCirclePerson(
   userId: string,
 ): Promise<CirclePersonDetail> {
+  const hit = personDetailCache.get(userId);
+  if (hit && Date.now() - hit.at < PERSON_DETAIL_TTL_MS) {
+    return hit.data;
+  }
   const res = await api.get<Envelope<CirclePersonDetail>>(
     `/api/circles/people/${userId}`,
   );
+  personDetailCache.set(userId, { data: res.data, at: Date.now() });
   return res.data;
+}
+
+export function prewarmCirclePerson(userId: string): void {
+  if (!userId) return;
+  const hit = personDetailCache.get(userId);
+  if (hit && Date.now() - hit.at < PERSON_DETAIL_TTL_MS) return;
+  fetchCirclePerson(userId).catch(() => {});
 }
 
 export type CirclePersonLagsPage = {
@@ -455,8 +475,32 @@ export type FamilyTreePerson = {
   countryCode?: string | null;
   email?: string | null;
   linkedUserId?: string | null;
+  userId?: string | null;
+  accountUserId?: string | null;
   hasPendingInvite?: boolean;
   wasInvitedByMe?: boolean;
+  invitedAt?: string | null;
+};
+
+export type FamilyPersonPayload = {
+  name: string;
+  relationshipSlug?: string;
+  phone?: string | null;
+  countryCode?: string;
+  email?: string | null;
+  linkedUserId?: string;
+};
+
+export type FamilyInvitePayload = {
+  userId?: string;
+  phone?: string;
+  countryCode?: string;
+  email?: string;
+};
+
+export type FamilyInviteResult = {
+  invitedExistingUser: boolean;
+  inviteToken?: string;
 };
 
 export async function fetchFamilyTree(): Promise<FamilyTreePerson[]> {
@@ -470,6 +514,84 @@ export async function fetchFamilyTree(): Promise<FamilyTreePerson[]> {
     }
   }
   return [];
+}
+
+let cachedRelationshipOptions: RelationshipOption[] | null = null;
+export async function fetchRelationshipOptions(): Promise<RelationshipOption[]> {
+  if (cachedRelationshipOptions) return cachedRelationshipOptions;
+  const res = await api.get<Envelope<unknown>>(
+    "/api/family-tree/relationship-options",
+  );
+  const d = res.data as unknown;
+  const list: RelationshipOption[] = Array.isArray(d)
+    ? (d as RelationshipOption[])
+    : (() => {
+        if (d && typeof d === "object") {
+          for (const key of ["options", "relationshipOptions", "items"]) {
+            const maybe = (d as Record<string, unknown>)[key];
+            if (Array.isArray(maybe)) return maybe as RelationshipOption[];
+          }
+        }
+        return [];
+      })();
+  cachedRelationshipOptions = list;
+  return list;
+}
+
+export async function createFamilyPerson(
+  payload: FamilyPersonPayload,
+): Promise<{ person: FamilyTreePerson; created: boolean }> {
+  const res = await api.post<Envelope<{ person: FamilyTreePerson; created: boolean }>>(
+    "/api/family-tree/people",
+    payload,
+  );
+  return res.data;
+}
+
+export async function updateFamilyPerson(
+  personId: string,
+  patch: Partial<FamilyPersonPayload>,
+): Promise<FamilyTreePerson> {
+  const res = await api.patch<Envelope<{ person: FamilyTreePerson }>>(
+    `/api/family-tree/people/${personId}`,
+    patch,
+  );
+  return res.data.person;
+}
+
+export async function deleteFamilyPerson(personId: string): Promise<void> {
+  await api.delete(`/api/family-tree/people/${personId}`);
+}
+
+export async function sendFamilyInvite(
+  personId: string,
+  payload: FamilyInvitePayload,
+): Promise<FamilyInviteResult> {
+  const res = await api.post<Envelope<FamilyInviteResult>>(
+    `/api/family-tree/people/${personId}/invite`,
+    payload,
+  );
+  return res.data;
+}
+
+export type FamilyPendingShare = { storyId: string };
+export async function fetchFamilyPendingShares(
+  personId: string,
+): Promise<FamilyPendingShare[]> {
+  try {
+    const res = await api.get<Envelope<unknown>>(
+      `/api/family-tree/people/${personId}/pending-shares`,
+    );
+    const d = res.data as unknown;
+    if (Array.isArray(d)) return d as FamilyPendingShare[];
+    if (d && typeof d === "object") {
+      const maybe = (d as Record<string, unknown>).shares;
+      if (Array.isArray(maybe)) return maybe as FamilyPendingShare[];
+    }
+    return [];
+  } catch {
+    return [];
+  }
 }
 
 // ---------------- Module freshness cache ----------------

@@ -1,11 +1,11 @@
 "use client";
 
 // Family Tree — 5 genealogical rows + SVG connectors + AlsoInYourFamily list.
-// Read-only in v1: taps on nodes are inert; add/edit/invite flows ship in a
-// follow-up. Node visuals cover all four states (LINKED, ACCOUNT_PENDING,
-// GHOST_INVITED, GHOST) today.
+// Taps on nodes open the NodeActionCard; the header "+" and scoped edge
+// adders open the AddMemberForm. Node visuals cover all four states
+// (LINKED, ACCOUNT_PENDING, GHOST_INVITED, GHOST).
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   TransformComponent,
   TransformWrapper,
@@ -18,13 +18,26 @@ import {
   relationshipLabel,
   type PersonState,
 } from "./familyTree";
-import type { FamilyTreePerson } from "../../../../lib/circle/api";
+import {
+  fetchFamilyTree,
+  type FamilyTreePerson,
+} from "../../../../lib/circle/api";
+import AddMemberForm from "./AddMemberForm";
+import NodeActionCard from "./NodeActionCard";
 
 const NODE_SIZE = 56;
 
 type Props = {
   people: FamilyTreePerson[];
   currentUser: User | null;
+};
+
+type AddFormState = {
+  open: boolean;
+  initial: FamilyTreePerson | null;
+  targetName: string | null;
+  presetSlug: string | null;
+  allowedSlugs?: string[];
 };
 
 function useIsMobile(): boolean {
@@ -41,6 +54,11 @@ function useIsMobile(): boolean {
 
 export default function FamilyTreeView({ people, currentUser }: Props) {
   const isMobile = useIsMobile();
+  const [localPeople, setLocalPeople] = useState<FamilyTreePerson[]>(people);
+  useEffect(() => {
+    setLocalPeople(people);
+  }, [people]);
+
   const me: FamilyTreePerson = {
     _id: currentUser?._id || "me",
     name: currentUser?.firstName || "Me",
@@ -50,7 +68,49 @@ export default function FamilyTreeView({ people, currentUser }: Props) {
     isOnApp: true,
     isLinked: true,
   };
-  const rows = buildTreeRows(people, me);
+  const rows = buildTreeRows(localPeople, me);
+
+  const [cardPerson, setCardPerson] = useState<FamilyTreePerson | null>(null);
+  const [addForm, setAddForm] = useState<AddFormState>({
+    open: false,
+    initial: null,
+    targetName: null,
+    presetSlug: null,
+  });
+
+  const treeUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const p of localPeople) {
+      if (p.userId) ids.add(p.userId);
+      if (p.accountUserId) ids.add(p.accountUserId);
+      if (p.linkedUserId) ids.add(p.linkedUserId);
+    }
+    if (currentUser?._id) ids.add(currentUser._id);
+    return ids;
+  }, [localPeople, currentUser]);
+
+  async function refetchTree() {
+    try {
+      const list = await fetchFamilyTree();
+      setLocalPeople(list);
+    } catch {
+      /* keep local copy */
+    }
+  }
+
+  function openAddFromHeader() {
+    setAddForm({
+      open: true,
+      initial: null,
+      targetName: null,
+      presetSlug: null,
+    });
+  }
+
+  function openNode(p: FamilyTreePerson) {
+    if (p.isMe) return;
+    setCardPerson(p);
+  }
 
   const anyTree =
     rows.grandparents.length > 0 ||
@@ -66,34 +126,46 @@ export default function FamilyTreeView({ people, currentUser }: Props) {
       </p>
       {rows.grandparents.length > 0 && (
         <Bucket>
-          <Row people={rows.grandparents} overrideMe={null} />
+          <Row people={rows.grandparents} overrideMe={null} onPick={openNode} />
         </Bucket>
       )}
       {rows.parents.length > 0 && (
         <PlainRow>
-          <Row people={rows.parents} overrideMe={null} />
+          <Row people={rows.parents} overrideMe={null} onPick={openNode} />
         </PlainRow>
       )}
       <Bucket>
-        <Row people={rows.self} overrideMe={me} />
+        <Row people={rows.self} overrideMe={me} onPick={openNode} />
       </Bucket>
       {rows.children.length > 0 && (
         <PlainRow>
-          <Row people={rows.children} overrideMe={null} />
+          <Row people={rows.children} overrideMe={null} onPick={openNode} />
         </PlainRow>
       )}
       {rows.grandchildren.length > 0 && (
         <Bucket>
-          <Row people={rows.grandchildren} overrideMe={null} />
+          <Row people={rows.grandchildren} overrideMe={null} onPick={openNode} />
         </Bucket>
       )}
     </div>
   ) : (
-    <EmptyState />
+    <EmptyState onAdd={openAddFromHeader} />
   );
 
   return (
     <div className="flex flex-col items-center">
+      {anyTree && (
+        <div className="w-full flex justify-end mb-[12px]">
+          <button
+            type="button"
+            onClick={openAddFromHeader}
+            className="inline-flex items-center gap-[6px] rounded-full bg-primary-orange text-white px-[14px] py-[8px] font-montserrat text-[13px] hover:opacity-90"
+          >
+            <span aria-hidden className="text-[16px] leading-none">+</span>
+            Add family member
+          </button>
+        </div>
+      )}
       {isMobile ? (
         // Mobile: wrap the tree in a pinch-zoom + pan container. Desktop
         // doesn't need gestures — rooms are wide enough to show the full tree.
@@ -128,13 +200,61 @@ export default function FamilyTreeView({ people, currentUser }: Props) {
       )}
 
       {rows.unmapped.length > 0 && (
-        <AlsoInYourFamily people={rows.unmapped} />
+        <AlsoInYourFamily people={rows.unmapped} onPick={openNode} />
       )}
+
+      <NodeActionCard
+        open={!!cardPerson}
+        person={cardPerson}
+        onClose={() => setCardPerson(null)}
+        onRemoved={(id) => {
+          setLocalPeople((prev) => prev.filter((p) => p._id !== id));
+          setCardPerson(null);
+        }}
+        onEdit={(p) => {
+          setCardPerson(null);
+          setAddForm({
+            open: true,
+            initial: p,
+            targetName: null,
+            presetSlug: null,
+          });
+        }}
+        onAddRelative={(p) => {
+          setCardPerson(null);
+          setAddForm({
+            open: true,
+            initial: null,
+            targetName: p.name,
+            presetSlug: null,
+          });
+        }}
+      />
+
+      <AddMemberForm
+        open={addForm.open}
+        initial={addForm.initial}
+        targetName={addForm.targetName}
+        presetSlug={addForm.presetSlug}
+        allowedSlugs={addForm.allowedSlugs}
+        treeUserIds={treeUserIds}
+        onClose={() =>
+          setAddForm({
+            open: false,
+            initial: null,
+            targetName: null,
+            presetSlug: null,
+          })
+        }
+        onSaved={() => {
+          refetchTree();
+        }}
+      />
     </div>
   );
 }
 
-function EmptyState() {
+function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center text-center py-[48px] max-w-[360px]">
       <h3 className="font-ivy text-[#2C2C2C] text-[22px]">
@@ -144,6 +264,14 @@ function EmptyState() {
         Add your parents, siblings, kids — everyone who makes up your family
         story.
       </p>
+      <button
+        type="button"
+        onClick={onAdd}
+        className="mt-[20px] inline-flex items-center gap-[6px] rounded-full bg-primary-orange text-white px-[18px] py-[10px] font-montserrat text-[13px] hover:opacity-90"
+      >
+        <span aria-hidden className="text-[16px] leading-none">+</span>
+        Add family member
+      </button>
     </div>
   );
 }
@@ -163,9 +291,11 @@ function PlainRow({ children }: { children: React.ReactNode }) {
 function Row({
   people,
   overrideMe,
+  onPick,
 }: {
   people: FamilyTreePerson[];
   overrideMe: FamilyTreePerson | null;
+  onPick: (p: FamilyTreePerson) => void;
 }) {
   return (
     <div className="flex items-start justify-center gap-[20px] md:gap-[28px]">
@@ -174,6 +304,7 @@ function Row({
           key={p._id}
           person={p}
           forceMe={overrideMe?._id === p._id}
+          onPick={onPick}
         />
       ))}
     </div>
@@ -183,16 +314,19 @@ function Row({
 function Node({
   person,
   forceMe,
+  onPick,
 }: {
   person: FamilyTreePerson;
   forceMe: boolean;
+  onPick: (p: FamilyTreePerson) => void;
 }) {
   const state = forceMe ? ("LINKED" as PersonState) : getFamilyPersonState(person);
   const label = forceMe ? "" : relationshipLabel(person);
   const name = forceMe ? "Me" : person.name;
+  const inert = forceMe || person.isMe;
 
-  return (
-    <div className="flex flex-col items-center min-w-[64px]">
+  const content = (
+    <>
       <NodeAvatar person={person} state={state} />
       <p className="mt-[6px] font-ivy text-[#2C2C2C] text-[13px] md:text-[14px] text-center leading-tight max-w-[88px] truncate">
         {name}
@@ -202,7 +336,23 @@ function Node({
           {label}
         </p>
       )}
-    </div>
+    </>
+  );
+
+  if (inert) {
+    return (
+      <div className="flex flex-col items-center min-w-[64px]">{content}</div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onPick(person)}
+      className="flex flex-col items-center min-w-[64px] cursor-pointer focus:outline-none"
+    >
+      {content}
+    </button>
   );
 }
 
@@ -262,7 +412,13 @@ function StatePill({ text, color }: { text: string; color: string }) {
   );
 }
 
-function AlsoInYourFamily({ people }: { people: FamilyTreePerson[] }) {
+function AlsoInYourFamily({
+  people,
+  onPick,
+}: {
+  people: FamilyTreePerson[];
+  onPick: (p: FamilyTreePerson) => void;
+}) {
   return (
     <section className="w-full max-w-[560px] mt-[40px]">
       <h3 className="font-ivy text-[#2C2C2C] text-[18px] md:text-[20px]">
@@ -271,8 +427,10 @@ function AlsoInYourFamily({ people }: { people: FamilyTreePerson[] }) {
       <ul className="mt-[12px]">
         {people.map((p, i) => (
           <li key={p._id}>
-            <div
-              className={`flex items-center gap-[12px] py-[12px] ${
+            <button
+              type="button"
+              onClick={() => onPick(p)}
+              className={`w-full flex items-center gap-[12px] py-[12px] text-left hover:bg-black/[0.02] transition-colors ${
                 i !== people.length - 1 ? "border-b border-[#C9C9C9]/60" : ""
               }`}
             >
@@ -299,7 +457,7 @@ function AlsoInYourFamily({ people }: { people: FamilyTreePerson[] }) {
                   </p>
                 )}
               </div>
-            </div>
+            </button>
           </li>
         ))}
       </ul>

@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Gradient5 from "../../../../../assets/images/gradients/5.jpg";
-import HeroBanner from "../HeroBanner";
 import PanelMobileHeader from "../PanelMobileHeader";
-import { MailFillIcon } from "../icons";
 import { useAuth } from "../../../../../lib/auth/AuthProvider";
 import { sendContactMessage } from "../../../../../lib/support/api";
 
@@ -51,10 +48,40 @@ const FAQS: { q: string; a: string }[] = [
   },
 ];
 
+function UnderlinedField({
+  label,
+  value,
+  onChange,
+  type = "text",
+  autoComplete,
+}: {
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+  type?: "text" | "email";
+  autoComplete?: string;
+}) {
+  return (
+    <div className="flex flex-col">
+      <label className="font-montserrat text-[#2c2c2c] text-[14px]">
+        {label}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete={autoComplete}
+        className="w-full bg-transparent border-b border-[#2c2c2c]/35 px-[2px] py-[8px] font-montserrat text-[15px] text-[#232323] outline-none focus:border-primary-orange"
+      />
+    </div>
+  );
+}
+
 export default function HelpPage() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("faq");
   const [openIdx, setOpenIdx] = useState<number | null>(null);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -63,13 +90,23 @@ export default function HelpPage() {
 
   useEffect(() => {
     if (user?.email) setEmail(user.email);
-  }, [user?.email]);
+    const fullName = `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim();
+    if (fullName) setName(fullName);
+  }, [user?.email, user?.firstName, user?.lastName]);
 
   async function handleSend() {
     setError(null);
     setSuccess(null);
-    if (!user?.lastName?.trim()) {
-      setError("Add a last name to your profile before contacting support.");
+    // Split the single "Name" field back into first / last for the BE —
+    // first token is first name, everything after is the last name, so
+    // typing "Jane" alone falls through to a last-name validation error.
+    const trimmedName = name.trim();
+    const spaceIdx = trimmedName.indexOf(" ");
+    const firstName =
+      spaceIdx === -1 ? trimmedName : trimmedName.slice(0, spaceIdx);
+    const lastName = spaceIdx === -1 ? "" : trimmedName.slice(spaceIdx + 1).trim();
+    if (!firstName || !lastName) {
+      setError("Enter your full name.");
       return;
     }
     if (!EMAIL_REGEX.test(email.trim())) {
@@ -83,8 +120,8 @@ export default function HelpPage() {
     setSending(true);
     try {
       const msg = await sendContactMessage({
-        firstName: user.firstName ?? "",
-        lastName: user.lastName,
+        firstName,
+        lastName,
         email: email.trim(),
         message: message.trim(),
       });
@@ -104,21 +141,22 @@ export default function HelpPage() {
   return (
     <div className="flex flex-col gap-[20px] md:gap-[24px]">
       <PanelMobileHeader title="Help and Support" />
-      <HeroBanner src={Gradient5.src} />
 
-      <div className="flex flex-col gap-[16px]">
-        <h2 className="font-montserrat font-normal text-primary-blue text-[20px] md:text-[22px]">
-          Help and support
-        </h2>
+      <div className="flex flex-col max-w-[760px]">
+        <h1 className="hidden md:block font-ivy font-normal text-[#232323] text-[24px] md:text-[28px] leading-[1.15]">
+          Help and Support
+        </h1>
+        <div className="hidden md:block mt-[16px] mb-[20px] border-t border-black/10" />
 
-        <div className="inline-flex self-start bg-[#EDEDED] rounded-full p-[2px]">
+        {/* Toggle pills */}
+        <div className="flex items-center gap-[8px] mb-[20px]">
           <button
             type="button"
             onClick={() => setTab("faq")}
-            className={`cursor-pointer px-[14px] py-[6px] rounded-full font-montserrat text-[13px] md:text-[14px] font-medium transition-colors ${
+            className={`cursor-pointer px-[20px] py-[9px] rounded-full font-montserrat font-medium text-[14px] transition-colors ${
               tab === "faq"
-                ? "bg-primary-blue text-white"
-                : "text-primary-blue/70"
+                ? "bg-primary-orange text-white"
+                : "bg-[#E8E6DF] text-[#232323] hover:bg-[#dcd8ca]"
             }`}
           >
             FAQ
@@ -126,10 +164,10 @@ export default function HelpPage() {
           <button
             type="button"
             onClick={() => setTab("contact")}
-            className={`cursor-pointer px-[14px] py-[6px] rounded-full font-montserrat text-[13px] md:text-[14px] font-medium transition-colors ${
+            className={`cursor-pointer px-[20px] py-[9px] rounded-full font-montserrat font-medium text-[14px] transition-colors ${
               tab === "contact"
-                ? "bg-primary-blue text-white"
-                : "text-primary-blue/70"
+                ? "bg-primary-orange text-white"
+                : "bg-[#E8E6DF] text-[#232323] hover:bg-[#dcd8ca]"
             }`}
           >
             Contact Us
@@ -137,34 +175,45 @@ export default function HelpPage() {
         </div>
 
         {tab === "faq" ? (
-          <div className="flex flex-col gap-[10px] max-w-[760px]">
+          <div className="flex flex-col">
             {FAQS.map((item, i) => {
               const open = openIdx === i;
               return (
                 <div
                   key={i}
-                  className="bg-[#F5F5F5] rounded-[14px] overflow-hidden"
+                  className="border-b border-black/10 last:border-b-0"
                 >
                   <button
                     type="button"
                     onClick={() => setOpenIdx(open ? null : i)}
-                    className="cursor-pointer w-full flex items-center justify-between gap-[12px] px-[16px] py-[14px] text-left"
+                    className="cursor-pointer w-full flex items-start justify-between gap-[16px] py-[16px] text-left"
                   >
-                    <span className="font-montserrat text-primary-blue text-[13px] md:text-[14px]">
+                    <span className="font-montserrat text-[#232323] text-[14px] md:text-[15px] leading-[150%] flex-1 min-w-0">
                       {item.q}
                     </span>
                     <span
-                      className={`shrink-0 text-[#EF9849] transition-transform ${
+                      className={`shrink-0 text-[#848484] transition-transform ${
                         open ? "rotate-45" : ""
                       }`}
                     >
-                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                        <path d="M9 3v12M3 9h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 18 18"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M9 3v12M3 9h12"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                        />
                       </svg>
                     </span>
                   </button>
                   {open && (
-                    <div className="px-[16px] pb-[14px] font-montserrat text-primary-blue/80 text-[13px] leading-[160%]">
+                    <div className="pb-[16px] font-montserrat text-[#2c2c2c] text-[13px] md:text-[14px] leading-[160%]">
                       {item.a}
                     </div>
                   )}
@@ -173,48 +222,50 @@ export default function HelpPage() {
             })}
           </div>
         ) : (
-          <div className="flex flex-col gap-[12px] max-w-[600px]">
-            <div className="relative">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
-                className="w-full rounded-full bg-[#F5F5F5] pl-[18px] pr-[48px] py-[14px] font-montserrat text-[14px] text-primary-blue outline-none focus:ring-2 focus:ring-[#EF9849]"
-              />
-              <MailFillIcon
-                width={20}
-                height={20}
-                className="absolute right-[16px] top-1/2 -translate-y-1/2 text-[#092E4A] pointer-events-none"
+          <div className="flex flex-col gap-[22px] max-w-[600px]">
+            <UnderlinedField
+              label="Name"
+              value={name}
+              onChange={setName}
+              type="text"
+              autoComplete="name"
+            />
+            <UnderlinedField
+              label="Email"
+              value={email}
+              onChange={setEmail}
+              type="email"
+              autoComplete="email"
+            />
+            <div className="flex flex-col gap-[6px]">
+              <label className="font-montserrat text-[#2c2c2c] text-[14px]">
+                Message
+              </label>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={6}
+                className="w-full rounded-[10px] bg-transparent border border-[#2c2c2c]/35 px-[14px] py-[12px] font-montserrat text-[14px] text-[#232323] outline-none focus:border-primary-orange focus:ring-0 resize-none"
               />
             </div>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Share your questions with us"
-              rows={6}
-              className="w-full rounded-[18px] bg-[#F5F5F5] px-[18px] py-[14px] font-montserrat text-[14px] text-primary-blue outline-none focus:ring-2 focus:ring-[#EF9849] resize-none"
-            />
             {error && (
               <p className="font-montserrat text-[12px] text-[#D95F3B]">
                 {error}
               </p>
             )}
             {success && (
-              <p className="font-montserrat text-[13px] text-primary-blue">
+              <p className="font-montserrat text-[13px] text-[#232323]">
                 {success}
               </p>
             )}
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleSend}
-                disabled={sending}
-                className="cursor-pointer font-montserrat text-[14px] font-semibold text-white bg-[#EF9849] px-[28px] py-[10px] rounded-full hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {sending ? "Sending..." : "Send"}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={sending}
+              className="w-full cursor-pointer font-montserrat font-semibold text-white bg-primary-orange rounded-full py-[14px] text-[15px] hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {sending ? "Sending..." : "Send"}
+            </button>
           </div>
         )}
       </div>

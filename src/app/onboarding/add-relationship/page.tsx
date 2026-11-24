@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
 import { trackOnboarding } from "../../../lib/analytics/track";
 
 type Relationship = { slug: string; label: string };
@@ -16,7 +15,7 @@ const RELATIONSHIPS: Relationship[] = [
   { slug: "other", label: "Other" },
 ];
 
-const TITLE_LINES = ["Who would you like", "to share Lags with?"];
+const TITLE_LINES = ["Who would you like to", "share Lags with?"];
 
 export default function AddRelationshipPage() {
   const router = useRouter();
@@ -43,73 +42,98 @@ export default function AddRelationshipPage() {
       selected: selectedArr,
       otherLabel: selected.has("other") ? trimmedOther || null : null,
     });
-    // Persist choices to BE once the endpoint contract is confirmed. Payload
-    // shape planned: { relationships: string[], otherLabel?: string }.
     router.replace("/onboarding/memory-tags");
   };
 
-  const list = (
-    <div className="w-full flex flex-col gap-[12px]">
-      {RELATIONSHIPS.map((r) => (
-        <div key={r.slug} className="w-full">
-          <RelationshipRow
-            label={r.label}
-            checked={selected.has(r.slug)}
-            onToggle={() => toggle(r.slug)}
-          />
-          {r.slug === "other" && selected.has("other") && (
-            <input
-              type="text"
-              value={otherLabel}
-              onChange={(e) => setOtherLabel(e.target.value)}
-              placeholder="Who else?"
-              autoFocus
-              maxLength={40}
-              className="mt-[10px] w-full bg-primary-white rounded-full h-[48px] px-[20px] font-montserrat text-[15px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_2px_8px_rgba(9,46,74,0.05)]"
-            />
-          )}
+  return (
+    <div className="fixed inset-0 z-40 bg-[#F3F1EB] overflow-hidden">
+      <div className="absolute inset-0 overflow-y-auto px-[24px] md:px-[40px] pt-[max(env(safe-area-inset-top),48px)] pb-[160px] lg:pb-[100px] flex flex-col items-center">
+        <div className="w-full max-w-[640px] lg:max-w-[720px] flex flex-col items-center lg:justify-center lg:flex-1">
+          <h1 className="font-ivy font-normal text-[#232323] text-[22px] md:text-[24px] lg:text-[26px] leading-[1.3] text-center max-w-[380px]">
+            {TITLE_LINES[0]}
+            <br />
+            {TITLE_LINES[1]}
+          </h1>
+
+          {/* Mobile + tablet: single-column stack */}
+          <div className="lg:hidden w-full max-w-[380px] mt-[32px] flex flex-col gap-[12px]">
+            {RELATIONSHIPS.map((r) => (
+              <div key={r.slug} className="w-full">
+                <RelationshipRow
+                  label={r.label}
+                  checked={selected.has(r.slug)}
+                  onToggle={() => toggle(r.slug)}
+                />
+                {r.slug === "other" && selected.has("other") && (
+                  <OtherInput
+                    value={otherLabel}
+                    onChange={setOtherLabel}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: 2-column grid */}
+          <div className="hidden lg:grid w-full max-w-[640px] mt-[40px] grid-cols-2 gap-x-[20px] gap-y-[14px]">
+            {RELATIONSHIPS.map((r) => (
+              <div key={r.slug} className="w-full">
+                <RelationshipRow
+                  label={r.label}
+                  checked={selected.has(r.slug)}
+                  onToggle={() => toggle(r.slug)}
+                />
+                {r.slug === "other" && selected.has("other") && (
+                  <OtherInput
+                    value={otherLabel}
+                    onChange={setOtherLabel}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-      ))}
+      </div>
+
+      {/* Desktop Next pill */}
+      <button
+        type="button"
+        onClick={goNext}
+        className="hidden lg:inline-flex absolute bottom-[32px] right-[32px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[15px] rounded-full px-[40px] py-[12px] hover:opacity-90 transition-opacity"
+      >
+        Next
+      </button>
+
+      {/* Mobile + tablet Next pill */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-[#F3F1EB] px-[24px] md:px-[48px] pb-[max(env(safe-area-inset-bottom),24px)] pt-[16px]">
+        <button
+          type="button"
+          onClick={goNext}
+          className="w-full max-w-[520px] mx-auto block cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity"
+        >
+          Next
+        </button>
+      </div>
     </div>
   );
+}
 
-  const title = (
-    <h1 className="font-montserrat font-bold text-primary-blue text-center leading-[130%] text-[20px] md:text-[22px]">
-      {TITLE_LINES[0]}
-      <br />
-      {TITLE_LINES[1]}
-    </h1>
-  );
-
+function OtherInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+}) {
   return (
-    <OnboardingShell
-      onNext={goNext}
-      hideMobileNext
-      desktopContent={
-        <div className="w-full flex flex-col items-center justify-center min-h-[78vh] lg:min-h-0">
-          <div className="w-full max-w-[400px] flex flex-col items-center">
-            {title}
-            <div className="mt-[28px] w-full">{list}</div>
-          </div>
-        </div>
-      }
-      mobileContent={
-        <div className="flex flex-col min-h-screen px-[24px] pt-[48px] pb-[120px] text-primary-blue">
-          <div className="flex-1 flex flex-col items-center">
-            {title}
-            <div className="mt-[24px] w-full max-w-[420px]">{list}</div>
-          </div>
-          <div className="fixed bottom-0 left-0 right-0 z-30 px-[24px] pb-[24px] pt-[16px] bg-warm-cream">
-            <button
-              type="button"
-              onClick={goNext}
-              className="w-full cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      }
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Who else?"
+      autoFocus
+      maxLength={40}
+      className="mt-[10px] w-full bg-primary-white rounded-full h-[48px] px-[20px] font-montserrat text-[15px] text-[#232323] placeholder:text-[#2c2c2c]/40 outline-none shadow-[0_2px_8px_rgba(0,0,0,0.05)]"
     />
   );
 }
@@ -123,22 +147,16 @@ function RelationshipRow({
   checked: boolean;
   onToggle: () => void;
 }) {
-  const base =
-    "w-full flex items-center gap-[14px] rounded-full h-[52px] pl-[16px] pr-[20px] font-montserrat text-[15px] cursor-pointer transition-colors";
-  const state = checked
-    ? "border-2 text-primary-blue"
-    : "bg-primary-white text-primary-blue shadow-[0_2px_8px_rgba(9,46,74,0.05)] hover:bg-primary-white/85";
-  const activeBg = checked
-    ? { backgroundColor: "#FDE6C9", borderColor: "#EF9849" }
-    : undefined;
-
   return (
     <button
       type="button"
       onClick={onToggle}
       aria-pressed={checked}
-      className={`${base} ${state}`}
-      style={activeBg}
+      className={`w-full flex items-center gap-[14px] rounded-full h-[52px] pl-[16px] pr-[20px] font-montserrat text-[15px] cursor-pointer transition-colors ${
+        checked
+          ? "bg-[#1C1C1C] text-white"
+          : "bg-white text-[#232323] hover:brightness-95"
+      }`}
     >
       <CheckboxIcon checked={checked} />
       <span>{label}</span>
@@ -149,18 +167,18 @@ function RelationshipRow({
 function CheckboxIcon({ checked }: { checked: boolean }) {
   return (
     <span
-      className={`shrink-0 h-[24px] w-[24px] rounded-[6px] flex items-center justify-center transition-colors ${
+      className={`shrink-0 h-[22px] w-[22px] rounded-[4px] flex items-center justify-center transition-colors ${
         checked
-          ? "bg-transparent border border-[#092E4A]"
-          : "border-2 border-primary-blue/25 bg-transparent"
+          ? "border border-white"
+          : "border border-[#2c2c2c]/35"
       }`}
     >
       {checked && (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
           <path
             d="M5 12l5 5L20 7"
-            stroke="#EF9849"
-            strokeWidth="2.5"
+            stroke="white"
+            strokeWidth="2.6"
             strokeLinecap="round"
             strokeLinejoin="round"
           />

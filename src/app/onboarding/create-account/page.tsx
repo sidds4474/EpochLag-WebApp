@@ -3,8 +3,9 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
+import { motion } from "motion/react";
 import { CountryPicker } from "../../../components/auth/CountryPicker";
+import DecorativePolaroids from "../../../components/auth/DecorativePolaroids";
 import { ApiError } from "../../../lib/api/client";
 import { useAuth } from "../../../lib/auth/AuthProvider";
 import {
@@ -275,54 +276,48 @@ function CreateAccountContent() {
   );
 
   const bodyContent = (
-    <div className="w-full flex flex-col text-primary-blue">
-      <h1 className="font-montserrat font-bold text-[22px] text-center leading-[130%]">
-        Create an account to save your Lag
+    <div className="w-full flex flex-col items-center text-[#232323]">
+      <RingDot />
+      <h1 className="mt-[16px] font-ivy font-normal text-[22px] md:text-[24px] text-[#232323] text-center leading-[1.3]">
+        Create an account
       </h1>
+      <p className="mt-[6px] font-montserrat text-[13px] text-[#2c2c2c]/70 text-center max-w-[320px]">
+        Save your Lag and keep track of the moments that matter.
+      </p>
 
-      <FieldLabel>Full Name</FieldLabel>
-      <div className="mt-[8px] grid grid-cols-1 md:grid-cols-2 gap-[10px]">
-        <TextInput
-          value={firstName}
-          onChange={setFirstName}
-          placeholder="First Name"
-        />
-        <TextInput
-          value={lastName}
-          onChange={setLastName}
-          placeholder="Last Name"
-        />
-      </div>
-
-      <div className="mt-[16px]">
-        <FieldLabel>Date of Birth</FieldLabel>
-        <div className="mt-[8px]">
-          <DateInput value={dob} onChange={setDob} />
+      <div className="w-full mt-[24px] flex flex-col gap-[16px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-[10px]">
+          <TextInput
+            value={firstName}
+            onChange={setFirstName}
+            placeholder="First Name"
+          />
+          <TextInput
+            value={lastName}
+            onChange={setLastName}
+            placeholder="Last Name"
+          />
         </div>
-      </div>
 
-      {mode === "phone" ? (
-        <div className="mt-[16px]">
-          <FieldLabel>Email</FieldLabel>
-          <div className="mt-[8px] relative">
+        <DateInput value={dob} onChange={setDob} />
+
+        {mode === "phone" ? (
+          <div className="relative">
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email Address"
+              placeholder="Email address"
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
               inputMode="email"
-              className="w-full bg-primary-white rounded-full h-[48px] pl-[16px] pr-[44px] font-montserrat text-[14px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_4px_14px_rgba(9,46,74,0.05)]"
+              className="w-full bg-primary-white rounded-full h-[48px] pl-[18px] pr-[44px] font-montserrat text-[14px] text-[#232323] placeholder:text-[#2c2c2c]/40 outline-none shadow-[0_4px_14px_rgba(0,0,0,0.05)]"
             />
             <MailIconSvg />
           </div>
-        </div>
-      ) : (
-        <div className="mt-[16px]">
-          <FieldLabel>Phone Number</FieldLabel>
-          <div className="mt-[8px] flex items-center gap-[8px]">
+        ) : (
+          <div className="flex items-center gap-[8px]">
             <CountryPicker
               value={countryCode}
               onChange={setCountryCode}
@@ -333,22 +328,18 @@ function CreateAccountContent() {
               inputMode="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="123 456 6780"
+              placeholder="Phone number"
               disabled={phoneLocked}
-              className="flex-1 bg-primary-white rounded-full h-[48px] px-[16px] font-montserrat text-[14px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_4px_14px_rgba(9,46,74,0.05)] disabled:opacity-70"
+              className="flex-1 bg-primary-white rounded-full h-[48px] px-[18px] font-montserrat text-[14px] text-[#232323] placeholder:text-[#2c2c2c]/40 outline-none shadow-[0_4px_14px_rgba(0,0,0,0.05)] disabled:opacity-70"
             />
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* MONETIZATION OFF: referral code input hidden; card component kept
-          intact above so uncommenting this line restores the surface. */}
-      {/* <div className="mt-[20px]">{referralCard}</div> */}
-
-      <p className="mt-[16px] font-montserrat text-[12px] text-primary-blue/80 text-center leading-[160%]">
-        By selecting <strong>agree and continue</strong> I agree to Epoch Lag&apos;s{" "}
+      <p className="mt-[20px] font-montserrat text-[12px] text-[#2c2c2c]/70 text-center leading-[1.55]">
+        By selecting <strong className="text-[#232323]">Agree and continue</strong> I agree to Epoch Lag&apos;s{" "}
         <Link href="/terms-of-service" className="underline">
-          terms of services
+          terms of service
         </Link>{" "}
         and{" "}
         <Link href="/privacy-policy" className="underline">
@@ -362,16 +353,14 @@ function CreateAccountContent() {
         </p>
       )}
 
-      <div className="mt-[16px] flex justify-center">
-        <button
-          type="button"
-          onClick={submit}
-          disabled={submitting}
-          className="w-[220px] h-[46px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[15px] rounded-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {submitting ? "Working…" : "Agree and Continue"}
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={submit}
+        disabled={submitting}
+        className="mt-[16px] w-full h-[48px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[15px] rounded-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {submitting ? "Working…" : "Agree and Continue"}
+      </button>
     </div>
   );
 
@@ -382,30 +371,55 @@ function CreateAccountContent() {
   void validReferralUsed;
 
   return (
-    <OnboardingShell
-      hideDesktopNext
-      hideMobileNext
-      desktopContent={
-        <div className="w-full flex flex-col items-center justify-center min-h-[78vh] lg:min-h-0 py-[24px]">
-          <div className="w-full max-w-[520px]">{bodyContent}</div>
+    <div className="fixed inset-0 z-40 bg-[#F3F1EB] overflow-hidden">
+      <DecorativePolaroids />
+
+      <div className="md:hidden absolute top-[max(env(safe-area-inset-top),16px)] left-[16px] z-20">
+        <BackChip onClick={() => router.back()} />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="absolute inset-0 z-10 flex flex-col items-center justify-center px-[24px] overflow-y-auto py-[48px]"
+      >
+        <div className="w-full max-w-[420px] flex flex-col items-center">
+          {bodyContent}
         </div>
-      }
-      mobileContent={
-        <div className="flex flex-col min-h-screen px-[24px] pt-[24px] pb-[48px] text-primary-blue">
-          <div className="w-full flex-1 flex items-center">
-            <div className="w-full">{bodyContent}</div>
-          </div>
-        </div>
-      }
+      </motion.div>
+    </div>
+  );
+}
+
+function RingDot() {
+  return (
+    <img
+      src="/onboarding/Logo.svg"
+      alt=""
+      className="h-[72px] w-[72px] object-contain"
     />
   );
 }
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
+function BackChip({ onClick }: { onClick: () => void }) {
   return (
-    <label className="mt-[16px] font-montserrat font-semibold text-[13px] text-primary-blue">
-      {children}
-    </label>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Back"
+      className="h-[36px] w-[36px] rounded-full bg-white flex items-center justify-center text-[#232323] shadow-[0_2px_8px_rgba(0,0,0,0.08)] cursor-pointer hover:bg-black/[0.02] transition-colors"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M15 6l-6 6 6 6"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
   );
 }
 
@@ -424,7 +438,7 @@ function TextInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full bg-primary-white rounded-full h-[48px] px-[16px] font-montserrat text-[14px] text-primary-blue placeholder:text-primary-blue/40 outline-none shadow-[0_4px_14px_rgba(9,46,74,0.05)]"
+      className="w-full bg-primary-white rounded-full h-[48px] px-[18px] font-montserrat text-[14px] text-[#232323] placeholder:text-[#2c2c2c]/40 outline-none shadow-[0_4px_14px_rgba(0,0,0,0.05)]"
     />
   );
 }
@@ -465,15 +479,15 @@ function DateInput({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`w-full bg-primary-white rounded-full h-[48px] pl-[16px] pr-[42px] text-left font-montserrat text-[14px] outline-none shadow-[0_4px_14px_rgba(9,46,74,0.05)] cursor-pointer ${
-          isPlaceholder ? "text-primary-blue/40" : "text-primary-blue"
+        className={`w-full bg-primary-white rounded-full h-[48px] pl-[18px] pr-[44px] text-left font-montserrat text-[14px] outline-none shadow-[0_4px_14px_rgba(0,0,0,0.05)] cursor-pointer ${
+          isPlaceholder ? "text-[#2c2c2c]/40" : "text-[#232323]"
         }`}
       >
         {label}
       </button>
       <CalendarIconSvg />
       {open && (
-        <div className="absolute left-0 right-0 mt-[8px] z-30 bg-primary-white rounded-[16px] shadow-[0_12px_32px_rgba(9,46,74,0.15)] p-[16px]">
+        <div className="absolute left-0 right-0 mt-[8px] z-30 bg-primary-white rounded-[16px] shadow-[0_12px_32px_rgba(0,0,0,0.15)] p-[16px]">
           <DobCalendar
             valueYmd={value || null}
             onSelect={(ymd) => {
@@ -495,7 +509,7 @@ function MailIconSvg() {
       height="20"
       viewBox="0 0 24 24"
       fill="none"
-      className="absolute right-[16px] top-1/2 -translate-y-1/2 text-primary-blue/60 pointer-events-none"
+      className="absolute right-[16px] top-1/2 -translate-y-1/2 text-[#232323]/60 pointer-events-none"
     >
       <rect
         x="3"

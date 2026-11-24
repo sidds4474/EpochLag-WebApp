@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { OnboardingShell } from "../../../lib/onboarding/components/OnboardingShell";
 import { trackOnboarding } from "../../../lib/analytics/track";
 
 type Tag = { slug: string; label: string };
@@ -46,57 +45,49 @@ export default function MemoryTagsPage() {
     router.replace("/onboarding/free-trial");
   };
 
-  const grid = (
-    <div className="w-full flex flex-wrap justify-center gap-x-[10px] gap-y-[12px]">
-      {TAGS.map((t) => (
-        <TagChip
-          key={t.slug}
-          label={t.label}
-          checked={selected.has(t.slug)}
-          onToggle={() => toggle(t.slug)}
-        />
-      ))}
-    </div>
-  );
-
-  const title = (
-    <h1 className="font-montserrat font-bold text-primary-blue text-center leading-[130%] text-[20px] md:text-[22px]">
-      {TITLE_LINES[0]}
-      <br />
-      {TITLE_LINES[1]}
-    </h1>
-  );
-
   return (
-    <OnboardingShell
-      onNext={goNext}
-      hideMobileNext
-      desktopContent={
-        <div className="w-full flex flex-col items-center justify-center min-h-[78vh] lg:min-h-0">
-          <div className="w-full max-w-[460px] flex flex-col items-center">
-            {title}
-            <div className="mt-[28px] w-full">{grid}</div>
+    <div className="fixed inset-0 z-40 bg-[#F3F1EB] overflow-hidden">
+      <div className="absolute inset-0 overflow-y-auto px-[24px] md:px-[40px] pt-[max(env(safe-area-inset-top),48px)] pb-[160px] lg:pb-[100px] flex flex-col items-center">
+        <div className="w-full max-w-[640px] flex flex-col items-center lg:justify-center lg:flex-1">
+          <h1 className="font-ivy font-normal text-[#232323] text-[22px] md:text-[24px] lg:text-[26px] leading-[1.3] text-center max-w-[420px]">
+            {TITLE_LINES[0]}
+            <br />
+            {TITLE_LINES[1]}
+          </h1>
+
+          <div className="w-full max-w-[560px] mt-[32px] md:mt-[40px] flex flex-wrap justify-center gap-[10px] md:gap-[12px]">
+            {TAGS.map((t) => (
+              <TagChip
+                key={t.slug}
+                label={t.label}
+                checked={selected.has(t.slug)}
+                onToggle={() => toggle(t.slug)}
+              />
+            ))}
           </div>
         </div>
-      }
-      mobileContent={
-        <div className="flex flex-col min-h-screen px-[24px] pt-[24px] pb-[120px] text-primary-blue">
-          <div className="flex-1 flex flex-col items-center justify-center">
-            {title}
-            <div className="mt-[28px] w-full max-w-[360px]">{grid}</div>
-          </div>
-          <div className="fixed bottom-0 left-0 right-0 z-30 px-[24px] pb-[24px] pt-[16px] bg-warm-cream">
-            <button
-              type="button"
-              onClick={goNext}
-              className="w-full cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      }
-    />
+      </div>
+
+      {/* Desktop Next pill */}
+      <button
+        type="button"
+        onClick={goNext}
+        className="hidden lg:inline-flex absolute bottom-[32px] right-[32px] cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[15px] rounded-full px-[40px] py-[12px] hover:opacity-90 transition-opacity"
+      >
+        Next
+      </button>
+
+      {/* Mobile + tablet Next pill */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-[#F3F1EB] px-[24px] md:px-[48px] pb-[max(env(safe-area-inset-bottom),24px)] pt-[16px]">
+        <button
+          type="button"
+          onClick={goNext}
+          className="w-full max-w-[520px] mx-auto block cursor-pointer bg-primary-orange text-primary-white font-montserrat font-semibold text-[16px] rounded-full py-[16px] hover:opacity-90 transition-opacity"
+        >
+          Next
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -109,22 +100,16 @@ function TagChip({
   checked: boolean;
   onToggle: () => void;
 }) {
-  const base =
-    "inline-flex items-center gap-[8px] rounded-full h-[40px] pl-[10px] pr-[16px] font-montserrat text-[14px] cursor-pointer transition-colors";
-  const state = checked
-    ? "border-2 text-primary-blue"
-    : "bg-primary-white text-primary-blue shadow-[0_2px_8px_rgba(9,46,74,0.05)] hover:bg-primary-white/85";
-  const activeBg = checked
-    ? { backgroundColor: "#FDE6C9", borderColor: "#EF9849" }
-    : undefined;
-
   return (
     <button
       type="button"
       onClick={onToggle}
       aria-pressed={checked}
-      className={`${base} ${state}`}
-      style={activeBg}
+      className={`inline-flex items-center gap-[10px] rounded-full h-[42px] pl-[12px] pr-[18px] font-montserrat text-[14px] cursor-pointer transition-colors ${
+        checked
+          ? "bg-[#1C1C1C] text-white"
+          : "bg-white text-[#232323] hover:brightness-95"
+      }`}
     >
       <CheckboxIcon checked={checked} />
       <span>{label}</span>
@@ -135,18 +120,18 @@ function TagChip({
 function CheckboxIcon({ checked }: { checked: boolean }) {
   return (
     <span
-      className={`shrink-0 h-[20px] w-[20px] rounded-[5px] flex items-center justify-center transition-colors ${
+      className={`shrink-0 h-[20px] w-[20px] rounded-[4px] flex items-center justify-center transition-colors ${
         checked
-          ? "bg-transparent border border-[#092E4A]"
-          : "border-2 border-primary-blue/25 bg-transparent"
+          ? "border border-white"
+          : "border border-[#2c2c2c]/35"
       }`}
     >
       {checked && (
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
           <path
             d="M5 12l5 5L20 7"
-            stroke="#EF9849"
-            strokeWidth="2.5"
+            stroke="white"
+            strokeWidth="2.6"
             strokeLinecap="round"
             strokeLinejoin="round"
           />

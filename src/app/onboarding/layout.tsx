@@ -19,6 +19,11 @@ const FULL_BLEED_ROUTES = new Set<string>([
   "/onboarding/add-time-place",
   "/onboarding/add-participants",
   "/onboarding/lag-preview",
+  "/onboarding/create-account",
+  "/onboarding/share-lag",
+  "/onboarding/add-relationship",
+  "/onboarding/memory-tags",
+  "/onboarding/complete",
 ]);
 
 // Persistent onboarding chrome (Option B).

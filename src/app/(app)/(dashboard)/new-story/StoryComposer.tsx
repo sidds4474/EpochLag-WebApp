@@ -2095,14 +2095,11 @@ export default function StoryComposer({
         {/* Desktop: 2-column body. Left column morphs; right rail stays put. */}
         <div className="hidden lg:grid lg:grid-cols-[1fr_300px] flex-1 min-h-0 gap-[32px] px-[40px] pt-[16px] pb-[24px]">
           <div className="flex flex-col min-w-0 min-h-0 relative">
-            {chrome.showPromptBanner && prompt && (
-              <div className="shrink-0 mb-[18px]">
-                <PromptStrip prompt={prompt} />
-              </div>
-            )}
             {/* Title input — hidden when the mode has its own hero
-                question (Daily puts "How was your day?" here instead). */}
-            {!chrome.heroQuestion && (
+                (Daily puts "How was your day?" here, PromptAnswer /
+                ThreadAnswer show the prompt text banner as the hero).
+                Title can still be set from the compose phase. */}
+            {!chrome.heroQuestion && !chrome.showPromptBanner && (
               <div className="shrink-0 mt-[8px]">
                 <LandingTitleInput value={title} onChange={setTitle} />
               </div>
@@ -2113,6 +2110,24 @@ export default function StoryComposer({
                 column height (above = center of stage; below = center
                 of pill row). */}
             <div className="flex-1 min-h-0 relative">
+              {/* Prompt banner — anchored at the top of the stage,
+                  absolutely positioned so it doesn't push the ring /
+                  caption / pill row down. Fades out when phase goes
+                  active. */}
+              {chrome.showPromptBanner && prompt && (
+                <div
+                  className="absolute inset-x-0 flex justify-center px-[24px] transition-opacity duration-[320ms]"
+                  style={{
+                    top: "4%",
+                    opacity: isActivePhase ? 0 : 1,
+                    pointerEvents: isActivePhase ? "none" : "auto",
+                  }}
+                >
+                  <div className="w-full max-w-[560px]">
+                    <PromptStrip prompt={prompt} />
+                  </div>
+                </div>
+              )}
               {/* Daily above-ring hero — absolutely positioned inside
                   the stage so it overlays without compressing the ring/
                   caption/pill row layout. */}
@@ -2204,16 +2219,19 @@ export default function StoryComposer({
                 up when active to let the ring slot into the row.
                 Lifted well off the column bottom so it sits close to
                 the ring/caption cluster rather than hugging the pill
-                row to the viewport edge. */}
-            <div className="shrink-0 flex justify-center mb-[200px]">
-              <ComposerPillRow
-                active={isActivePhase}
-                onText={handleEmptyText}
-                onImage={handleEmptyImage}
-                onVideo={handleEmptyVideo}
-                onMusic={() => setShowMusicPicker(true)}
-              />
-            </div>
+                row to the viewport edge. Hidden in voice-only modes
+                (Inspiration) via `chrome.showPillRow`. */}
+            {chrome.showPillRow && (
+              <div className="shrink-0 flex justify-center mb-[200px]">
+                <ComposerPillRow
+                  active={isActivePhase}
+                  onText={handleEmptyText}
+                  onImage={handleEmptyImage}
+                  onVideo={handleEmptyVideo}
+                  onMusic={() => setShowMusicPicker(true)}
+                />
+              </div>
+            )}
 
             {/* The ring — absolutely positioned relative to the WHOLE
                 left column so it can morph between the center of the
@@ -2243,6 +2261,7 @@ export default function StoryComposer({
           </div>
 
           <RightRail
+            showMetaChips={chrome.showMetaChips}
             location={location}
             onLocationChange={setLocation}
             date={dateOfStory}
@@ -2261,12 +2280,21 @@ export default function StoryComposer({
 
         {/* Mobile: single column. Same morph wiring as desktop. */}
         <div className="lg:hidden flex-1 min-h-0 flex flex-col px-[16px] pb-[24px] relative">
-          {chrome.showPromptBanner && prompt && (
-            <div className="shrink-0 w-full mt-[12px] mb-[8px]">
-              <PromptStrip prompt={prompt} />
-            </div>
-          )}
           <div className="flex-1 min-h-0 relative">
+            {/* Prompt banner — anchored at the top of the stage, same
+                compact card as desktop. */}
+            {chrome.showPromptBanner && prompt && (
+              <div
+                className="absolute inset-x-0 px-[16px] transition-opacity duration-[320ms]"
+                style={{
+                  top: "2%",
+                  opacity: isActivePhase ? 0 : 1,
+                  pointerEvents: isActivePhase ? "none" : "auto",
+                }}
+              >
+                <PromptStrip prompt={prompt} />
+              </div>
+            )}
             {chrome.heroQuestion && (
               <div
                 className="absolute inset-x-0 flex flex-col items-center text-center transition-opacity duration-[320ms] px-[20px]"
@@ -2573,6 +2601,7 @@ export default function StoryComposer({
           </div>
 
           <RightRail
+            showMetaChips={chrome.showMetaChips}
             location={location}
             onLocationChange={setLocation}
             date={dateOfStory}
@@ -4409,15 +4438,12 @@ function BlockPill({
 function PromptStrip({ prompt }: { prompt: UserCard }) {
   const text = prompt.content || prompt.title || "";
   if (!text) return null;
+  // Figma treatment: plain centered Montserrat text, no card, no icon
+  // — the question reads as prose above the ring.
   return (
-    <div className="w-full flex items-start gap-[12px] bg-white rounded-[16px] px-[16px] py-[14px] shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
-      <span className="mt-[4px] shrink-0 text-[#D95F3B]" aria-hidden>
-        <PromptIcon width={18} height={18} />
-      </span>
-      <p className="font-ivy italic text-[#2B2B2B] text-[16px] leading-[22px]">
-        {text}
-      </p>
-    </div>
+    <p className="w-full text-center font-montserrat text-[#2B2B2B] text-[16px] leading-[1.45] max-w-[520px] mx-auto">
+      {text}
+    </p>
   );
 }
 

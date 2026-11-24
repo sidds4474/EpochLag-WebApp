@@ -18,7 +18,8 @@ import {
 // rail (title-only).
 
 export type RightRailProps = {
-  // Metadata chips
+  // Metadata chips — hidden entirely when `showMetaChips` is false.
+  showMetaChips?: boolean;
   location: LocationValue | null;
   onLocationChange: (next: LocationValue | null) => void;
   date: string | null;
@@ -44,6 +45,7 @@ export type RightRailProps = {
 export type { MusicValue };
 
 export function RightRail({
+  showMetaChips = true,
   location,
   onLocationChange,
   date,
@@ -53,7 +55,7 @@ export function RightRail({
   showCover,
   coverPreviewUrl,
   onOpenCoverPicker,
-  coverLabel = "Add Cover image",
+  coverLabel = "Cover image",
   showShareToggle,
   allowShare,
   onAllowShareChange,
@@ -63,11 +65,13 @@ export function RightRail({
 }: RightRailProps) {
   return (
     <aside className="flex flex-col gap-[20px] w-full">
-      <div className="flex flex-col gap-[10px]">
-        <LocationChip value={location} onChange={onLocationChange} variant="rail" />
-        <DateChip value={date} onChange={onDateChange} variant="rail" />
-        <PeopleRailChip count={peopleCount} onClick={onOpenPeople} />
-      </div>
+      {showMetaChips && (
+        <div className="flex flex-col gap-[10px]">
+          <LocationChip value={location} onChange={onLocationChange} variant="rail" />
+          <DateChip value={date} onChange={onDateChange} variant="rail" />
+          <PeopleRailChip count={peopleCount} onClick={onOpenPeople} />
+        </div>
+      )}
 
       {showCover && (
         <CoverPanel

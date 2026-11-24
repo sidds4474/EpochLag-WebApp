@@ -79,6 +79,13 @@ export type ComposerChrome = {
   heroQuestion?: string;
   /** Sub-caption rendered under `heroQuestion` (same gated placement). */
   heroSubCaption?: string;
+  /** Whether the bottom pill row (video/image/text/music) is shown.
+   *  Voice-only modes (Inspiration prompt) hide it. */
+  showPillRow: boolean;
+  /** Whether the right-rail metadata chips (Location, Date, People)
+   *  are shown. Minimal modes (Inspiration prompt) only show Cover +
+   *  Share + Secure. */
+  showMetaChips: boolean;
 };
 
 export function getComposerChrome(mode: ComposerMode): ComposerChrome {
@@ -101,13 +108,21 @@ export function getComposerChrome(mode: ComposerMode): ComposerChrome {
         initialPhase: "empty",
         showDailyEscape: true,
         showPromptBanner: false,
+        showPillRow: true,
+        showMetaChips: true,
         primaryCtaLabel: "Create Lag",
         previewShareLabel: "Create Lag",
         headerTitle: "My Day",
       };
     case "promptAnswer":
+      // Inspiration-sourced Lag flow — user answers the prompt with
+      // a Lag (full composer tools), so pill row + metadata chips stay
+      // on. Only the surface chrome swaps per the Inspiration Figma:
+      // header reads "Inspiration", caption swaps to "Click to start
+      // recording your Lag", and the prompt renders as plain centered
+      // prose above the ring (no card).
       return {
-        heroCaption: "Tap to answer with your Lag",
+        heroCaption: "Click to start recording your Lag",
         showModeToggle: false,
         showCoverPicker: true,
         showShareToggle: true,
@@ -115,9 +130,11 @@ export function getComposerChrome(mode: ComposerMode): ComposerChrome {
         initialPhase: "empty",
         showDailyEscape: false,
         showPromptBanner: true,
+        showPillRow: true,
+        showMetaChips: true,
         primaryCtaLabel: "Create Story",
         previewShareLabel: "Share Lag",
-        headerTitle: "Answer the prompt",
+        headerTitle: "Inspiration",
       };
     case "threadAnswer":
       return {
@@ -129,6 +146,8 @@ export function getComposerChrome(mode: ComposerMode): ComposerChrome {
         initialPhase: "empty",
         showDailyEscape: false,
         showPromptBanner: true,
+        showPillRow: true,
+        showMetaChips: true,
         primaryCtaLabel: "Add to thread",
         previewShareLabel: "Add to thread",
         headerTitle: "Add your Lag",
@@ -143,6 +162,8 @@ export function getComposerChrome(mode: ComposerMode): ComposerChrome {
         initialPhase: "compose",
         showDailyEscape: false,
         showPromptBanner: false,
+        showPillRow: true,
+        showMetaChips: true,
         primaryCtaLabel: "Send",
         previewShareLabel: "Send Question",
         headerTitle: "Ask a Question",
@@ -157,6 +178,8 @@ export function getComposerChrome(mode: ComposerMode): ComposerChrome {
         initialPhase: "compose",
         showDailyEscape: false,
         showPromptBanner: false,
+        showPillRow: true,
+        showMetaChips: true,
         primaryCtaLabel: "Save changes",
         previewShareLabel: "Save changes",
         headerTitle: "Edit Lag",
@@ -171,6 +194,8 @@ export function getComposerChrome(mode: ComposerMode): ComposerChrome {
         initialPhase: "compose",
         showDailyEscape: false,
         showPromptBanner: false,
+        showPillRow: true,
+        showMetaChips: true,
         primaryCtaLabel: "Create Story",
         previewShareLabel: "Share Lag",
         headerTitle: "Resume draft",
@@ -186,6 +211,8 @@ export function getComposerChrome(mode: ComposerMode): ComposerChrome {
         initialPhase: "empty",
         showDailyEscape: false,
         showPromptBanner: false,
+        showPillRow: true,
+        showMetaChips: true,
         primaryCtaLabel: "Create Story",
         previewShareLabel: "Share Lag",
         headerTitle: "Create",

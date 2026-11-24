@@ -68,6 +68,11 @@ export type PublicStoryData = {
   participantsOverflow?: number;
   participantCount?: number;
   sender?: PublicSender | null;
+  // Only populated when the public API is called with a JWT — SSR runs unauthed
+  // so this is always absent on the server-rendered payload. Signed-in viewers
+  // re-fetch in the browser to learn whether they can be bounced into the
+  // participant-gated /thread/:id view.
+  viewerIsParticipant?: boolean;
 };
 
 // -- Public comments (GET /api/public/story/:code/stories/:storyId/comments) --

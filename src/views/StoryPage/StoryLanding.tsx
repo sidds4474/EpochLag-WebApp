@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { AppDownloadBanner } from '@/components/replies/AppDownloadBanner';
 import StoryViewing from './StoryViewing';
 import StoryPage from './StoryPage';
@@ -9,6 +10,7 @@ import { toResponsiveImage } from '@/lib/cloudinary';
 import { APP_STORE_URL, PLAY_STORE_URL } from '@/utils/storeLinks';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { getInitials } from '@/lib/formatters';
+import { fetchPublicStory, STORY_FETCH_STATUS } from '@/lib/storyApi';
 import type { ReplyAs } from '@/lib/replies/publicReplies';
 import type {
   Platform,
@@ -25,14 +27,39 @@ type Props = {
 };
 
 const StoryLanding = ({ data, publicCode, platform, replyAs }: Props) => {
+  const router = useRouter();
   const { status: authStatus } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+  // Tri-state: null = still probing, true = participant (redirecting),
+  // false = outsider (render public StoryPage). SSR can't tell, so the browser
+  // re-fetches with the JWT to learn viewerIsParticipant.
+  const [isParticipant, setIsParticipant] = useState<boolean | null>(null);
 
-  // Public share links stay public for everyone. Authenticated viewers see the
-  // same read-only StoryPage instead of being bounced to /thread/:id, which is
-  // participant-gated and errors for anyone outside the thread.
+  const threadId = data.threadId;
+  useEffect(() => {
+    if (authStatus !== 'authenticated' || !threadId) return;
+    let cancelled = false;
+    fetchPublicStory(publicCode).then((r) => {
+      if (cancelled) return;
+      const yes =
+        r.status === STORY_FETCH_STATUS.OK &&
+        r.data.viewerIsParticipant === true;
+      setIsParticipant(yes);
+      if (yes) router.replace(`/thread/${threadId}`);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authStatus, threadId, publicCode, router]);
+
   if (authStatus === 'authenticated') {
+    // While probing (isParticipant === null) or redirecting (=== true), hold a
+    // blank cream page to avoid flashing the invite UI underneath. Only drop
+    // into StoryPage once we know the viewer isn't on the thread.
+    if (threadId && isParticipant !== false) {
+      return <div className="min-h-screen bg-warm-cream" />;
+    }
     return <StoryPage data={data} publicCode={publicCode} platform={platform} />;
   }
 

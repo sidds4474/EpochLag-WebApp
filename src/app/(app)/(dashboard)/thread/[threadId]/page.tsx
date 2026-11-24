@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { fetchThread } from "../../../../../lib/interactions/api";
 import { fetchUserCard } from "../../../../../lib/home/api";
+import { ApiError } from "../../../../../lib/api/client";
 import type { ThreadResponse, UserCard } from "../../../../../types/home";
 import PromptViewer from "../../../../../views/Thread/PromptViewer";
 import { threadHasRealPrompt } from "../../../../../views/Thread/threadPrompt";
@@ -69,7 +70,7 @@ export default function PromptViewerPage() {
         }
         setState({ kind: "ready", data });
       })
-      .catch(async () => {
+      .catch(async (threadErr: unknown) => {
         if (cancelled) return;
         // Conversations "askedYou" rows pass a user-card id (not a thread id)
         // because the prompt hasn't been answered yet — no thread exists. Fall
@@ -78,13 +79,18 @@ export default function PromptViewerPage() {
           const card = await fetchUserCard(threadId);
           if (cancelled) return;
           setState({ kind: "ready", data: userCardToThread(card) });
-        } catch (err) {
+        } catch {
           if (cancelled) return;
-          setState({
-            kind: "error",
-            message:
-              err instanceof Error ? err.message : "Couldn't load this thread",
-          });
+          // When the thread call was a 403, the viewer simply isn't on the
+          // thread — the user-card 404 message ("Card not found") is a
+          // misleading surface. Prefer the access-denied wording in that case.
+          const message =
+            threadErr instanceof ApiError && threadErr.status === 403
+              ? "You don't have access to this thread."
+              : threadErr instanceof Error
+                ? threadErr.message
+                : "Couldn't load this thread";
+          setState({ kind: "error", message });
         }
       });
 

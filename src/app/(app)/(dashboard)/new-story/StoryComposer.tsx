@@ -55,6 +55,7 @@ import { useAuth } from "../../../../lib/auth/AuthProvider";
 import type { ThreadResponse, UserCard } from "../../../../types/home";
 import type { ContentBlock } from "../../../../types/story";
 import PreviewOverlay from "../../../../views/Thread/PreviewOverlay";
+import ThreadViewer from "../../../../views/Thread/ThreadViewer";
 import ChooseCoverModal, { type CoverPick } from "./ChooseCoverModal";
 import StoryCreatedOverlay from "./StoryCreated";
 import TagPeopleSheet, { tagPeopleDisplayName } from "./TagPeopleSheet";
@@ -69,6 +70,7 @@ import {
   DateChip,
   LocationChip,
   MusicChip,
+  MusicPickerModal,
   type LocationValue,
   type MusicValue,
 } from "./pickers";
@@ -89,6 +91,15 @@ import {
   PromptIcon,
   CameraIcon,
 } from "../icons";
+import {
+  deriveComposerMode,
+  getComposerChrome,
+  type ComposerMode,
+  type ComposerPhase,
+} from "../../../../components/composer/mode";
+import { RightRail } from "../../../../components/composer/RightRail";
+import { RecordingCircles } from "../../../../components/replies/RecordingCircles";
+import { useLiveTranscription } from "../../../../components/replies/useLiveTranscription";
 
 // Cover state — either a curated remote URL or a browser-uploaded file. We
 // track both because the persist path differs (imageUrl JSON PUT vs file
@@ -373,6 +384,36 @@ export default function StoryComposer({
     replyPromptId ? getCachedUserCard(replyPromptId) : null
   );
 
+  // Composer mode is derived once from props — captures which flow the user
+  // entered through (create / daily / promptAnswer / threadAnswer /
+  // editLag / draftResume). The chrome config derived from it drives per-
+  // mode hero copy, cover visibility, Lag/Prompt toggle, and the initial
+  // phase (edit modes land directly in `compose`, create modes start in
+  // `empty`).
+  const composerMode: ComposerMode = useMemo(
+    () =>
+      deriveComposerMode({
+        albumId,
+        promptId: replyPromptId,
+        draftId,
+        dailySource,
+        replyThreadId,
+        mode,
+        existingStoryId,
+      }),
+    [albumId, replyPromptId, draftId, dailySource, replyThreadId, mode, existingStoryId],
+  );
+  const chrome = useMemo(() => getComposerChrome(composerMode), [composerMode]);
+  const [phase, setPhase] = useState<ComposerPhase>(chrome.initialPhase);
+  // Lag ↔ Prompt toggle, only meaningful in Create mode.
+  const [composerSubmode, setComposerSubmode] = useState<"lag" | "prompt">("lag");
+  // Live transcript — runs the Web Speech API in parallel with
+  // MediaRecorder while the user is recording. Chrome / Safari only;
+  // Firefox falls back silently (user can still type in the text block
+  // after stop). Starts automatically when phase flips to "recording".
+  const transcription = useLiveTranscription({ active: phase === "recording" });
+
+
   // Refresh-persistence: hydrate from a localStorage draft on first render.
   // Media (image/video/audio) can't survive a page reload — File objects and
   // blob URLs are lost — so we only persist text blocks + meta. See
@@ -417,14 +458,8 @@ export default function StoryComposer({
   // file/preview — a separate effect below reads the Blob out of IndexedDB
   // and patches state to attach the file + fresh blob URL.
   const [blocks, setBlocks] = useState<EditorBlock[]>(() => {
-    if (editSeededBlocks) {
-      // Ensure a trailing empty text block so the user can keep typing at
-      // the end of the story without hunting for the picker.
-      const last = editSeededBlocks[editSeededBlocks.length - 1];
-      if (last && last.type === "text") return editSeededBlocks;
-      return [...editSeededBlocks, emptyTextBlock()];
-    }
-    if (!initialDraft || initialDraft.blocks.length === 0) return [emptyTextBlock()];
+    if (editSeededBlocks) return editSeededBlocks;
+    if (!initialDraft || initialDraft.blocks.length === 0) return [];
     return initialDraft.blocks.map((b): EditorBlock => {
       if (b.kind === "text") {
         return { id: b.id, type: "text", text: b.text };
@@ -489,7 +524,13 @@ export default function StoryComposer({
   const [dateOfStory, setDateOfStory] = useState<string | null>(
     isEdit
       ? (initialDateOfStory ?? null)
-      : (initialDraft?.dateOfStory ?? null)
+      : // Daily mode seeds the Date chip to the daily's ISO date so the
+        // user doesn't have to manually set it — and so the stored
+        // story's `dateOfStory` matches what the <dailyEntry> marker
+        // below prepends into the content. Draft overrides only when
+        // the user has explicitly set a different date.
+        (initialDraft?.dateOfStory ??
+          (dailySource && dailyDate ? dailyDate : null))
   );
   const [location, setLocation] = useState<LocationValue | null>(
     isEdit ? (initialLocation ?? null) : (initialDraft?.location ?? null)
@@ -498,9 +539,11 @@ export default function StoryComposer({
     isEdit ? (initialMusic ?? null) : (initialDraft?.music ?? null)
   );
   const [allowShare, setAllowShare] = useState(
+    // Default to allow-share ON for new stories; edit mode preserves the
+    // thread's current privacy, and a persisted draft overrides either.
     isEdit
       ? !existingThreadIsPrivate
-      : (initialDraft?.allowShare ?? false)
+      : (initialDraft?.allowShare ?? true)
   );
   // taggedPeople is client-only — never sent to /api/stories. Snapshot at
   // publish time and hand to the celebration screen to pre-check them in
@@ -510,7 +553,23 @@ export default function StoryComposer({
     isEdit ? (initialTaggedPeople ?? []) : []
   );
   const [showTagPeople, setShowTagPeople] = useState(false);
+  const [showMusicPicker, setShowMusicPicker] = useState(false);
   const [micErrorKind, setMicErrorKind] = useState<MicErrorKind | null>(null);
+  // In-composer music preview playback. Driven by the MusicPill button;
+  // one shared <audio> element below plays the 30s iTunes preview clip.
+  const [musicPreviewing, setMusicPreviewing] = useState(false);
+  const musicPreviewRef = useRef<HTMLAudioElement | null>(null);
+  const toggleMusicPreview = () => {
+    const el = musicPreviewRef.current;
+    if (!el) return;
+    if (el.paused) {
+      void el.play();
+      setMusicPreviewing(true);
+    } else {
+      el.pause();
+      setMusicPreviewing(false);
+    }
+  };
 
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -1380,6 +1439,21 @@ export default function StoryComposer({
   const rafRef = useRef<number | null>(null);
   const timerRef = useRef<number | null>(null);
 
+  // Safety: if the user denies mic permission (or startRecording throws
+  // for any reason), `recording` never populates and the mic-error sheet
+  // pops. Bounce them back to the empty phase so the sheet appears over
+  // the correct screen instead of the recording overlay.
+  useEffect(() => {
+    if (
+      (phase === "recording" || phase === "paused") &&
+      !recording &&
+      micErrorKind !== null
+    ) {
+      setPhase("empty");
+    }
+  }, [phase, recording, micErrorKind]);
+
+
   // Track which block is currently focused. All Aa/media insertions key off
   // this — pills insert *after* the focused block, or append if none.
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
@@ -1396,11 +1470,40 @@ export default function StoryComposer({
   const isPureEmptyState = useMemo(() => {
     if (editingBlockId) return false;
     if (recording) return false;
+    // Music is story-level metadata, not a block, but it IS visible
+    // content in the compose body — treat it as content so the
+    // bounce-to-empty effect doesn't kick the user off the compose
+    // screen the moment they pick a track.
+    if (music) return false;
     const hasContent = blocks.some(
       (b) => b.type !== "text" || b.text.trim().length > 0
     );
     return !hasContent;
-  }, [blocks, editingBlockId, recording]);
+  }, [blocks, editingBlockId, recording, music]);
+
+  // Auto-return to the empty phase from compose when the user removes
+  // every meaningful block. `isPureEmptyState` treats a trailing empty
+  // text block (the invariant above keeps one around) as "no content",
+  // so this fires the moment the last real block is deleted. Guarded on
+  // `!editingBlockId` + `!recording` so an in-progress edit or a live
+  // recording doesn't kick the user off the compose screen mid-action.
+  useEffect(() => {
+    if (phase !== "compose") return;
+    if (!isPureEmptyState) return;
+    if (editingBlockId) return;
+    if (recording) return;
+    // Edit / DraftResume modes seeded compose as the entry point —
+    // bouncing them to empty would strand them on a landing screen
+    // they didn't come from. Only Create-style modes get the bounce.
+    if (chrome.initialPhase !== "empty") return;
+    setPhase("empty");
+  }, [
+    phase,
+    isPureEmptyState,
+    editingBlockId,
+    recording,
+    chrome.initialPhase,
+  ]);
 
   // Dev-only visibility into which signal killed the grid — matches the mobile
   // `[EmptyStateGate] hidden — reasons:` log so debugging stays symmetrical
@@ -1420,9 +1523,12 @@ export default function StoryComposer({
     }
   }, [isPureEmptyState, editingBlockId, recording, blocks]);
 
-  // Trailing-empty-text invariant: exactly one empty text block must always
-  // exist somewhere in the list — usually at the end so the caret has a
-  // landing spot. Mirror of TellAStoryV4Screen.js:449-481. See spec.
+  // Trailing-empty-text invariant: de-duplicate empty text blocks so
+  // that at most ONE exists at any time. The auto-append side of the
+  // invariant was removed — text blocks are now only created when the
+  // user explicitly taps the T pill (via `handleAddTextBlock`). Empty
+  // blocks can still appear transiently (focus the T pill then clear
+  // the text) so we still collapse duplicates here.
   useEffect(() => {
     const emptyIndices: number[] = [];
     for (let i = 0; i < blocks.length; i++) {
@@ -1439,10 +1545,6 @@ export default function StoryComposer({
       setBlocks((prev) =>
         prev.filter((_, i) => !emptyIndices.includes(i) || i === keepIdx)
       );
-      return;
-    }
-    if (emptyIndices.length === 0) {
-      setBlocks((prev) => [...prev, emptyTextBlock()]);
     }
   }, [blocks, editingBlockId]);
 
@@ -1488,10 +1590,33 @@ export default function StoryComposer({
       (window as unknown as { webkitAudioContext: typeof AudioContext })
         .webkitAudioContext;
     const ctx = new AudioCtx();
+    // Modern Chrome / Safari create AudioContexts in "suspended" state
+    // when they aren't tied to a direct user gesture. Even inside a click
+    // handler we're one Promise away (await getUserMedia), so the context
+    // ends up suspended. Resume explicitly so the analyser actually
+    // reads samples; otherwise `getByteTimeDomainData` returns silence
+    // and the waveform bars stay flat.
+    if (ctx.state === "suspended") {
+      try {
+        await ctx.resume();
+      } catch {
+        /* non-fatal — analyser may still work on some browsers */
+      }
+    }
     const source = ctx.createMediaStreamSource(stream);
     const analyser = ctx.createAnalyser();
-    analyser.fftSize = 256;
+    analyser.fftSize = 2048;
     source.connect(analyser);
+    // Terminate the graph into a muted gain → destination. Without a
+    // path to the destination some browsers (Chromium notably) don't
+    // pump samples through the analyser, so `getByteTimeDomainData`
+    // keeps returning the silent 128 baseline and the waveform stays
+    // flat even though the mic is clearly recording. Gain is 0 so this
+    // never actually reaches the speakers — no feedback risk.
+    const muted = ctx.createGain();
+    muted.gain.value = 0;
+    analyser.connect(muted);
+    muted.connect(ctx.destination);
     audioCtxRef.current = ctx;
     analyserRef.current = analyser;
 
@@ -1719,6 +1844,11 @@ export default function StoryComposer({
       // up with zero blocks — no explicit fallback needed.
       return next;
     });
+    // If this block was the one being edited / focus-queued, clear those
+    // refs — otherwise `isPureEmptyState` keeps returning `false` on the
+    // stale id and the bounce-back-to-empty effect never fires.
+    setEditingBlockId((cur) => (cur === id ? null : cur));
+    setPendingFocusId((cur) => (cur === id ? null : cur));
     // Drop the IDB copy too — otherwise the entry lingers until publish.
     void deleteMedia(id);
   }
@@ -1762,6 +1892,996 @@ export default function StoryComposer({
           }
         }}
       />
+    );
+  }
+
+  // Empty / recording / paused — unified landing shell. The overall chrome
+  // (header, title, right rail, pill row at bottom) is shared across all
+  // three phases; only the center stage swaps. In empty the big ring sits
+  // middle-centered with the hero caption below. On tap the recorder fires
+  // and we flip to recording: the ring morphs into the pill row (becoming
+  // the pause control) and the center shows a waveform + timer + trash /
+  // continue controls, while the other pills spread to flank the ring.
+  if (phase === "empty" || phase === "recording" || phase === "paused") {
+    const isPausedPhase =
+      phase === "paused" || (recording?.paused ?? false);
+    const isActivePhase = phase === "recording" || phase === "paused";
+    const amplitude =
+      recording && recording.levels.length > 0
+        ? Math.min(1, recording.levels[recording.levels.length - 1] ?? 0)
+        : 0;
+
+    const handleEmptyMic = async () => {
+      // Kick off mic acquisition first, then flip the phase once the
+      // AudioContext + MediaRecorder are live. Doing it the other way
+      // around leaves the recording UI visible for ~200-800ms with a
+      // flat waveform while getUserMedia resolves — looks broken.
+      // `recorderRef.current` is populated on success; stays null if
+      // the user denied the prompt (safety effect above also catches
+      // this case and bounces phase back to "empty").
+      await startRecording();
+      if (recorderRef.current) setPhase("recording");
+    };
+    const handlePauseResume = () => {
+      togglePauseRecording();
+      setPhase(isPausedPhase ? "recording" : "paused");
+    };
+    const handleRingTap = () => {
+      if (!isActivePhase) void handleEmptyMic();
+      else handlePauseResume();
+    };
+    const handleStopRecording = () => {
+      if (!recording) return;
+      const finalTranscript = transcription.finalText.trim();
+      if (finalTranscript) {
+        setBlocks((prev) => {
+          const audioIdx = prev.findIndex((b) => b.id === recording.blockId);
+          const transcriptBlock: EditorBlock = {
+            id: `text-stt-${Date.now()}`,
+            type: "text",
+            text: finalTranscript,
+          };
+          if (audioIdx < 0) return [...prev, transcriptBlock];
+          return [
+            ...prev.slice(0, audioIdx),
+            transcriptBlock,
+            ...prev.slice(audioIdx),
+          ];
+        });
+      }
+      stopRecording();
+      transcription.reset();
+      setPhase("compose");
+    };
+    const handleTrashRecording = () => {
+      cancelRecording();
+      transcription.reset();
+      setPhase("empty");
+    };
+    const handleEmptyText = () => {
+      setPhase("compose");
+      handleEmptyStateAddText();
+    };
+    const handleEmptyImage = () => {
+      setPhase("compose");
+      setUploadModal("image");
+    };
+    const handleEmptyVideo = () => {
+      setPhase("compose");
+      setUploadModal("video");
+    };
+
+    return (
+      <div className="h-full min-h-0 flex flex-col bg-[#F3F1EC]">
+        {/* Header */}
+        <div className="shrink-0 px-[16px] md:px-[24px] lg:px-[40px] pt-[16px] pb-[14px] flex items-center justify-between gap-[12px] relative">
+          <div className="flex items-center gap-[16px] min-w-0">
+            <button
+              type="button"
+              onClick={handleBack}
+              aria-label="Back"
+              className="lg:hidden cursor-pointer w-[36px] h-[36px] rounded-full bg-white text-[#2B2B2B] flex items-center justify-center hover:brightness-95 transition-[filter] shrink-0"
+            >
+              <ChevronLeftIcon width={16} height={16} />
+            </button>
+            <h1 className="hidden lg:block font-ivy text-[#2B2B2B] text-[32px] leading-none">
+              {chrome.headerTitle}
+            </h1>
+            {chrome.showModeToggle && (
+              <div className="hidden lg:flex items-center gap-[4px] bg-white rounded-full p-[4px]">
+                <button
+                  type="button"
+                  onClick={() => setComposerSubmode("lag")}
+                  className={`px-[18px] h-[32px] rounded-full font-montserrat text-[13px] font-medium transition-colors ${
+                    composerSubmode === "lag"
+                      ? "bg-[#2B2B2B] text-white"
+                      : "text-[#2B2B2B] hover:bg-black/[0.04]"
+                  }`}
+                >
+                  Lag
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Switching to Prompt navigates to the Ask-a-
+                    // Question composer — a separate route with a
+                    // different publish path (createUserCard instead
+                    // of createStory). Draft is preserved in
+                    // localStorage so coming back to /new-lag resumes
+                    // where the user left off.
+                    router.push("/new-ask");
+                  }}
+                  className={`px-[18px] h-[32px] rounded-full font-montserrat text-[13px] font-medium transition-colors ${
+                    composerSubmode === "prompt"
+                      ? "bg-[#2B2B2B] text-white"
+                      : "text-[#2B2B2B] hover:bg-black/[0.04]"
+                  }`}
+                >
+                  Prompt
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-[10px] lg:gap-[12px] shrink-0">
+            {chrome.showModeToggle && (
+              <div className="lg:hidden flex items-center gap-[4px] bg-white rounded-full p-[4px] absolute left-1/2 -translate-x-1/2">
+                <button
+                  type="button"
+                  onClick={() => setComposerSubmode("lag")}
+                  className={`px-[16px] h-[28px] rounded-full font-montserrat text-[12px] font-medium transition-colors ${
+                    composerSubmode === "lag"
+                      ? "bg-[#2B2B2B] text-white"
+                      : "text-[#2B2B2B]"
+                  }`}
+                >
+                  Lag
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Switching to Prompt navigates to the Ask-a-
+                    // Question composer — a separate route with a
+                    // different publish path (createUserCard instead
+                    // of createStory). Draft is preserved in
+                    // localStorage so coming back to /new-lag resumes
+                    // where the user left off.
+                    router.push("/new-ask");
+                  }}
+                  className={`px-[16px] h-[28px] rounded-full font-montserrat text-[12px] font-medium transition-colors ${
+                    composerSubmode === "prompt"
+                      ? "bg-[#2B2B2B] text-white"
+                      : "text-[#2B2B2B]"
+                  }`}
+                >
+                  Prompt
+                </button>
+              </div>
+            )}
+            <div className="hidden lg:block relative">
+              <button
+                type="button"
+                aria-label="Help"
+                onClick={() => setShowHelp((v) => !v)}
+                className={`cursor-pointer w-[32px] h-[32px] rounded-full flex items-center justify-center transition-colors ${
+                  showHelp ? "bg-[#2B2B2B] text-white" : "text-[#2B2B2B] hover:bg-black/[0.04]"
+                }`}
+              >
+                <HelpIcon width={20} height={20} />
+              </button>
+              {showHelp && (
+                <HelpTooltip variant="desktop" onClose={() => setShowHelp(false)} />
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPhase("preview")}
+              className="hidden lg:flex cursor-pointer items-center justify-center gap-[8px] border border-[#2B2B2B]/50 text-[#2B2B2B] rounded-full h-[40px] px-[22px] font-montserrat font-medium text-[14px] hover:bg-black/[0.03] transition-colors"
+            >
+              <EyeIcon width={16} height={16} />
+              <span>Preview</span>
+            </button>
+            <button
+              type="button"
+              onClick={isEdit ? handleSaveEdit : handlePublish}
+              disabled={submitting}
+              className="hidden lg:flex cursor-pointer items-center justify-center bg-primary-orange text-white rounded-full h-[40px] px-[26px] font-montserrat font-medium text-[14px] hover:brightness-95 transition-[filter] disabled:opacity-60"
+            >
+              {submitting ? "Saving…" : chrome.primaryCtaLabel}
+            </button>
+          </div>
+        </div>
+        <div className="mx-[16px] md:mx-[24px] lg:mx-[40px] h-px bg-[#E5E3DD]" />
+
+        {/* Desktop: 2-column body. Left column morphs; right rail stays put. */}
+        <div className="hidden lg:grid lg:grid-cols-[1fr_300px] flex-1 min-h-0 gap-[32px] px-[40px] pt-[16px] pb-[24px]">
+          <div className="flex flex-col min-w-0 min-h-0 relative">
+            {chrome.showPromptBanner && prompt && (
+              <div className="shrink-0 mb-[18px]">
+                <PromptStrip prompt={prompt} />
+              </div>
+            )}
+            {/* Title input — hidden when the mode has its own hero
+                question (Daily puts "How was your day?" here instead). */}
+            {!chrome.heroQuestion && (
+              <div className="shrink-0 mt-[8px]">
+                <LandingTitleInput value={title} onChange={setTitle} />
+              </div>
+            )}
+
+            {/* Morph stage — content layers only. Ring lives outside
+                this div so it can position itself relative to the full
+                column height (above = center of stage; below = center
+                of pill row). */}
+            <div className="flex-1 min-h-0 relative">
+              {/* Daily above-ring hero — absolutely positioned inside
+                  the stage so it overlays without compressing the ring/
+                  caption/pill row layout. */}
+              {chrome.heroQuestion && (
+                <div
+                  className="absolute inset-x-0 flex flex-col items-center text-center transition-opacity duration-[320ms] px-[24px]"
+                  style={{
+                    top: "10%",
+                    opacity: isActivePhase ? 0 : 1,
+                    pointerEvents: isActivePhase ? "none" : "auto",
+                  }}
+                >
+                  <h2 className="font-ivy text-[#2B2B2B] text-[24px] leading-tight">
+                    {chrome.heroQuestion}
+                  </h2>
+                  {chrome.heroSubCaption && (
+                    <p className="mt-[8px] font-montserrat text-[13px] text-[#848484] max-w-[360px] leading-[1.4]">
+                      {chrome.heroSubCaption}
+                    </p>
+                  )}
+                </div>
+              )}
+              {/* Caption layer — empty phase only. Anchored just under
+                  the ring's idle center (42% + half-ring) so the gap
+                  between ring bottom and caption stays tight. */}
+              <div
+                className="absolute inset-x-0 flex justify-center transition-opacity duration-[320ms]"
+                style={{
+                  top: "calc(32% + 160px)",
+                  opacity: isActivePhase ? 0 : 1,
+                  pointerEvents: isActivePhase ? "none" : "auto",
+                }}
+              >
+                <div className="font-montserrat text-[14px] text-[#848484]">
+                  {chrome.heroCaption}
+                </div>
+              </div>
+
+              {/* Recording layer — waveform, status, timer, controls.
+                  Anchored at the same vertical position as the empty-
+                  phase ring so swapping between phases doesn't shift
+                  the eye. */}
+              <div
+                className="absolute inset-x-0 flex flex-col items-center gap-[12px] transition-opacity duration-[380ms]"
+                style={{
+                  top: "24%",
+                  opacity: isActivePhase ? 1 : 0,
+                  pointerEvents: isActivePhase ? "auto" : "none",
+                  transitionDelay: isActivePhase ? "280ms" : "0ms",
+                }}
+              >
+                <Waveform
+                  levels={recording?.levels ?? []}
+                  paused={isPausedPhase}
+                />
+                <div
+                  className={`font-montserrat text-[13px] ${
+                    isPausedPhase ? "text-[#848484]" : "text-[#D95F3B]"
+                  }`}
+                >
+                  {isPausedPhase ? "Paused" : "Recording"}
+                </div>
+                <div className="flex items-center gap-[22px]">
+                  <button
+                    type="button"
+                    onClick={handleTrashRecording}
+                    aria-label="Discard recording"
+                    className="w-[32px] h-[32px] rounded-full text-[#D95F3B] flex items-center justify-center hover:bg-[#D95F3B]/10 transition-colors"
+                  >
+                    <TrashBinIcon />
+                  </button>
+                  <div className="font-montserrat text-[22px] font-medium text-[#2B2B2B] tabular-nums min-w-[56px] text-center">
+                    {formatRecordingTimer(recording?.seconds ?? 0)}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleStopRecording}
+                    aria-label="Continue"
+                    disabled={(recording?.seconds ?? 0) < 1}
+                    className="w-[32px] h-[32px] rounded-full border border-[#2B2B2B] text-[#2B2B2B] flex items-center justify-center hover:bg-black/[0.04] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ArrowRightIcon />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom pill row — 4 icons; the gap in the middle opens
+                up when active to let the ring slot into the row.
+                Lifted well off the column bottom so it sits close to
+                the ring/caption cluster rather than hugging the pill
+                row to the viewport edge. */}
+            <div className="shrink-0 flex justify-center mb-[200px]">
+              <ComposerPillRow
+                active={isActivePhase}
+                onText={handleEmptyText}
+                onImage={handleEmptyImage}
+                onVideo={handleEmptyVideo}
+                onMusic={() => setShowMusicPicker(true)}
+              />
+            </div>
+
+            {/* The ring — absolutely positioned relative to the WHOLE
+                left column so it can morph between the center of the
+                stage area (empty) and the middle slot of the pill row
+                at the column's bottom (recording). */}
+            <AnimatedRing
+              phase={phase}
+              isRecording={isActivePhase && !isPausedPhase}
+              isPaused={isPausedPhase}
+              amplitudeSource={() => amplitude}
+              onTap={handleRingTap}
+            />
+            {chrome.showDailyEscape && !isActivePhase && (
+              <div className="mt-[14px] flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="inline-flex items-center gap-[6px] font-montserrat text-[13px] text-[#2B2B2B]/70 hover:text-[#2B2B2B] transition-colors"
+                >
+                  <span>Go to dashboard</span>
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M5 12h14M13 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <RightRail
+            location={location}
+            onLocationChange={setLocation}
+            date={dateOfStory}
+            onDateChange={setDateOfStory}
+            peopleCount={taggedPeople.length}
+            onOpenPeople={() => setShowTagPeople(true)}
+            showCover={chrome.showCoverPicker}
+            coverPreviewUrl={cover.preview}
+            onOpenCoverPicker={() => setShowCoverModal(true)}
+            showShareToggle={chrome.showShareToggle}
+            allowShare={allowShare}
+            onAllowShareChange={handleAllowShareChange}
+            showSecureBox={chrome.showSecureBox}
+          />
+        </div>
+
+        {/* Mobile: single column. Same morph wiring as desktop. */}
+        <div className="lg:hidden flex-1 min-h-0 flex flex-col px-[16px] pb-[24px] relative">
+          {chrome.showPromptBanner && prompt && (
+            <div className="shrink-0 w-full mt-[12px] mb-[8px]">
+              <PromptStrip prompt={prompt} />
+            </div>
+          )}
+          <div className="flex-1 min-h-0 relative">
+            {chrome.heroQuestion && (
+              <div
+                className="absolute inset-x-0 flex flex-col items-center text-center transition-opacity duration-[320ms] px-[20px]"
+                style={{
+                  top: "4%",
+                  opacity: isActivePhase ? 0 : 1,
+                  pointerEvents: isActivePhase ? "none" : "auto",
+                }}
+              >
+                <h2 className="font-ivy text-[#2B2B2B] text-[22px] leading-tight">
+                  {chrome.heroQuestion}
+                </h2>
+                {chrome.heroSubCaption && (
+                  <p className="mt-[8px] font-montserrat text-[12px] text-[#848484] max-w-[320px] leading-[1.4]">
+                    {chrome.heroSubCaption}
+                  </p>
+                )}
+              </div>
+            )}
+            <div
+              className="absolute inset-x-0 flex justify-center transition-opacity duration-[320ms]"
+              style={{
+                top: "calc(42% + 100px)",
+                opacity: isActivePhase ? 0 : 1,
+                pointerEvents: isActivePhase ? "none" : "auto",
+              }}
+            >
+              <div className="font-montserrat text-[13px] text-[#848484] text-center">
+                {chrome.heroCaption}
+              </div>
+            </div>
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center gap-[12px] transition-opacity duration-[380ms]"
+              style={{
+                opacity: isActivePhase ? 1 : 0,
+                pointerEvents: isActivePhase ? "auto" : "none",
+                transitionDelay: isActivePhase ? "280ms" : "0ms",
+              }}
+            >
+              <Waveform
+                levels={recording?.levels ?? []}
+                paused={isPausedPhase}
+              />
+              <div
+                className={`font-montserrat text-[13px] ${
+                  isPausedPhase ? "text-[#848484]" : "text-[#D95F3B]"
+                }`}
+              >
+                {isPausedPhase ? "Paused" : "Recording"}
+              </div>
+              <div className="flex items-center gap-[22px]">
+                <button
+                  type="button"
+                  onClick={handleTrashRecording}
+                  aria-label="Discard recording"
+                  className="w-[32px] h-[32px] rounded-full text-[#D95F3B] flex items-center justify-center"
+                >
+                  <TrashBinIcon />
+                </button>
+                <div className="font-montserrat text-[22px] font-medium text-[#2B2B2B] tabular-nums min-w-[56px] text-center">
+                  {formatRecordingTimer(recording?.seconds ?? 0)}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleStopRecording}
+                  aria-label="Continue"
+                  disabled={(recording?.seconds ?? 0) < 1}
+                  className="w-[32px] h-[32px] rounded-full border border-[#2B2B2B] text-[#2B2B2B] flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ArrowRightIcon />
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="shrink-0 flex justify-center mb-[40px]">
+            <ComposerPillRow
+              active={isActivePhase}
+              onText={handleEmptyText}
+              onImage={handleEmptyImage}
+              onVideo={handleEmptyVideo}
+              onMusic={() => setShowMusicPicker(true)}
+            />
+          </div>
+          <AnimatedRing
+            phase={phase}
+            isRecording={isActivePhase && !isPausedPhase}
+            isPaused={isPausedPhase}
+            amplitudeSource={() => amplitude}
+            onTap={handleRingTap}
+            /* Mobile pill row sits 40px above column bottom; pill row
+               height ~64px; pb-24. Center of pill row from column
+               bottom = 24 + 40 + 32 = 96px. */
+            activeTop="calc(100% - 96px)"
+          />
+          {chrome.showDailyEscape && !isActivePhase && (
+            <button
+              type="button"
+              onClick={handleBack}
+              className="mt-[14px] inline-flex items-center gap-[6px] font-montserrat text-[13px] text-[#2B2B2B]/70 mx-auto"
+            >
+              <span>Go to dashboard</span>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M5 12h14M13 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* Modals — shared with the compose-phase return below. */}
+        <PreviewOverlay
+          open={previewData !== null}
+          data={previewData}
+          currentUser={user}
+          onClose={() => setPreviewData(null)}
+        />
+        <ChooseCoverModal
+          open={showCoverModal}
+          onClose={() => setShowCoverModal(false)}
+          onPick={handleCoverPicked}
+          selectedUrl={cover.imageUrl}
+        />
+        <TagPeopleSheet
+          open={showTagPeople}
+          initialSelected={taggedPeople}
+          onClose={() => setShowTagPeople(false)}
+          onConfirm={(next) => {
+            setTaggedPeople(next);
+            setShowTagPeople(false);
+          }}
+        />
+        <MicPermissionSheet
+          open={micErrorKind !== null}
+          kind={micErrorKind ?? "other"}
+          onClose={() => setMicErrorKind(null)}
+          onRetry={() => {
+            setMicErrorKind(null);
+            setPhase("recording");
+            void startRecording();
+          }}
+        />
+        <UploadMediaModal
+          open={uploadModal !== null}
+          kind={uploadModal ?? "image"}
+          onClose={() => setUploadModal(null)}
+          onFile={(file) => {
+            addMediaBlock(uploadModal === "video" ? "video" : "image", file);
+            // Picking a file flips us into compose so the user lands on
+            // the block editor with their new media.
+            setPhase("compose");
+          }}
+        />
+        {showMusicPicker && (
+          <MusicPickerModal
+            onClose={() => setShowMusicPicker(false)}
+            onSelect={(v) => {
+              setMusic(v);
+              setShowMusicPicker(false);
+              // Picking a track from the empty landing flips us into
+              // compose so the user can see the music pill above the
+              // (currently empty) block list, matching the pattern used
+              // by the text/image/video pills.
+              setPhase("compose");
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Compose phase — restyled 2-col (desktop) / single-col (mobile) layout
+  // with the shared header, title, blocks editor, inline "+ more" pill
+  // row, and the right rail. Falls through to this early return from the
+  // empty/recording UI when the user hits Continue, taps a pill, or lands
+  // in Edit / DraftResume mode. The old fall-through JSX below is kept
+  // temporarily as a safety net while the compose redesign settles — once
+  // verified it can be deleted.
+  if (phase === "compose") {
+    return (
+      <div className="h-full min-h-0 flex flex-col bg-[#F3F1EC]">
+        {/* Header — identical to empty/recording so the top chrome is
+            stable across phase swaps. */}
+        <div className="shrink-0 px-[16px] md:px-[24px] lg:px-[40px] pt-[16px] pb-[14px] flex items-center justify-between gap-[12px] relative">
+          <div className="flex items-center gap-[16px] min-w-0">
+            <button
+              type="button"
+              onClick={handleBack}
+              aria-label="Back"
+              className="lg:hidden cursor-pointer w-[36px] h-[36px] rounded-full bg-white text-[#2B2B2B] flex items-center justify-center hover:brightness-95 transition-[filter] shrink-0"
+            >
+              <ChevronLeftIcon width={16} height={16} />
+            </button>
+            <h1 className="hidden lg:block font-ivy text-[#2B2B2B] text-[32px] leading-none">
+              {chrome.headerTitle}
+            </h1>
+          </div>
+          <div className="flex items-center gap-[10px] lg:gap-[12px] shrink-0">
+            <div className="hidden lg:block relative">
+              <button
+                type="button"
+                aria-label="Help"
+                onClick={() => setShowHelp((v) => !v)}
+                className={`cursor-pointer w-[32px] h-[32px] rounded-full flex items-center justify-center transition-colors ${
+                  showHelp ? "bg-[#2B2B2B] text-white" : "text-[#2B2B2B] hover:bg-black/[0.04]"
+                }`}
+              >
+                <HelpIcon width={20} height={20} />
+              </button>
+              {showHelp && (
+                <HelpTooltip variant="desktop" onClose={() => setShowHelp(false)} />
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPhase("preview")}
+              className="hidden lg:flex cursor-pointer items-center justify-center gap-[8px] border border-[#2B2B2B]/50 text-[#2B2B2B] rounded-full h-[40px] px-[22px] font-montserrat font-medium text-[14px] hover:bg-black/[0.03] transition-colors"
+            >
+              <EyeIcon width={16} height={16} />
+              <span>Preview</span>
+            </button>
+            <button
+              type="button"
+              onClick={isEdit ? handleSaveEdit : handlePublish}
+              disabled={submitting}
+              className="hidden lg:flex cursor-pointer items-center justify-center bg-primary-orange text-white rounded-full h-[40px] px-[26px] font-montserrat font-medium text-[14px] hover:brightness-95 transition-[filter] disabled:opacity-60"
+            >
+              {submitting ? "Saving…" : chrome.primaryCtaLabel}
+            </button>
+          </div>
+        </div>
+        <div className="mx-[16px] md:mx-[24px] lg:mx-[40px] h-px bg-[#E5E3DD]" />
+
+        {/* Desktop body */}
+        <div className="hidden lg:grid lg:grid-cols-[1fr_300px] flex-1 min-h-0 gap-[32px] px-[40px] pt-[16px] pb-[24px]">
+          <div className="flex flex-col min-w-0 min-h-0">
+            {chrome.showPromptBanner && prompt && (
+              <div className="shrink-0 mb-[12px]">
+                <PromptStrip prompt={prompt} />
+              </div>
+            )}
+            <div className="shrink-0 mt-[8px]">
+              <LandingTitleInput value={title} onChange={setTitle} />
+            </div>
+
+            {/* Scrollable blocks area — Figma-styled white cards. The
+                music pill sits above the block list so the selected
+                track travels with the story but stays visually distinct
+                from the ordered audio/text/image/video blocks below. */}
+            <div className="flex-1 min-h-0 overflow-y-auto mt-[18px] -mx-[8px] px-[8px]">
+              {music && (
+                <div className="mb-[16px]">
+                  <MusicPill
+                    value={music}
+                    previewing={musicPreviewing}
+                    onPreview={toggleMusicPreview}
+                    onRemove={() => {
+                      if (musicPreviewRef.current) {
+                        musicPreviewRef.current.pause();
+                        setMusicPreviewing(false);
+                      }
+                      setMusic(null);
+                    }}
+                  />
+                </div>
+              )}
+              <ComposerBlocksList
+                blocks={blocks}
+                recordingBlockId={recording?.blockId ?? null}
+                onUpdate={updateBlock}
+                onRemove={removeBlock}
+              />
+            </div>
+
+            {/* Inline "+ more" pill row with the ring slotted in. Tapping
+                the ring from compose kicks off a fresh recording that
+                gets appended to the block list. */}
+            <div className="shrink-0 relative flex justify-center mt-[16px] mb-[24px]">
+              <ComposerPillRow
+                active
+                onText={handleAddTextBlock}
+                onImage={() => setUploadModal("image")}
+                onVideo={() => setUploadModal("video")}
+                onMusic={() => setShowMusicPicker(true)}
+              />
+              {/* Ring is display-only — a small central button handles
+                  the tap so the ring's 200x200 layout box doesn't
+                  swallow clicks on the surrounding Image / Text pills. */}
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                <RecordingCircles
+                  isRecording={false}
+                  onToggle={() => { /* click handled by overlay below */ }}
+                  scale={0.42}
+                />
+                <button
+                  type="button"
+                  aria-label="Start recording"
+                  onClick={async () => {
+                    await startRecording();
+                    if (recorderRef.current) setPhase("recording");
+                  }}
+                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[44px] h-[44px] rounded-full pointer-events-auto focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          <RightRail
+            location={location}
+            onLocationChange={setLocation}
+            date={dateOfStory}
+            onDateChange={setDateOfStory}
+            peopleCount={taggedPeople.length}
+            onOpenPeople={() => setShowTagPeople(true)}
+            showCover={chrome.showCoverPicker}
+            coverPreviewUrl={cover.preview}
+            onOpenCoverPicker={() => setShowCoverModal(true)}
+            showShareToggle={chrome.showShareToggle}
+            allowShare={allowShare}
+            onAllowShareChange={handleAllowShareChange}
+            showSecureBox={chrome.showSecureBox}
+          />
+        </div>
+
+        {/* Mobile body */}
+        <div className="lg:hidden flex-1 min-h-0 flex flex-col px-[16px] pb-[80px]">
+          {chrome.showPromptBanner && prompt && (
+            <div className="shrink-0 mt-[12px] mb-[8px]">
+              <PromptStrip prompt={prompt} />
+            </div>
+          )}
+          <div className="shrink-0 mt-[10px]">
+            <LandingTitleInput value={title} onChange={setTitle} />
+          </div>
+          {/* Mobile compose has no metadata chip row — music is in the
+              bottom pill row, Date + Location are picked on the preview
+              screen. Tag People is handled via the post-publish share
+              flow. */}
+          <div className="flex-1 min-h-0 overflow-y-auto mt-[16px] -mx-[4px] px-[4px]">
+            {music && (
+              <div className="mb-[14px]">
+                <MusicPill
+                  value={music}
+                  previewing={musicPreviewing}
+                  onPreview={toggleMusicPreview}
+                  onRemove={() => {
+                    if (musicPreviewRef.current) {
+                      musicPreviewRef.current.pause();
+                      setMusicPreviewing(false);
+                    }
+                    setMusic(null);
+                  }}
+                />
+              </div>
+            )}
+            <ComposerBlocksList
+              blocks={blocks}
+              recordingBlockId={recording?.blockId ?? null}
+              onUpdate={updateBlock}
+              onRemove={removeBlock}
+            />
+          </div>
+        </div>
+
+        {/* Mobile sticky action bar — pill row with inline ring + "Next"
+            CTA matching the Figma. */}
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 px-[16px] pb-[16px] pt-[12px] bg-[#F3F1EC] border-t border-[#E5E3DD] flex flex-col gap-[10px]">
+          <div className="relative flex justify-center">
+            <ComposerPillRow
+              active
+              onText={handleAddTextBlock}
+              onImage={() => setUploadModal("image")}
+              onVideo={() => setUploadModal("video")}
+              onMusic={() => setShowMusicPicker(true)}
+            />
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+              <RecordingCircles
+                isRecording={false}
+                onToggle={() => { /* click handled by overlay below */ }}
+                scale={0.42}
+              />
+              <button
+                type="button"
+                aria-label="Start recording"
+                onClick={async () => {
+                  await startRecording();
+                  if (recorderRef.current) setPhase("recording");
+                }}
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[44px] h-[44px] rounded-full pointer-events-auto focus:outline-none"
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              // Mobile flow: Next routes to the dedicated preview phase
+              // where the cover picker lives. Desktop never calls this
+              // button (right rail hosts the cover picker + header CTA
+              // publishes directly), so this branch is mobile-only.
+              if (isEdit) {
+                void handleSaveEdit();
+                return;
+              }
+              setPhase("preview");
+            }}
+            disabled={submitting}
+            className="w-full h-[48px] rounded-full bg-primary-orange text-white font-montserrat font-semibold text-[14px] hover:brightness-95 transition-[filter] disabled:opacity-60"
+          >
+            {submitting ? "Saving…" : isEdit ? chrome.primaryCtaLabel : "Next"}
+          </button>
+        </div>
+
+        {/* Modals */}
+        <UploadMediaModal
+          open={uploadModal !== null}
+          kind={uploadModal ?? "image"}
+          onClose={() => setUploadModal(null)}
+          onFile={(file) => addMediaBlock(uploadModal === "video" ? "video" : "image", file)}
+        />
+        <PreviewOverlay
+          open={previewData !== null}
+          data={previewData}
+          currentUser={user}
+          onClose={() => setPreviewData(null)}
+        />
+        <ChooseCoverModal
+          open={showCoverModal}
+          onClose={() => setShowCoverModal(false)}
+          onPick={handleCoverPicked}
+          selectedUrl={cover.imageUrl}
+        />
+        <TagPeopleSheet
+          open={showTagPeople}
+          initialSelected={taggedPeople}
+          onClose={() => setShowTagPeople(false)}
+          onConfirm={(next) => {
+            setTaggedPeople(next);
+            setShowTagPeople(false);
+          }}
+        />
+        <MicPermissionSheet
+          open={micErrorKind !== null}
+          kind={micErrorKind ?? "other"}
+          onClose={() => setMicErrorKind(null)}
+          onRetry={() => {
+            setMicErrorKind(null);
+            setPhase("recording");
+            void startRecording();
+          }}
+        />
+        {showMusicPicker && (
+          <MusicPickerModal
+            onClose={() => setShowMusicPicker(false)}
+            onSelect={(v) => {
+              setMusic(v);
+              setShowMusicPicker(false);
+            }}
+          />
+        )}
+        {music?.previewUrl && (
+          <audio
+            ref={musicPreviewRef}
+            src={music.previewUrl}
+            preload="metadata"
+            onEnded={() => setMusicPreviewing(false)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Preview phase — renders the composed Lag the way it'll appear in
+  // the thread viewer once published. Desktop keeps the composer's
+  // standard header chrome (Back / "Preview" title / Lag-Prompt toggle
+  // / help / Preview / Create Story) and the dashboard sidebar; mobile
+  // uses a minimal header + sticky "Create Lag" CTA. Both route the
+  // user back to compose via the back button, so edits don't lose the
+  // draft.
+  if (phase === "preview") {
+    return (
+      <div className="h-full min-h-0 flex flex-col bg-[#F3F1EC]">
+        {/* Header — identical to compose on desktop, minimal on mobile. */}
+        <div className="shrink-0 px-[16px] md:px-[24px] lg:px-[40px] pt-[16px] pb-[14px] flex items-center justify-between gap-[12px] relative">
+          <div className="flex items-center gap-[16px] min-w-0">
+            <button
+              type="button"
+              onClick={() => setPhase("compose")}
+              aria-label="Back"
+              className="cursor-pointer w-[36px] h-[36px] rounded-full bg-white lg:bg-transparent lg:border lg:border-[#2B2B2B]/15 text-[#2B2B2B] flex items-center justify-center hover:brightness-95 transition-[filter] shrink-0"
+            >
+              <ChevronLeftIcon width={16} height={16} />
+            </button>
+            <h1 className="hidden lg:block font-ivy text-[#2B2B2B] text-[32px] leading-none">
+              Preview
+            </h1>
+            {chrome.showModeToggle && (
+              <div className="hidden lg:flex items-center gap-[4px] bg-white rounded-full p-[4px]">
+                <button
+                  type="button"
+                  onClick={() => setComposerSubmode("lag")}
+                  className={`px-[18px] h-[32px] rounded-full font-montserrat text-[13px] font-medium transition-colors ${
+                    composerSubmode === "lag"
+                      ? "bg-[#2B2B2B] text-white"
+                      : "text-[#2B2B2B] hover:bg-black/[0.04]"
+                  }`}
+                >
+                  Lag
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Switching to Prompt navigates to the Ask-a-
+                    // Question composer — a separate route with a
+                    // different publish path (createUserCard instead
+                    // of createStory). Draft is preserved in
+                    // localStorage so coming back to /new-lag resumes
+                    // where the user left off.
+                    router.push("/new-ask");
+                  }}
+                  className={`px-[18px] h-[32px] rounded-full font-montserrat text-[13px] font-medium transition-colors ${
+                    composerSubmode === "prompt"
+                      ? "bg-[#2B2B2B] text-white"
+                      : "text-[#2B2B2B] hover:bg-black/[0.04]"
+                  }`}
+                >
+                  Prompt
+                </button>
+              </div>
+            )}
+          </div>
+          <h1 className="lg:hidden absolute left-1/2 -translate-x-1/2 font-ivy text-[#2B2B2B] text-[20px] leading-none">
+            Preview
+          </h1>
+          <div className="hidden lg:flex items-center gap-[10px] lg:gap-[12px] shrink-0">
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="Help"
+                onClick={() => setShowHelp((v) => !v)}
+                className={`cursor-pointer w-[32px] h-[32px] rounded-full flex items-center justify-center transition-colors ${
+                  showHelp ? "bg-[#2B2B2B] text-white" : "text-[#2B2B2B] hover:bg-black/[0.04]"
+                }`}
+              >
+                <HelpIcon width={20} height={20} />
+              </button>
+              {showHelp && (
+                <HelpTooltip variant="desktop" onClose={() => setShowHelp(false)} />
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPhase("compose")}
+              className="cursor-pointer inline-flex items-center justify-center gap-[8px] border border-[#2B2B2B]/50 text-[#2B2B2B] rounded-full h-[40px] px-[22px] font-montserrat font-medium text-[14px] hover:bg-black/[0.03] transition-colors"
+            >
+              <EyeIcon width={16} height={16} />
+              <span>Edit</span>
+            </button>
+            <button
+              type="button"
+              onClick={isEdit ? handleSaveEdit : handlePublish}
+              disabled={submitting}
+              className="cursor-pointer inline-flex items-center justify-center bg-primary-orange text-white rounded-full h-[40px] px-[26px] font-montserrat font-medium text-[14px] hover:brightness-95 transition-[filter] disabled:opacity-60"
+            >
+              {submitting ? "Saving…" : chrome.primaryCtaLabel}
+            </button>
+          </div>
+          <div className="lg:hidden w-[36px]" aria-hidden />
+        </div>
+        <div className="mx-[16px] md:mx-[24px] lg:mx-[40px] h-px bg-[#E5E3DD]" />
+
+        {/* Preview body — inline render the Lag the way it'll appear
+            in the thread viewer once published. Matches the Figma
+            treatment (centered title, polaroid cover, author strip,
+            date / location pills, waveform player, drop-cap text, image
+            grid). Date + Location pills are editable from here on
+            mobile. */}
+        <div className="flex-1 min-h-0 overflow-y-auto pb-[120px] lg:pb-[40px]">
+          <div className="mx-auto w-full lg:max-w-[760px] px-[16px] lg:px-0 pt-[18px]">
+            <PreviewCard
+              title={title}
+              coverUrl={cover.preview}
+              onCoverClick={isReplyFlow ? undefined : () => setShowCoverModal(true)}
+              authorName={user?.firstName ? `${user.firstName} ${user.lastName ?? ""}`.trim() : "You"}
+              authorAvatar={user?.profilePicture ?? null}
+              dateOfStory={dateOfStory}
+              onDateChange={setDateOfStory}
+              location={location}
+              onLocationChange={setLocation}
+              music={music}
+              musicPreviewing={musicPreviewing}
+              onToggleMusicPreview={toggleMusicPreview}
+              blocks={blocks}
+            />
+          </div>
+        </div>
+
+        {/* Mobile sticky action bar — Create Lag CTA. Desktop uses the
+            header Create Story button instead. */}
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 px-[16px] pb-[16px] pt-[12px] bg-[#F3F1EC] border-t border-[#E5E3DD]">
+          <button
+            type="button"
+            onClick={isEdit ? handleSaveEdit : handlePublish}
+            disabled={submitting}
+            className="w-full h-[48px] rounded-full bg-primary-orange text-white font-montserrat font-semibold text-[14px] hover:brightness-95 transition-[filter] disabled:opacity-60"
+          >
+            {submitting ? "Saving…" : "Create Lag"}
+          </button>
+        </div>
+
+        {/* Modals — only the cover modal is reachable from preview. */}
+        <ChooseCoverModal
+          open={showCoverModal}
+          onClose={() => setShowCoverModal(false)}
+          onPick={handleCoverPicked}
+          selectedUrl={cover.imageUrl}
+        />
+      </div>
     );
   }
 
@@ -1817,7 +2937,7 @@ export default function StoryComposer({
           </div>
           <button
             type="button"
-            onClick={openPreview}
+            onClick={() => setPhase("preview")}
             aria-label="Preview"
             className="lg:hidden cursor-pointer w-[32px] h-[32px] rounded-full text-primary-blue flex items-center justify-center hover:bg-black/[0.04] transition-colors"
           >
@@ -1846,7 +2966,7 @@ export default function StoryComposer({
           </div>
           <button
             type="button"
-            onClick={openPreview}
+            onClick={() => setPhase("preview")}
             className="hidden lg:flex cursor-pointer items-center justify-center gap-[8px] border-[1.5px] border-primary-blue text-primary-blue rounded-full h-[44px] px-[40px] font-montserrat font-medium text-[15px] hover:bg-primary-blue/[0.04] transition-colors"
           >
             <EyeIcon width={16} height={16} />
@@ -2188,6 +3308,915 @@ export default function StoryComposer({
 // 2×2 body-content picker shown in place of the block editor + bottom pill
 // row when the composer body is empty. Matches Figma node 15254:49310 —
 // Voice / Photo / Video / Text pills, centered in the block area.
+// MM:SS formatter for the recording-phase timer. Matches mobile
+// prototype format — seconds padded to 2 digits.
+function formatRecordingTimer(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  const m = Math.floor(s / 60);
+  const ss = s % 60;
+  return `${m}:${String(ss).padStart(2, "0")}`;
+}
+
+// Inline preview card for the preview phase — renders the composed Lag
+// in its published-look treatment (polaroid cover, author strip, meta
+// pills, waveform player, drop-cap text, image grid). Avoids pulling in
+// ThreadViewer which has thread-level chrome that would collapse inside
+// the preview phase's constrained container.
+function PreviewCard({
+  title,
+  coverUrl,
+  onCoverClick,
+  authorName,
+  authorAvatar,
+  dateOfStory,
+  onDateChange,
+  location,
+  onLocationChange,
+  music,
+  musicPreviewing,
+  onToggleMusicPreview,
+  blocks,
+}: {
+  title: string;
+  coverUrl: string | null;
+  onCoverClick?: () => void;
+  authorName: string;
+  authorAvatar: string | null;
+  dateOfStory: string | null;
+  onDateChange: (v: string | null) => void;
+  location: LocationValue | null;
+  onLocationChange: (v: LocationValue | null) => void;
+  music: MusicValue | null;
+  musicPreviewing: boolean;
+  onToggleMusicPreview: () => void;
+  blocks: EditorBlock[];
+}) {
+  const musicRef = useRef<HTMLAudioElement | null>(null);
+  const formattedDate = dateOfStory
+    ? new Date(`${dateOfStory}T00:00:00`).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : null;
+  const textBlocks = blocks.filter(
+    (b): b is Extract<EditorBlock, { type: "text" }> => b.type === "text",
+  );
+  const firstTextIdx = blocks.findIndex(
+    (b) => b.type === "text" && b.text.trim().length > 0,
+  );
+
+  return (
+    <div className="flex flex-col items-stretch gap-[18px] pb-[24px]">
+      {title.trim() && (
+        <h2 className="text-center font-ivy text-[#2B2B2B] text-[24px] lg:text-[28px] leading-tight px-[12px]">
+          {title}
+        </h2>
+      )}
+
+      {/* Polaroid cover — square photo with EQUAL white border on all
+          sides. Matte paper feel via soft shadow. */}
+      <div className="mx-auto w-full max-w-[420px] lg:max-w-[460px] px-[16px] lg:px-0">
+        <button
+          type="button"
+          onClick={onCoverClick}
+          disabled={!onCoverClick}
+          className={`relative w-full aspect-square bg-white rounded-[4px] shadow-[0_8px_28px_rgba(0,0,0,0.08)] p-[14px] flex items-center justify-center overflow-hidden ${
+            onCoverClick ? "cursor-pointer" : "cursor-default"
+          }`}
+          aria-label={onCoverClick ? "Change cover" : "Cover"}
+        >
+          {coverUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={coverUrl}
+              alt=""
+              className="absolute inset-[14px] w-[calc(100%-28px)] h-[calc(100%-28px)] object-cover rounded-[2px]"
+            />
+          ) : (
+            <div className="absolute inset-[14px] flex items-center justify-center rounded-[2px] bg-[#F2F0EA]">
+              <div className="flex flex-col items-center gap-[10px] text-[#848484]">
+                <svg width={34} height={34} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <rect x="3" y="3" width="18" height="18" rx="3" />
+                  <circle cx="9" cy="9" r="1.6" />
+                  <path d="M21 15l-5-5L5 21" />
+                </svg>
+                {onCoverClick && (
+                  <span className="font-montserrat text-[12px] text-[#2B2B2B] border border-[#2B2B2B]/40 rounded-full px-[14px] py-[6px]">
+                    Choose Cover
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </button>
+      </div>
+
+      {/* Author strip — avatar + name on the left, date on the right. */}
+      <div className="flex items-center justify-between gap-[12px] px-[16px] lg:px-0">
+        <div className="flex items-center gap-[10px] min-w-0">
+          {authorAvatar ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={authorAvatar}
+              alt=""
+              className="w-[32px] h-[32px] rounded-full object-cover shrink-0"
+            />
+          ) : (
+            <div className="w-[32px] h-[32px] rounded-full bg-[#2B2B2B] text-white flex items-center justify-center font-montserrat font-semibold text-[12px] shrink-0">
+              {authorName.slice(0, 1).toUpperCase()}
+            </div>
+          )}
+          <div className="font-montserrat font-semibold text-[13px] text-[#2B2B2B] truncate">
+            {authorName}
+          </div>
+        </div>
+        {formattedDate && (
+          <div className="shrink-0 font-montserrat text-[11px] text-[#848484] tabular-nums">
+            {formattedDate}
+          </div>
+        )}
+      </div>
+
+      {/* Divider between author strip and date / location pills. */}
+      <div className="mx-[16px] lg:mx-0 h-px bg-[#E5E3DD]" />
+
+      {/* Date + location pills — tappable, open the pickers. */}
+      <div className="flex items-center gap-[10px] px-[16px] lg:px-0">
+        <DateChip
+          value={dateOfStory}
+          onChange={onDateChange}
+          variant="compact"
+        />
+        <LocationChip
+          value={location}
+          onChange={onLocationChange}
+          variant="compact"
+        />
+      </div>
+
+      {/* Divider between the meta pills and the story content. */}
+      <div className="mx-[16px] lg:mx-0 h-px bg-[#E5E3DD]" />
+
+      {/* Music strip — shows the selected track with a play button and
+          a static mini-waveform placeholder. */}
+      {music && (
+        <div className="px-[16px] lg:px-0">
+          <div className="bg-white rounded-[14px] shadow-[0_1px_4px_rgba(0,0,0,0.04)] px-[14px] py-[12px] flex items-center gap-[12px]">
+            <button
+              type="button"
+              onClick={onToggleMusicPreview}
+              disabled={!music.previewUrl}
+              className="shrink-0 w-[36px] h-[36px] rounded-full bg-primary-orange text-white flex items-center justify-center overflow-hidden relative"
+              aria-label={musicPreviewing ? "Pause" : "Play"}
+            >
+              {music.artworkUrl && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={music.artworkUrl}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover opacity-80"
+                />
+              )}
+              <span className="relative">
+                {musicPreviewing ? (
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+                ) : (
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                )}
+              </span>
+            </button>
+            <div className="flex-1 min-w-0">
+              <div className="font-montserrat font-medium text-[13px] text-[#2B2B2B] truncate">
+                {music.trackName}
+              </div>
+              <div className="font-montserrat text-[11px] text-[#848484] truncate">
+                {music.artistName}
+              </div>
+            </div>
+          </div>
+          {music.previewUrl && (
+            <audio
+              ref={musicRef}
+              src={music.previewUrl}
+              preload="metadata"
+              onEnded={() => {
+                /* parent already tracks previewing — no-op */
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Blocks — audio becomes a waveform player; the first text block
+          gets a drop cap; images and videos render full width. */}
+      <div className="flex flex-col gap-[18px] px-[16px] lg:px-0">
+        {blocks.map((block, i) => {
+          if (block.type === "audio") {
+            return <PreviewAudio key={block.id} block={block} />;
+          }
+          if (block.type === "text") {
+            return (
+              <PreviewText
+                key={block.id}
+                text={block.text}
+                dropCap={i === firstTextIdx}
+              />
+            );
+          }
+          if (block.type === "image") {
+            const url = block.preview ?? block.uploadedUrl ?? null;
+            if (!url) return null;
+            return (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                key={block.id}
+                src={url}
+                alt=""
+                className="w-full rounded-[10px] object-cover"
+              />
+            );
+          }
+          if (block.type === "video") {
+            const url = block.preview ?? block.uploadedUrl ?? null;
+            if (!url) return null;
+            return (
+              <video
+                key={block.id}
+                src={url}
+                controls
+                className="w-full rounded-[10px] bg-black"
+              />
+            );
+          }
+          return null;
+        })}
+        {blocks.length === 0 && !music && (
+          <div className="text-center font-montserrat text-[13px] text-[#848484] py-[20px]">
+            Add a block in the composer to see it here.
+          </div>
+        )}
+      </div>
+
+      {/* Reference blocks + textBlocks so lint doesn't flag the local
+          variables (TypeScript narrowing already uses them). */}
+      <span className="hidden" aria-hidden>
+        {textBlocks.length}
+      </span>
+    </div>
+  );
+}
+
+function PreviewAudio({
+  block,
+}: {
+  block: Extract<EditorBlock, { type: "audio" }>;
+}) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const url = block.preview ?? block.uploadedUrl ?? null;
+  const duration = block.duration ?? 0;
+  const mm = Math.floor(duration / 60);
+  const ss = Math.floor(duration % 60);
+  return (
+    <div className="bg-white rounded-[14px] shadow-[0_1px_4px_rgba(0,0,0,0.04)] px-[14px] py-[12px] flex items-center gap-[12px]">
+      <button
+        type="button"
+        onClick={() => {
+          const el = audioRef.current;
+          if (!el) return;
+          if (el.paused) {
+            void el.play();
+            setPlaying(true);
+          } else {
+            el.pause();
+            setPlaying(false);
+          }
+        }}
+        disabled={!url}
+        className="shrink-0 w-[36px] h-[36px] rounded-full bg-primary-orange text-white flex items-center justify-center hover:brightness-95 transition-[filter] disabled:opacity-50"
+        aria-label={playing ? "Pause" : "Play"}
+      >
+        {playing ? (
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+        ) : (
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+        )}
+      </button>
+      <div className="flex-1 min-w-0 h-[28px] flex items-center gap-[2px]">
+        {(block.waveform ?? []).slice(-80).map((lvl, i) => (
+          <div
+            key={i}
+            className="w-[2px] rounded-full bg-[#2B2B2B]"
+            style={{ height: Math.max(3, Math.min(28, lvl * 28 + 3)) }}
+          />
+        ))}
+      </div>
+      <div className="shrink-0 font-montserrat text-[12px] text-[#848484] tabular-nums">
+        {`${mm}:${String(ss).padStart(2, "0")}`}
+      </div>
+      {url && (
+        <audio
+          ref={audioRef}
+          src={url}
+          preload="metadata"
+          onEnded={() => setPlaying(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function PreviewText({ text, dropCap }: { text: string; dropCap: boolean }) {
+  if (!text.trim()) return null;
+  if (!dropCap) {
+    return (
+      <p className="font-montserrat text-[14px] leading-[1.6] text-[#2B2B2B] whitespace-pre-wrap">
+        {text}
+      </p>
+    );
+  }
+  const first = text.charAt(0);
+  const rest = text.slice(1);
+  return (
+    <p className="font-montserrat text-[14px] leading-[1.6] text-[#2B2B2B] whitespace-pre-wrap">
+      <span className="float-left font-ivy text-[44px] leading-[0.9] pr-[6px] pt-[2px] text-[#2B2B2B]">
+        {first}
+      </span>
+      {rest}
+    </p>
+  );
+}
+
+// Pill card that surfaces the selected music track inside the compose
+// body. Mirrors the audio block's visual language (white card + small
+// play affordance + remove X) but music is story-level metadata, not
+// a block in the ordered list — publishing attaches it via the story
+// update payload (`music`), separate from the block content.
+function MusicPill({
+  value,
+  onPreview,
+  onRemove,
+  previewing,
+}: {
+  value: MusicValue;
+  onPreview: () => void;
+  onRemove: () => void;
+  previewing: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-[8px]">
+      <div aria-hidden className="shrink-0 pt-[20px] text-[#848484]/60">
+        <DragDotsIcon />
+      </div>
+      <div className="flex-1 min-w-0 bg-white rounded-[14px] shadow-[0_1px_4px_rgba(0,0,0,0.04)] px-[14px] py-[12px] flex items-center gap-[12px]">
+        <button
+          type="button"
+          onClick={onPreview}
+          disabled={!value.previewUrl}
+          className="shrink-0 w-[36px] h-[36px] rounded-[10px] bg-primary-orange text-white flex items-center justify-center hover:brightness-95 transition-[filter] overflow-hidden relative disabled:opacity-60"
+          aria-label={previewing ? "Pause preview" : "Play preview"}
+        >
+          {value.artworkUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={value.artworkUrl}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : null}
+          <span className="relative flex items-center justify-center w-full h-full bg-black/30">
+            {previewing ? (
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <rect x="6" y="5" width="4" height="14" rx="1" />
+                <rect x="14" y="5" width="4" height="14" rx="1" />
+              </svg>
+            ) : (
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            )}
+          </span>
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="font-montserrat text-[13px] font-medium text-[#2B2B2B] truncate">
+            {value.trackName}
+          </div>
+          <div className="font-montserrat text-[11px] text-[#848484] truncate">
+            {value.artistName}
+          </div>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Remove music"
+        className="shrink-0 mt-[16px] w-[24px] h-[24px] rounded-full text-[#2B2B2B]/40 hover:text-[#D95F3B] hover:bg-[#D95F3B]/10 flex items-center justify-center transition-colors"
+      >
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+// Figma-styled compose-phase blocks list. Each block is a white card
+// with an optional left drag handle, content specific to the block
+// type (audio player / text input / media thumbnail), and a right-side
+// remove X. The STT-generated transcript block gets a "TRANSCRIPT"
+// label above it so the user knows it was auto-populated from voice.
+function ComposerBlocksList({
+  blocks,
+  recordingBlockId,
+  onUpdate,
+  onRemove,
+}: {
+  blocks: EditorBlock[];
+  recordingBlockId: string | null;
+  onUpdate: (id: string, patch: Partial<EditorBlock>) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-[16px]">
+      {blocks.map((block) => {
+        // The transcript block we auto-insert in handleStopRecording
+        // uses an id prefix of "text-stt-" so we can mark it here
+        // without threading a separate flag through state.
+        const isTranscript =
+          block.type === "text" && block.id.startsWith("text-stt-");
+        return (
+          <div key={block.id}>
+            {isTranscript && (
+              <div className="font-montserrat text-[10px] font-semibold uppercase tracking-[0.1em] text-[#848484] mb-[6px] ml-[32px]">
+                Transcript
+              </div>
+            )}
+            <ComposerBlockCard
+              block={block}
+              isRecordingThisBlock={block.id === recordingBlockId}
+              onUpdate={onUpdate}
+              onRemove={onRemove}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ComposerBlockCard({
+  block,
+  isRecordingThisBlock,
+  onUpdate,
+  onRemove,
+}: {
+  block: EditorBlock;
+  isRecordingThisBlock: boolean;
+  onUpdate: (id: string, patch: Partial<EditorBlock>) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div className="flex items-start gap-[8px]">
+      <div
+        aria-hidden
+        className="shrink-0 pt-[20px] text-[#848484]/60 cursor-grab select-none"
+      >
+        <DragDotsIcon />
+      </div>
+      <div className="flex-1 min-w-0 bg-white rounded-[14px] shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
+        {block.type === "audio" ? (
+          <AudioBlockBody block={block} recording={isRecordingThisBlock} />
+        ) : block.type === "text" ? (
+          <TextBlockBody block={block} onUpdate={onUpdate} />
+        ) : (
+          <MediaBlockBody block={block} />
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => onRemove(block.id)}
+        aria-label="Remove block"
+        className="shrink-0 mt-[16px] w-[24px] h-[24px] rounded-full text-[#2B2B2B]/40 hover:text-[#D95F3B] hover:bg-[#D95F3B]/10 flex items-center justify-center transition-colors"
+      >
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function DragDotsIcon() {
+  return (
+    <svg width={10} height={16} viewBox="0 0 10 16" fill="currentColor" aria-hidden>
+      <circle cx="2" cy="3" r="1.4" />
+      <circle cx="8" cy="3" r="1.4" />
+      <circle cx="2" cy="8" r="1.4" />
+      <circle cx="8" cy="8" r="1.4" />
+      <circle cx="2" cy="13" r="1.4" />
+      <circle cx="8" cy="13" r="1.4" />
+    </svg>
+  );
+}
+
+function AudioBlockBody({
+  block,
+  recording,
+}: {
+  block: Extract<EditorBlock, { type: "audio" }>;
+  recording: boolean;
+}) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const url = block.preview ?? block.uploadedUrl ?? null;
+
+  const toggle = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (el.paused) {
+      void el.play();
+      setIsPlaying(true);
+    } else {
+      el.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const duration = block.duration ?? 0;
+  const mm = Math.floor(duration / 60);
+  const ss = Math.floor(duration % 60);
+
+  return (
+    <div className="flex items-center gap-[12px] px-[14px] py-[12px]">
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={!url || recording}
+        className="shrink-0 w-[36px] h-[36px] rounded-full bg-primary-orange text-white flex items-center justify-center hover:brightness-95 transition-[filter] disabled:opacity-50"
+        aria-label={isPlaying ? "Pause" : "Play"}
+      >
+        {isPlaying ? (
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <rect x="6" y="5" width="4" height="14" rx="1" />
+            <rect x="14" y="5" width="4" height="14" rx="1" />
+          </svg>
+        ) : (
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        )}
+      </button>
+      <div className="flex-1 min-w-0 h-[24px] flex items-center gap-[2px]">
+        {/* Static mini waveform — rendered from the finalized levels */}
+        {(block.waveform ?? []).slice(-60).map((lvl, i) => (
+          <div
+            key={i}
+            className="w-[2px] rounded-full bg-[#2B2B2B]"
+            style={{ height: Math.max(3, Math.min(22, lvl * 22 + 3)) }}
+          />
+        ))}
+        {(!block.waveform || block.waveform.length === 0) && (
+          <span className="font-montserrat text-[12px] text-[#848484]">
+            {recording ? "Recording…" : "Audio"}
+          </span>
+        )}
+      </div>
+      <div className="shrink-0 font-montserrat text-[12px] text-[#848484] tabular-nums">
+        {`${mm}:${String(ss).padStart(2, "0")}`}
+      </div>
+      {url && (
+        <audio
+          ref={audioRef}
+          src={url}
+          preload="metadata"
+          onEnded={() => setIsPlaying(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function TextBlockBody({
+  block,
+  onUpdate,
+}: {
+  block: Extract<EditorBlock, { type: "text" }>;
+  onUpdate: (id: string, patch: Partial<EditorBlock>) => void;
+}) {
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.max(48, el.scrollHeight)}px`;
+  }, [block.text]);
+  return (
+    <textarea
+      ref={taRef}
+      value={block.text}
+      onChange={(e) => onUpdate(block.id, { text: e.target.value })}
+      placeholder="Add a note…"
+      rows={2}
+      className="w-full px-[16px] py-[14px] bg-transparent font-montserrat text-[14px] text-[#2B2B2B] leading-[1.5] resize-none outline-none placeholder:text-[#848484]"
+    />
+  );
+}
+
+function MediaBlockBody({
+  block,
+}: {
+  block: Extract<EditorBlock, { type: "image" | "video" }>;
+}) {
+  const url = block.preview ?? block.uploadedUrl ?? null;
+  return (
+    <div className="p-[10px]">
+      {url ? (
+        block.type === "video" ? (
+          <video
+            src={url}
+            controls
+            className="w-full max-h-[280px] rounded-[10px] bg-black"
+          />
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={url}
+            alt=""
+            className="w-full max-h-[280px] object-cover rounded-[10px]"
+          />
+        )
+      ) : (
+        <div className="w-full h-[140px] rounded-[10px] bg-[#f2f0ea] flex items-center justify-center font-montserrat text-[13px] text-[#848484]">
+          Uploading…
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Centered italic-serif title input used only on the landing / recording
+// screen. The compose phase retains the rounded-pill `TitleInput` because
+// it sits in a dense block editor where the underline look wouldn't
+// register. Placeholder reads "Title Your Story" per Figma.
+function LandingTitleInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="w-full max-w-[520px] mx-auto">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Title Your Story"
+        className="w-full bg-transparent pt-[8px] pb-[10px] text-center font-ivy font-normal text-[#848484] text-[20px] placeholder:font-ivy placeholder:font-normal placeholder:text-[#848484] border-b border-[#D6D3CA] focus:outline-none focus:border-[#2B2B2B]"
+      />
+    </div>
+  );
+}
+
+// Pill row at the bottom of the composer landing. Four icon pills on a
+// grey pill bar. The morphing ring is rendered as a separate overlay in
+// the parent column so it can slide between the center of the screen
+// (empty) and this row's middle slot (recording). When `active` is true
+// the pills spread outward to make room for the overlay ring to slot in.
+function ComposerPillRow({
+  active,
+  onText,
+  onImage,
+  onVideo,
+  onMusic,
+}: {
+  active: boolean;
+  onText: () => void;
+  onImage: () => void;
+  onVideo: () => void;
+  onMusic: () => void;
+}) {
+  return (
+    <div
+      className="inline-flex items-center bg-[#E8E6DF] rounded-full px-[18px] py-[12px]"
+      style={{ transition: "gap 540ms cubic-bezier(0.22, 1, 0.36, 1)" }}
+    >
+      <PillIcon ariaLabel="Add video" onClick={onVideo}>
+        <VideoGlyph />
+      </PillIcon>
+      <PillIcon ariaLabel="Add image" onClick={onImage}>
+        <ImageGlyph />
+      </PillIcon>
+      {/* Gap for the overlay ring to slot into. Width animates between
+          clustered (empty) and spread (recording) to match the mobile
+          prototype's SPREAD_PILL_CX geometry. */}
+      <div
+        aria-hidden
+        className="shrink-0"
+        style={{
+          width: active ? 96 : 8,
+          transition: "width 540ms cubic-bezier(0.22, 1, 0.36, 1)",
+        }}
+      />
+      <PillIcon ariaLabel="Add text" onClick={onText}>
+        <span className="font-ivy text-[22px] leading-none">T</span>
+      </PillIcon>
+      <PillIcon ariaLabel="Add music" onClick={onMusic}>
+        <MusicGlyph />
+      </PillIcon>
+    </div>
+  );
+}
+
+// The morphing ring. One element with CSS-driven position + scale
+// transitions. Lives as an absolute overlay inside the left column so
+// its empty-phase anchor is the center of the stage area and its
+// recording-phase anchor is the middle slot of the pill row below.
+// Mirrors the mobile prototype's TRANSITION_MS=640 + cubic-in-out
+// easing.
+function AnimatedRing({
+  phase,
+  isRecording,
+  isPaused,
+  amplitudeSource,
+  onTap,
+  activeTop = "calc(100% - 256px)",
+}: {
+  phase: ComposerPhase;
+  isRecording: boolean;
+  isPaused: boolean;
+  amplitudeSource: () => number;
+  onTap: () => void;
+  /** Y position (any CSS value) when the ring is slotted into the pill
+   *  row. Callers set this per-breakpoint since mobile columns are
+   *  shorter + pill rows sit closer to the viewport edge. */
+  activeTop?: string;
+}) {
+  const active = phase === "recording" || phase === "paused";
+  // Positioned relative to the WHOLE left column (not just the stage).
+  // Empty: anchored above the pill row, roughly 32% from the top so
+  // there's visible caption space below.
+  const top = active ? activeTop : "32%";
+  const scale = active ? 0.42 : 0.72;
+  return (
+    <div
+      className="absolute left-1/2 z-[2] pointer-events-none"
+      style={{
+        top,
+        transform: `translate(-50%, -50%) scale(${scale})`,
+        transition:
+          "top 640ms cubic-bezier(0.22, 1, 0.36, 1), transform 640ms cubic-bezier(0.22, 1, 0.36, 1)",
+        willChange: "top, transform",
+      }}
+    >
+      <div className="relative pointer-events-auto">
+        <RecordingCircles
+          isRecording={isRecording}
+          onToggle={onTap}
+          amplitudeSource={amplitudeSource}
+          scale={1}
+        />
+        {/* Pause / resume icon overlaid once the ring is in its active
+            pill-row position. The empty-phase mic glyph is rendered by
+            RecordingCircles itself; no overlay needed there. */}
+        {active && (
+          <button
+            type="button"
+            onClick={onTap}
+            aria-label={isPaused ? "Resume" : "Pause"}
+            className="absolute inset-0 flex items-center justify-center text-white focus:outline-none"
+          >
+            {isPaused ? (
+              <svg width={44} height={44} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            ) : (
+              <svg width={44} height={44} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <rect x="6" y="5" width="4" height="14" rx="1" />
+                <rect x="14" y="5" width="4" height="14" rx="1" />
+              </svg>
+            )}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PillIcon({
+  children,
+  ariaLabel,
+  onClick,
+}: {
+  children: React.ReactNode;
+  ariaLabel: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className="w-[48px] h-[40px] rounded-full text-[#2B2B2B] flex items-center justify-center hover:bg-black/[0.04] transition-colors"
+    >
+      {children}
+    </button>
+  );
+}
+
+function VideoGlyph() {
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="2" y="7" width="15" height="10" rx="2" />
+      <path d="M17 10l5-3v10l-5-3z" />
+    </svg>
+  );
+}
+function ImageGlyph() {
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <circle cx="9" cy="9" r="1.6" />
+      <path d="M21 15l-5-5L5 21" />
+    </svg>
+  );
+}
+function MicGlyph() {
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+      <path d="M19 11a1 1 0 0 0-2 0 5 5 0 0 1-10 0 1 1 0 0 0-2 0 7 7 0 0 0 6 6.92V21a1 1 0 0 0 2 0v-3.08A7 7 0 0 0 19 11z" />
+    </svg>
+  );
+}
+function MusicGlyph() {
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M9 18V5l12-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="18" cy="16" r="3" />
+    </svg>
+  );
+}
+function TrashBinIcon() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+    </svg>
+  );
+}
+function ArrowRightIcon() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M5 12h14M13 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+// Live waveform — renders the recent amplitude history from
+// `recording.levels` as a row of vertical bars. Paused state greys the
+// bars. Pads the series out to a fixed bar count so the width is stable
+// across the recording lifetime.
+function Waveform({
+  levels,
+  paused,
+}: {
+  levels: number[];
+  paused: boolean;
+}) {
+  const BAR_COUNT = 48;
+  // Take the trailing BAR_COUNT samples; pad left with zeros so the bars
+  // appear to fill in from the right as recording progresses.
+  const tail = levels.slice(-BAR_COUNT);
+  const padCount = Math.max(0, BAR_COUNT - tail.length);
+  const bars: number[] = new Array(padCount).fill(0).concat(tail);
+  return (
+    <div
+      className="flex items-end justify-center gap-[3px] h-[72px] w-full max-w-[440px] mx-auto"
+      aria-hidden
+    >
+      {bars.map((level, i) => {
+        const h = Math.max(4, Math.min(72, level * 72 + 4));
+        return (
+          <div
+            key={i}
+            className="w-[3px] rounded-full"
+            style={{
+              height: h,
+              background: paused ? "#B9B6AD" : "#2B2B2B",
+              transition: "height 90ms linear, background 180ms linear",
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 function EmptyStateGrid({
   onVoice,
   onPhoto,
@@ -2381,11 +4410,11 @@ function PromptStrip({ prompt }: { prompt: UserCard }) {
   const text = prompt.content || prompt.title || "";
   if (!text) return null;
   return (
-    <div className="flex items-start gap-[10px] text-primary-blue">
-      <span className="mt-[2px] shrink-0" aria-hidden>
-        <PromptIcon width={22} height={22} />
+    <div className="w-full flex items-start gap-[12px] bg-white rounded-[16px] px-[16px] py-[14px] shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
+      <span className="mt-[4px] shrink-0 text-[#D95F3B]" aria-hidden>
+        <PromptIcon width={18} height={18} />
       </span>
-      <p className="font-montserrat font-semibold text-primary-blue text-[16px] leading-[22px]">
+      <p className="font-ivy italic text-[#2B2B2B] text-[16px] leading-[22px]">
         {text}
       </p>
     </div>

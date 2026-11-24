@@ -6,6 +6,15 @@ type Props = {
   isRecording: boolean;
   onToggle: () => void;
   className?: string;
+  /** Optional live amplitude source (0-1). When provided — and `isRecording`
+   *  is true — the ring tracks the real voice level instead of the random
+   *  simulated walk. Pass the `getLevel` callback from `useAmplitude`. */
+  amplitudeSource?: () => number;
+  /** Overall ring scale. Defaults to 1 so existing callers (InlineRecorder)
+   *  render unchanged. The composer passes 0.8 at idle and 0.46 during
+   *  recording / compose to match the mobile morph geometry. Transitions
+   *  over 640ms with cubic-bezier(0.22, 1, 0.36, 1). */
+  scale?: number;
 };
 
 // Colors from Epoch Lag design system
@@ -13,7 +22,7 @@ const PEACH = '#FCD6A5';
 const ORANGE = '#EF9849';
 const TERRACOTTA = '#D95F3B';
 
-export function RecordingCircles({ isRecording, onToggle, className }: Props) {
+export function RecordingCircles({ isRecording, onToggle, className, amplitudeSource, scale = 1 }: Props) {
   const [scales, setScales] = useState({ s1: 1, s2: 1, s3: 1 });
 
   // Animation state kept in a ref — no re-renders from the rAF loop itself,
@@ -30,6 +39,8 @@ export function RecordingCircles({ isRecording, onToggle, className }: Props) {
   });
   const isRecordingRef = useRef(isRecording);
   isRecordingRef.current = isRecording;
+  const amplitudeSourceRef = useRef<Props['amplitudeSource']>(amplitudeSource);
+  amplitudeSourceRef.current = amplitudeSource;
 
   useEffect(() => {
     const a = anim.current;
@@ -40,9 +51,14 @@ export function RecordingCircles({ isRecording, onToggle, className }: Props) {
       a.lastFrame = now;
 
       if (isRecordingRef.current) {
-        // Simulate speech: pick a new random amplitude every 120–380 ms.
-        // 18 % chance of a near-silence pause for organic feel.
-        if (now - a.lastTargetChange > 120 + Math.random() * 260) {
+        const liveSrc = amplitudeSourceRef.current;
+        if (liveSrc) {
+          // Real mic level — read each frame; the source already smooths
+          // internally so no additional filtering needed here.
+          a.target = liveSrc();
+        } else if (now - a.lastTargetChange > 120 + Math.random() * 260) {
+          // Fallback: simulate speech with a random walk — same values the
+          // reply flow has used since launch.
           a.lastTargetChange = now;
           a.target =
             Math.random() < 0.18
@@ -90,12 +106,17 @@ export function RecordingCircles({ isRecording, onToggle, className }: Props) {
     <div
       className={className}
       style={{
+        // Container holds the morph scale (idle 0.8 → active 0.46 in the
+        // composer; defaults to 1 so existing callers render unchanged).
         position: 'relative',
         width: 200,
         height: 200,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        transform: `scale(${scale})`,
+        transition: 'transform 640ms cubic-bezier(0.22, 1, 0.36, 1)',
+        willChange: 'transform',
       }}
     >
       {/* Outer ring — peach */}

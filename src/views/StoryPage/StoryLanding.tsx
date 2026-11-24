@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { AppDownloadBanner } from '@/components/replies/AppDownloadBanner';
 import StoryViewing from './StoryViewing';
 import StoryPage from './StoryPage';
@@ -26,27 +25,14 @@ type Props = {
 };
 
 const StoryLanding = ({ data, publicCode, platform, replyAs }: Props) => {
-  const router = useRouter();
   const { status: authStatus } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
 
-  // Authenticated users bypass the non-user invite flow entirely. If the story
-  // has a threadId, send them to the dashboard thread viewer — the proper
-  // in-app story experience. Falls back to the read-only public StoryPage if
-  // threadId is missing (defensive — shouldn't happen for normal stories).
-  const threadId = data.threadId;
-  useEffect(() => {
-    if (authStatus === 'authenticated' && threadId) {
-      router.replace(`/thread/${threadId}`);
-    }
-  }, [authStatus, threadId, router]);
-
+  // Public share links stay public for everyone. Authenticated viewers see the
+  // same read-only StoryPage instead of being bounced to /thread/:id, which is
+  // participant-gated and errors for anyone outside the thread.
   if (authStatus === 'authenticated') {
-    if (threadId) {
-      // Redirect pending — avoid flashing the invite UI underneath
-      return <div className="min-h-screen bg-warm-cream" />;
-    }
     return <StoryPage data={data} publicCode={publicCode} platform={platform} />;
   }
 

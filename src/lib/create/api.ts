@@ -31,6 +31,11 @@ export async function createUserCard(input: {
   type: UserCardType;
   file?: File | null;
   imageUrl?: string;
+  /** For voice-prompt submits — publicId returned by the voice upload
+   *  endpoint. BE attaches the hosted audio to the user-card. */
+  voicePublicId?: string;
+  /** Duration in SECONDS (BE expects seconds, not ms). */
+  voiceDuration?: number;
 }): Promise<CreatedUserCard> {
   const fd = new FormData();
   fd.append("content", input.content);
@@ -38,6 +43,11 @@ export async function createUserCard(input: {
   fd.append("type", input.type);
   if (input.file) fd.append("file", input.file);
   if (input.imageUrl) fd.append("imageUrl", input.imageUrl);
+  if (input.voicePublicId) fd.append("voicePublicId", input.voicePublicId);
+  // NOTE: BE's Joi schema on /api/user-card rejects `voiceDuration`
+  // ("not allowed"). Duration is derived server-side from the Cloudinary
+  // asset metadata, so we only need to send the publicId.
+  void input.voiceDuration;
 
   const res = await api.post<Envelope<CreatedUserCard>>("/api/user-card", fd);
   return res.data;

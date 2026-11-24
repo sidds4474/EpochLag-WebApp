@@ -36,9 +36,21 @@ let cachedCovers: GradientCover[] | null = null;
 
 type Props = {
   onBack: () => void;
+  /** Pre-populate the question field (Inspiration entry point). */
+  prefillQuestion?: string | null;
+  /** Chrome variant. "create" = user composing a new question; the
+   *  header reads "Create" and Lag/Prompt toggle shows. "inspiration"
+   *  = user answering a prompt from the Inspiration feed; header
+   *  reads "Inspiration", toggle is hidden, and the question is
+   *  displayed as a large read-only hero above the ring. */
+  variant?: "create" | "inspiration";
 };
 
-export default function AskComposer({ onBack }: Props) {
+export default function AskComposer({
+  onBack,
+  prefillQuestion = null,
+  variant = "create",
+}: Props) {
   const router = useRouter();
   const { user } = useAuth();
   const authorName =
@@ -46,7 +58,8 @@ export default function AskComposer({ onBack }: Props) {
       ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
       : "You";
   const authorAvatar = user?.profilePicture ?? null;
-  const [question, setQuestion] = useState("");
+  const isInspiration = variant === "inspiration";
+  const [question, setQuestion] = useState(prefillQuestion ?? "");
   const [cover, setCover] = useState<CoverState>(EMPTY_COVER);
   const [, setCovers] = useState<GradientCover[]>(cachedCovers ?? []);
   const [allowShare, setAllowShare] = useState(true);
@@ -503,42 +516,51 @@ export default function AskComposer({ onBack }: Props) {
             <ChevronLeftIcon width={16} height={16} />
           </button>
           <h1 className="hidden lg:block font-ivy text-[#2B2B2B] text-[32px] leading-none">
-            Create
+            {isInspiration ? "Inspiration" : "Create"}
           </h1>
-          {/* Lag / Prompt toggle — Prompt is active since we're in this
-              component. Tapping Lag routes back to /new-lag. */}
-          <div className="hidden lg:flex items-center gap-[4px] bg-white rounded-full p-[4px]">
+          {/* Lag / Prompt toggle — only in Create variant. Inspiration
+              users came from a specific prompt and can't flip modes. */}
+          {!isInspiration && (
+            <div className="hidden lg:flex items-center gap-[4px] bg-white rounded-full p-[4px]">
+              <button
+                type="button"
+                onClick={() => router.push("/new-lag")}
+                className="px-[18px] h-[32px] rounded-full font-montserrat text-[13px] font-medium text-[#2B2B2B] hover:bg-black/[0.04] transition-colors"
+              >
+                Lag
+              </button>
+              <button
+                type="button"
+                className="px-[18px] h-[32px] rounded-full font-montserrat text-[13px] font-medium bg-[#2B2B2B] text-white"
+              >
+                Prompt
+              </button>
+            </div>
+          )}
+        </div>
+        {/* Mobile centered toggle — Create variant only. */}
+        {!isInspiration && (
+          <div className="lg:hidden flex items-center gap-[4px] bg-white rounded-full p-[4px] absolute left-1/2 -translate-x-1/2">
             <button
               type="button"
               onClick={() => router.push("/new-lag")}
-              className="px-[18px] h-[32px] rounded-full font-montserrat text-[13px] font-medium text-[#2B2B2B] hover:bg-black/[0.04] transition-colors"
+              className="px-[16px] h-[28px] rounded-full font-montserrat text-[12px] font-medium text-[#2B2B2B]"
             >
               Lag
             </button>
             <button
               type="button"
-              className="px-[18px] h-[32px] rounded-full font-montserrat text-[13px] font-medium bg-[#2B2B2B] text-white"
+              className="px-[16px] h-[28px] rounded-full font-montserrat text-[12px] font-medium bg-[#2B2B2B] text-white"
             >
               Prompt
             </button>
           </div>
-        </div>
-        {/* Mobile centered toggle */}
-        <div className="lg:hidden flex items-center gap-[4px] bg-white rounded-full p-[4px] absolute left-1/2 -translate-x-1/2">
-          <button
-            type="button"
-            onClick={() => router.push("/new-lag")}
-            className="px-[16px] h-[28px] rounded-full font-montserrat text-[12px] font-medium text-[#2B2B2B]"
-          >
-            Lag
-          </button>
-          <button
-            type="button"
-            className="px-[16px] h-[28px] rounded-full font-montserrat text-[12px] font-medium bg-[#2B2B2B] text-white"
-          >
-            Prompt
-          </button>
-        </div>
+        )}
+        {isInspiration && (
+          <h1 className="lg:hidden absolute left-1/2 -translate-x-1/2 font-ivy text-[#2B2B2B] text-[20px] leading-none">
+            Inspiration
+          </h1>
+        )}
 
         <div className="flex items-center gap-[10px] lg:gap-[12px] shrink-0">
           <button
@@ -578,7 +600,11 @@ export default function AskComposer({ onBack }: Props) {
         <div className="flex flex-col min-w-0 min-h-0 relative">
           {/* Question input — centered italic serif underline. */}
           <div className="shrink-0 mt-[8px]">
-            <QuestionInput value={question} onChange={setQuestion} />
+            {isInspiration ? (
+              <QuestionHero text={question} />
+            ) : (
+              <QuestionInput value={question} onChange={setQuestion} />
+            )}
           </div>
           {/* Ring + caption cluster, roughly centered. */}
           <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
@@ -616,7 +642,11 @@ export default function AskComposer({ onBack }: Props) {
       {!mobileAtPreview ? (
         <div className="lg:hidden flex-1 min-h-0 flex flex-col px-[16px] pb-[96px]">
           <div className="shrink-0 mt-[8px]">
-            <QuestionInput value={question} onChange={setQuestion} />
+            {isInspiration ? (
+              <QuestionHero text={question} />
+            ) : (
+              <QuestionInput value={question} onChange={setQuestion} />
+            )}
           </div>
           <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
             <RecordingStage
@@ -778,6 +808,19 @@ export default function AskComposer({ onBack }: Props) {
 }
 
 // -------- Local components --------
+
+// Read-only display of the prompt question — used when the user arrives
+// from Inspiration with the text pre-seeded. Centered Lora, no underline,
+// a size up from the typed QuestionInput so it reads as the hero.
+function QuestionHero({ text }: { text: string }) {
+  return (
+    <div className="w-full max-w-[620px] mx-auto px-[12px] text-center">
+      <h2 className="font-ivy text-[#2B2B2B] text-[24px] lg:text-[28px] leading-[1.25]">
+        {text}
+      </h2>
+    </div>
+  );
+}
 
 function QuestionInput({
   value,

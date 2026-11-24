@@ -65,7 +65,7 @@ export default function NewLagPage() {
         else if (draftId) router.push("/studio?tab=draft");
         else if (promptId) router.push("/inspiration");
         else if (albumId) router.push(`/albums/${albumId}`);
-        else router.push("/new-story");
+        else router.push("/");
       }}
     />
   );

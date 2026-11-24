@@ -52,12 +52,10 @@ function ChipShell({
       <button
         type="button"
         onClick={onClick}
-        className={`cursor-pointer shrink-0 rounded-full bg-white px-[16px] h-[36px] inline-flex items-center gap-[8px] font-montserrat font-medium text-[14px] shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
-          active ? "text-primary-blue" : "text-primary-blue"
-        } hover:brightness-95 transition-[filter]`}
+        className={`cursor-pointer shrink-0 rounded-full bg-[#E6E3D9] px-[16px] h-[36px] inline-flex items-center gap-[8px] font-montserrat font-medium text-[13px] text-[#2B2B2B] hover:brightness-95 transition-[filter]`}
       >
         <span className="whitespace-nowrap">{label}</span>
-        <span className="shrink-0 text-primary-blue">{icon}</span>
+        <span className="shrink-0 text-[#2B2B2B]">{icon}</span>
         {active && onClear && (
           <span
             role="button"
@@ -66,7 +64,7 @@ function ChipShell({
               e.stopPropagation();
               onClear();
             }}
-            className="cursor-pointer -mr-[4px] shrink-0 w-[18px] h-[18px] rounded-full text-primary-blue/60 hover:bg-black/[0.06] flex items-center justify-center transition-colors"
+            className="cursor-pointer -mr-[4px] shrink-0 w-[18px] h-[18px] rounded-full text-[#2B2B2B]/60 hover:bg-black/[0.08] flex items-center justify-center transition-colors"
           >
             <CloseIcon width={10} height={10} />
           </span>
@@ -76,7 +74,7 @@ function ChipShell({
   }
   return (
     <div
-      className={`w-full rounded-full bg-[#ededed] px-[26px] py-[14px] flex items-center gap-[12px] font-montserrat font-medium text-[15px] ${
+      className={`w-full rounded-full bg-[#E6E3D9] px-[26px] py-[14px] flex items-center gap-[12px] font-montserrat font-medium text-[15px] ${
         active ? "text-primary-blue" : "text-[#848484]"
       }`}
     >

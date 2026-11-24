@@ -56,7 +56,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               onOpenDrawer={() => setDrawerOpen(true)}
             />
           </div>
-          <main className={`flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden ${pathname.startsWith("/lags/places") ? "" : pathname.startsWith("/lags") || pathname.startsWith("/settings") ? "bg-[#f3f1eb]" : ""} ${isImmersive ? "" : "pb-[80px] md:pb-0"}`}>
+          <main className={`flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden ${pathname.startsWith("/lags/places") ? "" : pathname.startsWith("/lags") || pathname.startsWith("/settings") || pathname.startsWith("/new-lag") || pathname.startsWith("/new-story") || pathname.startsWith("/new-ask") ? "bg-[#f3f1eb]" : ""} ${isImmersive ? "" : "pb-[80px] md:pb-0"}`}>
             {children}
           </main>
         </div>

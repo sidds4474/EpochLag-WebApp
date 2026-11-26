@@ -484,6 +484,16 @@ function renderSection(section: Section, index: number) {
           </a>
         </div>
       );
+    case "appBadges":
+      return (
+        <div
+          key={index}
+          className="mt-[24px] md:mt-[32px] flex flex-wrap items-center justify-center gap-[10px] md:gap-[12px]"
+        >
+          <AppStoreBadge />
+          <PlayStoreBadge />
+        </div>
+      );
     case "opportunities":
       return (
         <div key={index} className="mt-[24px] md:mt-[32px] grid grid-cols-1 md:grid-cols-3 gap-[16px] md:gap-[24px]">

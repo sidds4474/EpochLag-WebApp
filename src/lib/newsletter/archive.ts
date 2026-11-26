@@ -58,6 +58,7 @@ export type Section =
     }
   | { kind: "pullquote"; text: string }
   | { kind: "ctaButton"; label: string; href: string }
+  | { kind: "appBadges" }
   | {
       kind: "split";
       image: { src: string; alt: string };
@@ -122,6 +123,141 @@ const definition: Section = {
 };
 
 export const ARCHIVE: Issue[] = [
+  {
+    slug: "issue-11",
+    number: 11,
+    date: "November 26, 2026",
+    dateISO: "2026-11-26",
+    title: "There’s always something to be thankful for.",
+    teaser:
+      "This Thanksgiving, ask someone a simple question: what are you most thankful for this year?",
+    cover: "/newsletters/issue-11/hero.webp",
+    sections: [
+      {
+        kind: "image",
+        src: "/newsletters/issue-11/hero.webp",
+        alt: "A man carving a Thanksgiving turkey in a vintage family photo",
+        width: "wide",
+        rounded: false,
+      },
+      {
+        kind: "paragraph",
+        text: "Thanksgiving is a time to slow down, appreciate the people in our lives, and reflect on the moments that matter most.",
+      },
+      {
+        kind: "paragraph",
+        text: "Whether you’re gathered around the table or connecting from miles away, it’s a chance to share stories, revisit memories, and learn something new about the people you love.",
+      },
+      {
+        kind: "paragraph",
+        text: "This Thanksgiving, ask someone a simple question:",
+      },
+      {
+        kind: "prompt",
+        question: "What are you most thankful for this year?",
+        image: {
+          src: "/newsletters/issue-11/gratitude-card.webp",
+          alt: "A Gratitude prompt card: What are you most thankful for this year?",
+        },
+      },
+      {
+        kind: "paragraph",
+        text: "With Epoch Lag, you can ask the people closest to you meaningful questions, hear their answers in their own voices, and preserve those conversations for years to come.",
+      },
+      {
+        kind: "paragraph",
+        text: "Because sometimes, the greatest gift is simply taking the time to listen.",
+      },
+      {
+        kind: "paragraph",
+        align: "center",
+        text: "Happy Thanksgiving, — The Epoch Lag Team",
+      },
+      { kind: "appBadges" },
+      { kind: "heading", text: "Other Opportunities" },
+      opportunities(),
+    ],
+  },
+  {
+    slug: "issue-10",
+    number: 10,
+    date: "November 19, 2026",
+    dateISO: "2026-11-19",
+    title: "This Thanksgiving, make room for more stories.",
+    teaser:
+      "Turn this year’s Thanksgiving conversations into lasting memories with Epoch Lag.",
+    cover: "/newsletters/issue-10/hero.webp",
+    sections: [
+      {
+        kind: "image",
+        src: "/newsletters/issue-10/hero.webp",
+        alt: "A family gathered around the Thanksgiving table in a vintage photo",
+        width: "wide",
+        rounded: false,
+      },
+      {
+        kind: "paragraph",
+        text: "Thanksgiving brings us together. It’s a time to reconnect, share memories, and learn a little more about the people we love.",
+      },
+      {
+        kind: "paragraph",
+        text: "With Epoch Lag, you can turn those everyday conversations into lasting memories, whether you’re gathered around the same table or connecting from miles away.",
+      },
+      { kind: "heading", text: "Here’s how it works" },
+      {
+        kind: "split",
+        imageSide: "right",
+        imageWidth: "sm",
+        image: {
+          src: "/newsletters/issue-10/step1-card.webp",
+          alt: "A Gratitude prompt card: What are you most thankful for this year?",
+        },
+        body: [
+          "01 — Start a conversation.",
+          "Sometimes, all it takes is a good question. Send a thoughtful prompt to a friend or family member and invite them to share their story.",
+        ],
+      },
+      {
+        kind: "split",
+        imageSide: "left",
+        imageWidth: "sm",
+        image: {
+          src: "/newsletters/issue-10/step2-mic.webp",
+          alt: "Epoch Lag voice recording button",
+        },
+        body: [
+          "02 — Capture their voice.",
+          "Let your family respond in their own voice, or record them telling a story when you’re together. Capture the laughter, the emotions, and the little details that make each story unique.",
+        ],
+      },
+      {
+        kind: "split",
+        imageSide: "right",
+        imageWidth: "sm",
+        image: {
+          src: "/newsletters/issue-10/step3-photo.webp",
+          alt: "A family photo dated 26 Nov, 1995",
+        },
+        body: [
+          "03 — Bring the memory to life.",
+          "Save those stories and add photos, videos, music, dates, and places to give them more meaning and context. Keep them for yourself or share them with your loved ones.",
+        ],
+      },
+      {
+        kind: "paragraph",
+        align: "center",
+        text: "Download the app and start a conversation.",
+      },
+      { kind: "appBadges" },
+      {
+        kind: "paragraph",
+        align: "center",
+        text: "Happy Thanksgiving, — The Epoch Lag Team",
+      },
+      { kind: "heading", text: "Other Opportunities" },
+      opportunities(),
+    ],
+  },
   {
     slug: "issue-09",
     number: 9,
